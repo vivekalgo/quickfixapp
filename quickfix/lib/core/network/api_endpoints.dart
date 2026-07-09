@@ -1,0 +1,36 @@
+import 'dart:io';
+
+class ApiEndpoints {
+  static const String _configuredBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  static final String baseUrl = _configuredBaseUrl.isNotEmpty
+      ? _configuredBaseUrl
+  : (Platform.isAndroid ? 'http://10.0.2.2:3000/api' : 'http://localhost:3000/api');
+
+  // Authentication
+  static const String sendOtp = '/auth/send-otp';
+  static const String verifyOtp = '/auth/verify-otp';
+  static const String profile = '/auth/profile';
+
+  // Home & Hyperlocal services
+  static const String categories = '/categories';
+  static const String shops = '/shops';
+  static const String professionals = '/professionals';
+  static const String reviews = '/reviews';
+
+  // Bookings
+  static const String packages = '/packages';
+  static const String slots = '/bookings/slots';
+  static const String validateCoupon = '/coupons/validate';
+  static const String createBooking = '/bookings/create';
+  static const String bookingHistory = '/bookings/history';
+  static const String trackBooking = '/bookings/track';
+
+  // Wallet
+  static const String walletBalance = '/wallet/balance';
+  static const String walletTransactions = '/wallet/transactions';
+  static const String addMoney = '/wallet/add-money';
+
+  // Support
+  static const String supportTickets = '/support/tickets';
+  static const String ticketMessages = '/support/messages';
+}

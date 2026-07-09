@@ -1,0 +1,66 @@
+import '../../domain/repositories/auth_repository.dart';
+import '../sources/auth_remote_data_source.dart';
+import '../../../../core/database/hive_service.dart';
+
+class AuthRepositoryImpl implements AuthRepository {
+  final AuthRemoteDataSource _remoteDataSource;
+
+  AuthRepositoryImpl(this._remoteDataSource);
+
+  @override
+  Future<void> requestOtp(String phone) async {
+    await _remoteDataSource.sendOtp(phone);
+  }
+
+  @override
+  Future<String> verifyCode(String phone, String code, {String? firebaseToken}) async {
+    final data = await _remoteDataSource.verifyOtp(phone, code, firebaseToken: firebaseToken);
+    final token = data['token']?.toString();
+    if (token == null) {
+      throw Exception("Verification failed: Token was not returned by server");
+    }
+    // Cache authorization token locally in Hive
+    await HiveService.saveAuthToken(token);
+    return token;
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchUserProfile() async {
+    return await _remoteDataSource.getProfile();
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateUserProfile(Map<String, dynamic> updateData) async {
+    final response = await _remoteDataSource.updateProfile(updateData);
+    final profile = response['profile'] as Map<String, dynamic>?;
+    if (profile == null) {
+      throw Exception("Profile update failed: Invalid response format");
+    }
+    return profile;
+  }
+
+  @override
+  Future<Map<String, dynamic>> addMoneyToWallet(double amount) async {
+    return await _remoteDataSource.addMoney(amount);
+  }
+
+  @override
+  Future<String> uploadAvatar(String base64Image, String mimeType) async {
+    return await _remoteDataSource.uploadAvatar(base64Image, mimeType);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getReferralInfo() async {
+    return await _remoteDataSource.getReferralInfo();
+  }
+
+  @override
+  Future<void> applyReferralCode(String code) async {
+    await _remoteDataSource.applyReferralCode(code);
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    await _remoteDataSource.deleteAccount();
+  }
+}

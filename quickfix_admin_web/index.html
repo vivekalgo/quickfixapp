@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickFix - Central Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Sidebar Menu -->
+    <aside class="sidebar">
+      <div class="logo">
+        <i class="fa-solid fa-screwdriver-wrench"></i>
+        <span>QuickFix Admin</span>
+      </div>
+      <nav class="nav-menu">
+        <a href="#" class="nav-item active" data-tab="dashboard-tab"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+        <a href="#" class="nav-item" data-tab="shops-tab"><i class="fa-solid fa-store"></i> Manage Shops</a>
+        <a href="#" class="nav-item" data-tab="bookings-tab"><i class="fa-solid fa-receipt"></i> Manage Bookings</a>
+        <a href="#" class="nav-item" data-tab="offers-tab"><i class="fa-solid fa-tags"></i> Banners & Offers</a>
+        <a href="#" class="nav-item" data-tab="broadcast-tab"><i class="fa-solid fa-paper-plane"></i> Broadcast Alerts</a>
+        <a href="#" class="nav-item" data-tab="demand-tab"><i class="fa-solid fa-location-crosshairs"></i> Customer Demand</a>
+      </nav>
+      <div class="version">v1.0.0 (Enterprise)</div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top header bar -->
+      <header class="topbar">
+        <div class="page-title">
+          <h1 id="tab-title">System Overview</h1>
+        </div>
+        <div class="admin-profile">
+          <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" alt="Admin Avatar">
+          <span>Super Admin</span>
+        </div>
+      </header>
+
+      <!-- TAB: Dashboard -->
+      <div class="tab-pane active" id="dashboard-tab">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-store"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-shops">0</h3>
+              <p>Registered Shops</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-receipt"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-bookings">0</h3>
+              <p>Total Bookings</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-tag"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-offers">0</h3>
+              <p>Active Offers</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-bell"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-alerts">0</h3>
+              <p>Broadcasts Sent</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent bookings table -->
+        <div class="card table-card">
+          <h2><i class="fa-solid fa-clock-rotate-left"></i> Live Booking Stream</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Booking ID</th>
+                  <th>Customer Name</th>
+                  <th>Shop Provider</th>
+                  <th>Amount</th>
+                  <th>Scheduled Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="bookings-tbody">
+                <!-- Dynamic bookings go here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Manage Bookings -->
+      <div class="tab-pane" id="bookings-tab">
+        <div class="card table-card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-receipt"></i> Booking Administration Portal</h2>
+            <div class="filter-group" style="display: flex; gap: 12px; align-items: center;">
+              <select id="booking-filter-status" class="form-group" style="width: 180px; padding: 8px 12px; margin-bottom: 0; background-color: var(--background); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); outline: none;">
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
+                <option value="on_the_way">On The Way</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Booking ID</th>
+                  <th>Customer Info</th>
+                  <th>Shop Provider</th>
+                  <th>Amount</th>
+                  <th>Scheduled Date</th>
+                  <th>Current Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="manage-bookings-tbody">
+                <!-- Dynamic manage bookings go here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Manage Shops -->
+      <div class="tab-pane" id="shops-tab">
+        <div class="split-layout">
+          <!-- Register new shop form -->
+          <div class="card form-card">
+            <h2><i class="fa-solid fa-circle-plus"></i> Register Hyperlocal Shop</h2>
+            <form id="shop-form">
+              <div class="form-group">
+                <label for="shop-name">Shop Name</label>
+                <input type="text" id="shop-name" required placeholder="e.g. Swaroop Nagar Plumbers">
+              </div>
+              <div class="form-group">
+                <label for="owner-name">Owner Name</label>
+                <input type="text" id="owner-name" required placeholder="e.g. Amit Kumar">
+              </div>
+              <div class="form-group">
+                <label for="shop-phone">Phone Number</label>
+                <input type="tel" id="shop-phone" required placeholder="e.g. 9876543210">
+              </div>
+              <div class="form-group">
+                <label for="shop-password">Login Password</label>
+                <input type="password" id="shop-password" required placeholder="Create portal password">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-lat">Latitude</label>
+                  <input type="number" step="any" id="shop-lat" required value="26.4912">
+                </div>
+                <div class="form-group">
+                  <label for="shop-lng">Longitude</label>
+                  <input type="number" step="any" id="shop-lng" required value="80.3156">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="shop-address">Full Address</label>
+                <input type="text" id="shop-address" placeholder="e.g. 113, Swaroop Nagar, Kanpur, UP - 208002">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-radius">Service Radius (km)</label>
+                  <input type="number" step="0.5" id="shop-radius" value="5.0" min="1" max="50">
+                </div>
+                <div class="form-group">
+                  <label for="shop-visiting-charges">Visiting Charges (₹)</label>
+                  <input type="number" id="shop-visiting-charges" value="150" min="0">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-timings">Business Hours</label>
+                  <input type="text" id="shop-timings" value="09:00 AM - 09:00 PM" placeholder="09:00 AM - 09:00 PM">
+                </div>
+                <div class="form-group">
+                  <label for="shop-verification">Verification Status</label>
+                  <select id="shop-verification">
+                    <option value="approved">✅ Approved</option>
+                    <option value="pending">⏳ Pending</option>
+                    <option value="rejected">❌ Rejected</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Service Categories</label>
+                <div class="checkbox-group">
+                  <label><input type="checkbox" name="categories" value="Cleaning" checked> Cleaning</label>
+                  <label><input type="checkbox" name="categories" value="Plumbing"> Plumbing</label>
+                  <label><input type="checkbox" name="categories" value="Electrician"> Electrician</label>
+                  <label><input type="checkbox" name="categories" value="Appliances"> Appliances</label>
+                  <label><input type="checkbox" name="categories" value="Carpentry"> Carpentry</label>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-store"></i> Register Shop</button>
+            </form>
+          </div>
+
+          <!-- Shops list -->
+          <div class="card list-card">
+            <h2><i class="fa-solid fa-list"></i> Registered Active Shops</h2>
+            <div class="shops-list-container" id="shops-list">
+              <!-- Dynamic shops list goes here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Banners & Offers -->
+      <div class="tab-pane" id="offers-tab">
+        <!-- Banners manager -->
+        <div class="card section-card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-image"></i> Dynamic Carousel Banners</h2>
+            <button class="btn btn-secondary btn-sm" id="btn-add-banner-modal"><i class="fa-solid fa-plus"></i> Add Banner</button>
+          </div>
+          <div class="banners-grid" id="banners-grid">
+            <!-- Dynamic banners go here -->
+          </div>
+        </div>
+
+        <!-- Offers manager -->
+        <div class="card section-card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-tag"></i> Active Promo Coupons</h2>
+            <button class="btn btn-secondary btn-sm" id="btn-add-offer-modal"><i class="fa-solid fa-plus"></i> Create Offer</button>
+          </div>
+          <div class="offers-grid" id="offers-grid">
+            <!-- Dynamic offers go here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Broadcast Alerts -->
+      <div class="tab-pane" id="broadcast-tab">
+        <div class="split-layout">
+          <div class="card form-card">
+            <h2><i class="fa-solid fa-bullhorn"></i> Dispatch Personalized Alert</h2>
+            <form id="broadcast-form">
+              <div class="form-group">
+                <label for="alert-title">Notification Title</label>
+                <input type="text" id="alert-title" required placeholder="e.g. Festive Offer Active! 🎉">
+              </div>
+              <div class="form-group">
+                <label for="alert-body">Message Content</label>
+                <textarea id="alert-body" rows="4" required placeholder="Enter push notification details..."></textarea>
+              </div>
+              <div class="form-group">
+                <label for="alert-icon">Alert Icon Category</label>
+                <select id="alert-icon">
+                  <option value="local_offer_outlined">Offer / Gift Promo 🎁</option>
+                  <option value="check_circle_outlined">Success Badge 🔧</option>
+                  <option value="account_balance_wallet_outlined">Wallet Reward 💳</option>
+                  <option value="stars_outlined">Plus Membership 👑</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Send Notification</button>
+            </form>
+          </div>
+
+          <!-- Broadcast history logs -->
+          <div class="card list-card">
+            <h2><i class="fa-solid fa-clock"></i> Broadcast Dispatch History</h2>
+            <div class="alerts-history-container" id="alerts-history">
+              <!-- Dynamic alert history go here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Modal: Add Banner -->
+  <div class="modal" id="banner-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Create Carousel Banner</h3>
+        <i class="fa-solid fa-xmark close-modal" data-modal="banner-modal"></i>
+      </div>
+      <form id="banner-form">
+        <div class="form-group">
+          <label for="banner-title">Promo Title</label>
+          <input type="text" id="banner-title" required placeholder="e.g. Save 20% on Electricals">
+        </div>
+        <div class="form-group">
+          <label for="banner-code">Coupon Code</label>
+          <input type="text" id="banner-code" required placeholder="e.g. ELEC20">
+        </div>
+        <div class="form-group">
+          <label for="banner-percent">Display Ribbon Tag</label>
+          <input type="text" id="banner-percent" required placeholder="e.g. 20% OFF">
+        </div>
+        <div class="form-group">
+          <label for="banner-image">Image URL</label>
+          <input type="url" id="banner-image" placeholder="https://images.unsplash.com/... (optional)">
+        </div>
+        <button type="submit" class="btn btn-primary">Create Banner</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Offer -->
+  <div class="modal" id="offer-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Create Promo Coupon</h3>
+        <i class="fa-solid fa-xmark close-modal" data-modal="offer-modal"></i>
+      </div>
+      <form id="offer-form">
+        <div class="form-group">
+          <label for="offer-code">Coupon Code</label>
+          <input type="text" id="offer-code" required placeholder="e.g. MONSOON50">
+        </div>
+        <div class="form-group">
+          <label for="offer-title">Offer Title</label>
+          <input type="text" id="offer-title" required placeholder="e.g. Monsoon Cleaning Special">
+        </div>
+        <div class="form-group">
+          <label for="offer-desc">Coupon Description</label>
+          <input type="text" id="offer-desc" required placeholder="e.g. Get flat 50% discount on deep cleaning">
+        </div>
+        <button type="submit" class="btn btn-primary">Create Offer</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Manage Services -->
+  <div class="modal" id="services-modal">
+    <div class="modal-content" style="width: 850px; max-width: 90%; max-height: 85vh; display: flex; flex-direction: column; padding: 0;">
+      <div class="modal-header" style="padding: 24px 28px 16px; border-bottom: 1px solid var(--border); margin-bottom: 0;">
+        <h3 id="services-modal-title">Manage Services</h3>
+        <i class="fa-solid fa-xmark close-modal" data-modal="services-modal" id="btn-close-services-modal"></i>
+      </div>
+      <div class="modal-body-split" style="display: grid; grid-template-columns: 1.2fr 1fr; overflow: hidden; height: 50vh;">
+        
+        <!-- Left column: Services List & Reorder -->
+        <div class="services-list-panel" style="padding: 24px 28px; overflow-y: auto; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px;">
+          <h4 style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Current Services</h4>
+          <div id="modal-services-list" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Render list of services dynamically -->
+          </div>
+        </div>
+
+        <!-- Right column: Add/Edit Service Form -->
+        <div class="service-form-panel" style="padding: 24px 28px; overflow-y: auto; background-color: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 18px;">
+          <h4 id="service-form-title" style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Add New Service</h4>
+          <form id="service-edit-form">
+            <input type="hidden" id="edit-service-id">
+            <div class="form-group">
+              <label for="srv-title">Service Title</label>
+              <input type="text" id="srv-title" required placeholder="e.g. Toilet Seat Replacement">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="srv-price">Selling Price (₹)</label>
+                <input type="number" id="srv-price" required placeholder="e.g. 299">
+              </div>
+              <div class="form-group">
+                <label for="srv-original-price">Original Price (₹)</label>
+                <input type="number" id="srv-original-price" required placeholder="e.g. 499">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="srv-duration">Duration Text</label>
+                <input type="text" id="srv-duration" required placeholder="e.g. 45 mins" value="1 hr">
+              </div>
+              <div class="form-group">
+                <label for="srv-image">Image URL</label>
+                <input type="url" id="srv-image" placeholder="https://images.unsplash.com/...">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="srv-bullets">Key Features (one per line)</label>
+              <textarea id="srv-bullets" rows="3" placeholder="Dusting & sanitization&#10;Fixing minor leaks&#10;Post-service clean up" style="width: 100%; padding: 12px 16px; background-color: var(--background); border: 1px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 14px; outline: none; transition: border-color 0.2s; resize: vertical;"></textarea>
+            </div>
+            <div style="display: flex; gap: 12px; margin-top: 8px;">
+              <button type="submit" id="btn-save-service" class="btn btn-primary" style="flex: 1; padding: 10px 18px;"><i class="fa-solid fa-check"></i> Save Service</button>
+              <button type="button" id="btn-cancel-edit-service" class="btn btn-secondary" style="display: none; padding: 10px 18px;"><i class="fa-solid fa-rotate-left"></i> Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 16px 28px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; background-color: var(--background);">
+        <button class="btn btn-secondary close-modal" data-modal="services-modal">Discard Changes</button>
+        <button class="btn btn-primary" id="btn-submit-all-services" style="background-color: var(--success);"><i class="fa-solid fa-floppy-disk"></i> Save Shop Services</button>
+      </div>
+    </div>
+  </div>
+
+      <!-- TAB: Customer Demand -->
+      <div class="tab-pane" id="demand-tab">
+        <div class="card section-card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-location-crosshairs"></i> Customer Location Demand</h2>
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-demand" onclick="loadDemands()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">These are customers who requested QuickFix services in areas where we are not yet live. Use this data to prioritize city expansion.</p>
+          <div style="overflow-x: auto;">
+            <table class="data-table" id="demand-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Phone</th>
+                  <th>Address</th>
+                  <th>Coordinates</th>
+                  <th>Submitted At</th>
+                </tr>
+              </thead>
+              <tbody id="demand-tbody">
+                <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading demand data...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Ignore backend configurations and node modules
+quickfix_backend/node_modules/
+quickfix_backend/.env
+quickfix_backend/firebase-adminsdk.json
+quickfix_backend/database.json
+quickfix_backend/*.log
+
+# Standard IDE ignores
+.idea/
+.vscode/
+*.suo
+*.ntvsca
+*.ntvssproj
+*.user
+*.db

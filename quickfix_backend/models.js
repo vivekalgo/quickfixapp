@@ -1,0 +1,484 @@
+const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
+
+const dbPath = path.join(__dirname, 'database.json');
+let useLocalDb = false;
+
+function setUseLocalDb(val) {
+  useLocalDb = val;
+}
+
+// Helper to read JSON database safely
+function readDb() {
+  try {
+    if (!fs.existsSync(dbPath)) {
+      fs.writeFileSync(dbPath, JSON.stringify({}));
+    }
+    const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands'];
+    let changed = false;
+    for (const col of collections) {
+      if (!data[col]) {
+        data[col] = [];
+        changed = true;
+      }
+    }
+    if (changed) {
+      fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+    }
+    return data;
+  } catch (err) {
+    console.error('Error reading JSON DB:', err);
+    return {};
+  }
+}
+
+// Helper to write JSON database safely
+function writeDb(data) {
+  try {
+    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error('Error writing JSON DB:', err);
+  }
+}
+
+// Matches query against local object fields
+function matchesQuery(doc, query) {
+  if (!query || Object.keys(query).length === 0) return true;
+  for (const [key, val] of Object.entries(query)) {
+    if (doc[key] !== val) return false;
+  }
+  return true;
+}
+
+// Wraps plain JS object with mongoose-like save() and toObject() methods
+function wrapDoc(doc, collectionName) {
+  if (!doc) return null;
+  const wrapped = { ...doc };
+  if (!wrapped._id && wrapped.id) {
+    wrapped._id = wrapped.id;
+  } else if (!wrapped._id) {
+    wrapped._id = 'id_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  Object.defineProperty(wrapped, 'toObject', {
+    value: function() {
+      return this;
+    },
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(wrapped, 'save', {
+    value: async function() {
+      const db = readDb();
+      const list = db[collectionName] || [];
+      const idx = list.findIndex(d => (d.id && d.id === this.id) || (d._id && d._id === this._id));
+
+      const cleanDoc = {};
+      for (const [k, v] of Object.entries(this)) {
+        if (typeof v !== 'function') {
+          cleanDoc[k] = v;
+        }
+      }
+
+      if (idx !== -1) {
+        cleanDoc.updatedAt = new Date().toISOString();
+        list[idx] = cleanDoc;
+      } else {
+        cleanDoc.createdAt = new Date().toISOString();
+        cleanDoc.updatedAt = new Date().toISOString();
+        list.push(cleanDoc);
+      }
+      db[collectionName] = list;
+      writeDb(db);
+      return this;
+    },
+    writable: true,
+    configurable: true
+  });
+
+  return wrapped;
+}
+
+// Custom array with mongoose-like sort() capability
+function makeResultArray(arr, collectionName) {
+  const result = arr.map(doc => wrapDoc(doc, collectionName));
+  result.sort = function(sortObj) {
+    const key = Object.keys(sortObj)[0];
+    const dir = sortObj[key];
+    return result.sort((a, b) => {
+      let valA = a[key];
+      let valB = b[key];
+      if (valA instanceof Date) valA = valA.getTime();
+      if (valB instanceof Date) valB = valB.getTime();
+      if (typeof valA === 'string' && !isNaN(Date.parse(valA))) valA = new Date(valA).getTime();
+      if (typeof valB === 'string' && !isNaN(Date.parse(valB))) valB = new Date(valB).getTime();
+
+      if (valA < valB) return dir === -1 ? 1 : -1;
+      if (valA > valB) return dir === -1 ? -1 : 1;
+      return 0;
+    });
+  };
+  return result;
+}
+
+// Local mock models defaults — NO hardcoded names or fake data
+const modelDefaults = {
+  User: {
+    name: '',
+    email: '',
+    membership: 'basic',
+    walletBalance: 0.0,
+    walletTransactions: [],
+    savedAddresses: [],
+    avatarUrl: '',
+    gender: '',
+    dob: '',
+    alternatePhone: '',
+    emergencyContact: '',
+    preferredLanguage: 'English',
+    isPhoneVerified: true,
+    accountStatus: 'active',
+    referralCode: '',
+    referralCount: 0,
+    referralRewardsEarned: 0
+  }
+};
+
+// Generates a mock model class
+function createMockModel(modelName, collectionName) {
+  class MockModel {
+    constructor(data) {
+      const defaults = modelDefaults[modelName] || {};
+      Object.assign(this, defaults, data);
+      if (!this.id && !this._id) {
+        this._id = 'id_' + Math.random().toString(36).substr(2, 9);
+      }
+      return wrapDoc(this, collectionName);
+    }
+
+    static async find(query) {
+      const db = readDb();
+      const list = db[collectionName] || [];
+      const filtered = list.filter(doc => matchesQuery(doc, query));
+      return makeResultArray(filtered, collectionName);
+    }
+
+    static async findOne(query) {
+      const db = readDb();
+      const list = db[collectionName] || [];
+      const found = list.find(doc => matchesQuery(doc, query));
+      return found ? wrapDoc(found, collectionName) : null;
+    }
+
+    static async findById(id) {
+      const db = readDb();
+      const list = db[collectionName] || [];
+      const found = list.find(doc => doc._id === id || doc.id === id);
+      return found ? wrapDoc(found, collectionName) : null;
+    }
+
+    static async countDocuments(query) {
+      const db = readDb();
+      const list = db[collectionName] || [];
+      return list.filter(doc => matchesQuery(doc, query)).length;
+    }
+
+    static async create(data) {
+      const doc = new MockModel(data);
+      await doc.save();
+      return doc;
+    }
+
+    static async insertMany(arr) {
+      const db = readDb();
+      const list = db[collectionName] || [];
+      const inserted = [];
+      for (const item of arr) {
+        const doc = {
+          ...item,
+          _id: item._id || item.id || 'id_' + Math.random().toString(36).substr(2, 9),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        list.push(doc);
+        inserted.push(wrapDoc(doc, collectionName));
+      }
+      db[collectionName] = list;
+      writeDb(db);
+      return inserted;
+    }
+
+    static async findOneAndUpdate(query, updateData, options) {
+      const db = readDb();
+      const list = db[collectionName] || [];
+      const idx = list.findIndex(doc => matchesQuery(doc, query));
+      if (idx === -1) return null;
+
+      const updated = {
+        ...list[idx],
+        ...updateData,
+        updatedAt: new Date().toISOString()
+      };
+      list[idx] = updated;
+      db[collectionName] = list;
+      writeDb(db);
+      return wrapDoc(updated, collectionName);
+    }
+
+    static async findByIdAndUpdate(id, updateData, options) {
+      return this.findOneAndUpdate({ _id: id }, updateData, options);
+    }
+
+    static async findOneAndDelete(query) {
+      const db = readDb();
+      const list = db[collectionName] || [];
+      const idx = list.findIndex(doc => matchesQuery(doc, query));
+      if (idx === -1) return null;
+      const deleted = list.splice(idx, 1)[0];
+      db[collectionName] = list;
+      writeDb(db);
+      return wrapDoc(deleted, collectionName);
+    }
+
+    static async findByIdAndDelete(id) {
+      return this.findOneAndDelete({ _id: id });
+    }
+  }
+
+  return MockModel;
+}
+
+// 1. User Schema (Customer profiles)
+const UserSchema = new mongoose.Schema({
+  phone: { type: String, required: true, unique: true },
+  name: { type: String, default: '' },
+  email: { type: String, default: '' },
+  membership: { type: String, default: 'basic' },
+  walletBalance: { type: Number, default: 0.0 },
+  walletTransactions: [{
+    id: String,
+    title: String,
+    amount: Number,
+    type: { type: String, enum: ['credit', 'debit'] },
+    date: { type: Date, default: Date.now }
+  }],
+  savedAddresses: {
+    type: [{
+      id: String,
+      label: String,
+      address: String,
+      latitude: Number,
+      longitude: Number,
+      isDefault: Boolean
+    }],
+    default: []
+  },
+  avatarUrl: { type: String, default: '' },
+  gender: { type: String, default: '' },
+  dob: { type: String, default: '' },
+  alternatePhone: { type: String, default: '' },
+  emergencyContact: { type: String, default: '' },
+  preferredLanguage: { type: String, default: 'English' },
+  isPhoneVerified: { type: Boolean, default: true },
+  accountStatus: { type: String, enum: ['active', 'inactive', 'deleted'], default: 'active' },
+  referralCode: { type: String, default: '' },
+  referralCount: { type: Number, default: 0 },
+  referralRewardsEarned: { type: Number, default: 0 },
+  memberSince: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+// 2. Service Item Schema (sub-document for Shop services)
+const ServiceSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  title: { type: String, required: true },
+  price: { type: Number, required: true },
+  originalPrice: { type: Number },
+  rating: { type: Number, default: 5.0 },
+  reviewsCount: { type: Number, default: 0 },
+  durationText: { type: String, default: '1 hr' },
+  bulletPoints: [String],
+  imageUrl: String
+});
+
+// 3. Shop Schema (Service Provider shop profile)
+const ShopSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  ownerName: { type: String, required: true },
+  password: { type: String, required: true }, // will be hashed using bcrypt
+  phone: { type: String, required: true, unique: true },
+  latitude: { type: Number, default: 26.4912 },
+  longitude: { type: Number, default: 80.3156 },
+  address: { type: String, default: '' },
+  serviceRadius: { type: Number, default: 5.0 },
+  logoPath: { type: String, default: '' },
+  categories: { type: [String], default: ["Cleaning"] },
+  imagePath: { type: String, default: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300' },
+  rating: { type: Number, default: 5.0 },
+  deliveryTimeMins: { type: Number, default: 20 },
+  priceRange: { type: String, default: "₹₹" },
+  isOnline: { type: Boolean, default: true },
+  timings: { type: String, default: "09:00 AM - 09:00 PM" },
+  portfolioImages: [String],
+  services: [ServiceSchema],
+  status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+  isOpen: { type: Boolean, default: true },
+  verificationStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
+  visitingCharges: { type: Number, default: 150.0 },
+  technicians: { type: [String], default: [] }
+}, { timestamps: true });
+
+// 4. Booking Schema (Service Orders)
+const BookingSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true }, // QF-XXXXXX format
+  customerId: { type: String, required: true },
+  customerName: { type: String, required: true },
+  customerPhone: { type: String, required: true },
+  customerAddress: { type: String, required: true },
+  shopId: { type: String, required: true },
+  title: { type: String, required: true }, // Description of items ordered
+  slot: { type: String, required: true },
+  date: { type: Date, required: true },
+  amount: { type: Number, required: true },
+  status: { 
+    type: String, 
+    enum: ['pending', 'accepted', 'rejected', 'on_the_way', 'completed', 'cancelled'], 
+    default: 'pending' 
+  },
+  providerName: { type: String, default: 'Assigning Expert...' }
+}, { timestamps: true });
+
+// 5. Category Schema
+const CategorySchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  isActive: { type: Boolean, default: true }
+});
+
+// 6. Review Schema (Customer Feedbacks feed)
+const ReviewSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userName: { type: String, required: true },
+  userAvatar: { type: String },
+  rating: { type: Number, required: true },
+  comment: { type: String, required: true },
+  serviceName: { type: String },
+  locationName: { type: String }
+});
+
+// 7. Professional Schema (Top service experts cards)
+const ProfessionalSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  specialty: { type: String, required: true },
+  rating: { type: Number, default: 5.0 },
+  reviewsCount: { type: Number, default: 0 },
+  imageUrl: { type: String }
+});
+
+// 8. Promo Banner Schema
+const BannerSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  code: { type: String, required: true },
+  percent: { type: String, required: true },
+  imageUrl: { type: String },
+  isActive: { type: Boolean, default: true }
+});
+
+// 9. Promo Offer Coupon Schema
+const OfferSchema = new mongoose.Schema({
+  code: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  isActive: { type: Boolean, default: true }
+});
+
+// 10. Broadcast Alert Notification Schema
+const NotificationSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  body: { type: String, required: true },
+  time: { type: String, default: 'Just now' },
+  icon: { type: String, default: 'notifications_active' },
+  iconColor: { type: String, default: 'primary' }
+}, { timestamps: true });
+
+// 11. Customer Demand Schema
+const DemandSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  phone: { type: String, required: true },
+  address: { type: String, required: true },
+  latitude: { type: Number, required: true },
+  longitude: { type: Number, required: true }
+}, { timestamps: true });
+
+const MongooseModels = {
+  User: mongoose.model('User', UserSchema),
+  Shop: mongoose.model('Shop', ShopSchema),
+  Booking: mongoose.model('Booking', BookingSchema),
+  Category: mongoose.model('Category', CategorySchema),
+  Review: mongoose.model('Review', ReviewSchema),
+  Professional: mongoose.model('Professional', ProfessionalSchema),
+  Banner: mongoose.model('Banner', BannerSchema),
+  Offer: mongoose.model('Offer', OfferSchema),
+  Notification: mongoose.model('Notification', NotificationSchema),
+  Demand: mongoose.model('Demand', DemandSchema)
+};
+
+const LocalModels = {
+  User: createMockModel('User', 'users'),
+  Shop: createMockModel('Shop', 'shops'),
+  Booking: createMockModel('Booking', 'bookings'),
+  Category: createMockModel('Category', 'categories'),
+  Review: createMockModel('Review', 'reviews'),
+  Professional: createMockModel('Professional', 'professionals'),
+  Banner: createMockModel('Banner', 'banners'),
+  Offer: createMockModel('Offer', 'offers'),
+  Notification: createMockModel('Notification', 'notifications'),
+  Demand: createMockModel('Demand', 'demands')
+};
+
+function makeModelProxy(modelName) {
+  const ProxyClass = function(data) {
+    if (useLocalDb) {
+      return new LocalModels[modelName](data);
+    } else {
+      return new MongooseModels[modelName](data);
+    }
+  };
+
+  const staticMethods = [
+    'find', 'findOne', 'findById', 'countDocuments', 'create', 'insertMany',
+    'findOneAndUpdate', 'findByIdAndUpdate', 'findOneAndDelete', 'findByIdAndDelete'
+  ];
+
+  for (const method of staticMethods) {
+    ProxyClass[method] = function(...args) {
+      if (useLocalDb) {
+        return LocalModels[modelName][method](...args);
+      } else {
+        return MongooseModels[modelName][method](...args);
+      }
+    };
+  }
+
+  return ProxyClass;
+}
+
+module.exports = {
+  setUseLocalDb,
+  User: makeModelProxy('User'),
+  Shop: makeModelProxy('Shop'),
+  Booking: makeModelProxy('Booking'),
+  Category: makeModelProxy('Category'),
+  Review: makeModelProxy('Review'),
+  Professional: makeModelProxy('Professional'),
+  Banner: makeModelProxy('Banner'),
+  Offer: makeModelProxy('Offer'),
+  Notification: makeModelProxy('Notification'),
+  Demand: makeModelProxy('Demand')
+};

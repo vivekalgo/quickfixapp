@@ -1,0 +1,153 @@
+import 'package:flutter/material.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/api_endpoints.dart';
+import '../models/home_models.dart';
+
+class HomeRemoteDataSource {
+  final DioClient _client;
+
+  HomeRemoteDataSource(this._client);
+
+  Future<List<ServiceCategory>> getCategories() async {
+    final response = await _client.get(ApiEndpoints.categories);
+    final data = response.data as List;
+    
+    // Parse categories from REST response
+    return data.map((json) {
+      final id = json['id']?.toString() ?? '';
+      // Map domain icons and colors dynamically based on category IDs
+      return ServiceCategory(
+        id: id,
+        name: json['name']?.toString() ?? '',
+        icon: _parseIcon(id),
+        backgroundColor: _parseColor(id, isBg: true),
+        iconColor: _parseColor(id, isBg: false),
+      );
+    }).toList();
+  }
+
+  Future<List<Shop>> getNearbyShops({String? filter, double? lat, double? lng}) async {
+    final Map<String, dynamic> query = {};
+    if (filter != null && filter != 'All') {
+      query['filter'] = filter;
+    }
+    if (lat != null && lng != null) {
+      query['lat'] = lat;
+      query['lng'] = lng;
+    }
+    
+    final response = await _client.get(ApiEndpoints.shops, queryParameters: query);
+    final data = response.data as List;
+
+    return data.map((json) {
+      return Shop(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+        categories: (json['categories'] as List?)?.map((e) => e.toString()).toList() ?? [],
+        rating: double.tryParse(json['rating']?.toString() ?? '') ?? 4.0,
+        distanceKm: double.tryParse(json['distanceKm']?.toString() ?? '') ?? 1.0,
+        deliveryTimeMins: int.tryParse(json['deliveryTimeMins']?.toString() ?? '') ?? 15,
+        priceRange: json['priceRange']?.toString() ?? '₹',
+        imagePath: json['imagePath']?.toString() ?? '',
+      );
+    }).toList();
+  }
+
+  Future<List<Shop>> searchShops({required String query, double? lat, double? lng}) async {
+    final Map<String, dynamic> queryParams = {'q': query};
+    if (lat != null && lng != null) {
+      queryParams['lat'] = lat;
+      queryParams['lng'] = lng;
+    }
+    
+    final response = await _client.get('/shops/search', queryParameters: queryParams);
+    final data = response.data as List;
+
+    return data.map((json) {
+      return Shop(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+        categories: (json['categories'] as List?)?.map((e) => e.toString()).toList() ?? [],
+        rating: double.tryParse(json['rating']?.toString() ?? '') ?? 4.0,
+        distanceKm: double.tryParse(json['distanceKm']?.toString() ?? '') ?? 1.0,
+        deliveryTimeMins: int.tryParse(json['deliveryTimeMins']?.toString() ?? '') ?? 15,
+        priceRange: json['priceRange']?.toString() ?? '₹',
+        imagePath: json['imagePath']?.toString() ?? '',
+      );
+    }).toList();
+  }
+
+  Future<List<Professional>> getTopProfessionals() async {
+    final response = await _client.get(ApiEndpoints.professionals);
+    final data = response.data as List;
+
+    return data.map((json) {
+      return Professional(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+        specialty: json['specialty']?.toString() ?? '',
+        rating: double.tryParse(json['rating']?.toString() ?? '') ?? 4.5,
+        reviewsCount: int.tryParse(json['reviewsCount']?.toString() ?? '') ?? 100,
+        avatarUrl: json['imageUrl']?.toString() ?? '',
+      );
+    }).toList();
+  }
+
+  Future<List<Review>> getCustomerReviews() async {
+    final response = await _client.get(ApiEndpoints.reviews);
+    final data = response.data as List;
+
+    return data.map((json) {
+      return Review(
+        id: json['id']?.toString() ?? '',
+        userName: json['userName']?.toString() ?? '',
+        userAvatar: json['userAvatar']?.toString() ?? '',
+        rating: double.tryParse(json['rating']?.toString() ?? '') ?? 5.0,
+        comment: json['comment']?.toString() ?? '',
+        serviceName: json['serviceName']?.toString() ?? '',
+        locationName: json['locationName']?.toString() ?? '',
+      );
+    }).toList();
+  }
+
+  // Helper icons and color utilities
+  IconData _parseIcon(String id) {
+    switch (id) {
+      case 'cleaning':
+        return Icons.cleaning_services_outlined;
+      case 'plumbing':
+        return Icons.plumbing_outlined;
+      case 'electrician':
+        return Icons.bolt_outlined;
+      case 'appliances':
+        return Icons.local_laundry_service_outlined;
+      case 'carpentry':
+        return Icons.carpenter_outlined;
+      default:
+        return Icons.grid_view_outlined;
+    }
+  }
+
+  Color _parseColor(String id, {required bool isBg}) {
+    // Dynamic color matching
+    if (isBg) {
+      switch (id) {
+        case 'cleaning': return const Color(0xFFEEF2FF);
+        case 'plumbing': return const Color(0xFFECFDF5);
+        case 'electrician': return const Color(0xFFFFFBEB);
+        case 'appliances': return const Color(0xFFF5F3FF);
+        case 'carpentry': return const Color(0xFFFFF7ED);
+        default: return const Color(0xFFF1F5F9);
+      }
+    } else {
+      switch (id) {
+        case 'cleaning': return const Color(0xFF4F46E5);
+        case 'plumbing': return const Color(0xFF059669);
+        case 'electrician': return const Color(0xFFD97706);
+        case 'appliances': return const Color(0xFF7C3AED);
+        case 'carpentry': return const Color(0xFFEA580C);
+        default: return const Color(0xFF475569);
+      }
+    }
+  }
+}
