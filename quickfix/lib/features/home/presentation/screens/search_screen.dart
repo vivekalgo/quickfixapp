@@ -418,21 +418,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     // Cache query to history first
                     HiveService.addSearchQuery(_query);
                     AppHaptics.mediumTap();
-                    
-                    final catId = item.categories.isNotEmpty 
-                        ? item.categories.first.toLowerCase().split(' ')[0] 
-                        : 'cleaning';
-                    String finalCat = 'cleaning';
-                    if (catId.contains('plumb')) {
-                      finalCat = 'plumbing';
-                    } else if (catId.contains('elect') || catId.contains('light')) {
-                      finalCat = 'electrician';
-                    } else if (catId.contains('appl') || catId.contains('repair')) {
-                      finalCat = 'appliances';
-                    } else if (catId.contains('carp')) {
-                      finalCat = 'carpentry';
-                    }
-                    context.push('/category/$finalCat');
+                    context.push('/shop/${item.id}', extra: item);
                   },
                   leading: Container(
                     padding: const EdgeInsets.all(10),

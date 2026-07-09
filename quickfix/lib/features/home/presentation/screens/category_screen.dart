@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../presentation/providers/home_providers.dart';
 import '../../data/models/home_models.dart';
-import '../../../../features/booking/presentation/providers/cart_provider.dart';
-import '../../../booking/data/models/service_package.dart';
+import '../../../../core/network/dio_client.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
   final String categoryId;
@@ -19,28 +19,52 @@ class CategoryScreen extends ConsumerStatefulWidget {
 }
 
 class _CategoryScreenState extends ConsumerState<CategoryScreen> {
-  String _selectedSub = '';
-  final List<String> _subCategories = [];
+  List<Shop>? _shops;
+  bool _isLoading = true;
+  String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
-    if (widget.categoryId == 'all') {
-      _subCategories.add('All');
-      final matches = packageDatabase.map((p) => p.categoryId).toSet().toList();
-      _subCategories.addAll(matches);
-      _selectedSub = 'All';
-    } else {
-      final matches = packageDatabase.where((p) => p.categoryId == widget.categoryId).map((p) => p.subCategory).toSet().toList();
-      if (matches.isNotEmpty) {
-        _subCategories.addAll(matches);
-        _selectedSub = _subCategories.first;
+    _fetchCategoryShops();
+  }
+
+  Future<void> _fetchCategoryShops() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final activeLocation = ref.read(currentAddressProvider);
+      final repo = ref.read(homeRepositoryProvider);
+      
+      // Dynamic query based on selected category, latitude and longitude
+      final shops = await repo.searchShops(
+        query: widget.categoryId,
+        lat: activeLocation.latitude,
+        lng: activeLocation.longitude,
+      );
+
+      // Filter to keep only active shops
+      if (mounted) {
+        setState(() {
+          _shops = shops;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load services near you: $e';
+        });
       }
     }
   }
 
   String _getCategoryTitle() {
-    switch (widget.categoryId) {
+    switch (widget.categoryId.toLowerCase()) {
       case 'cleaning':
         return 'Cleaning Services';
       case 'plumbing':
@@ -54,25 +78,244 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       case 'all':
         return 'All Services';
       default:
-        return 'QuickFix Premium';
+        return '${widget.categoryId[0].toUpperCase()}${widget.categoryId.substring(1)} Services';
     }
+  }
+
+  void _showNotifyMeDialog(BuildContext context, bool isDark, UserLocation currentLoc) {
+    final phoneController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.notifications_active, color: AppColors.primary, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Get Notified',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.secondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'We\'ll notify you on WhatsApp the moment QuickFix launches ${_getCategoryTitle()} near your location.',
+                  style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 12.5, height: 1.5),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    hintText: 'Enter your phone number',
+                    prefixIcon: const Icon(Icons.phone, color: AppColors.primary),
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final phone = phoneController.text.trim();
+                            if (phone.length < 10) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please enter a valid phone number.')),
+                              );
+                              return;
+                            }
+                            setDialogState(() {
+                              isSubmitting = true;
+                            });
+
+                            try {
+                              await DioClient().post('/demand/submit', data: {
+                                'phone': phone,
+                                'address': currentLoc.address,
+                                'latitude': currentLoc.latitude,
+                                'longitude': currentLoc.longitude,
+                              });
+
+                              if (context.mounted) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Thank you! We have registered your area demand.'),
+                                    backgroundColor: AppColors.success,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Failed to submit demand: $e')),
+                                );
+                              }
+                            } finally {
+                              setDialogState(() {
+                                isSubmitting = false;
+                              });
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: isSubmitting
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Submit Demand', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComingSoonScreen(BuildContext context, bool isDark) {
+    final currentLoc = ref.watch(currentAddressProvider);
+    return Center(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF2E2E3A) : const Color(0xFFFFF1F0),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.red.withOpacity(0.15), width: 1.5),
+              ),
+              child: const Icon(
+                Icons.construction,
+                color: AppColors.primary,
+                size: 56,
+              ),
+            ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
+            const SizedBox(height: 28),
+            Text(
+              '🚧 We\'re Coming Soon!',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : AppColors.secondary,
+              ),
+            ).animate().fadeIn(delay: 200.ms),
+            const SizedBox(height: 12),
+            Text(
+              'Sorry, QuickFix currently doesn\'t provide ${_getCategoryTitle()} in your area.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium(isDark).copyWith(
+                height: 1.5,
+              ),
+            ).animate().fadeIn(delay: 350.ms),
+            const SizedBox(height: 8),
+            Text(
+              'We\'re expanding rapidly and will be launching services here soon.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall(isDark).copyWith(
+                height: 1.4,
+              ),
+            ).animate().fadeIn(delay: 450.ms),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () => _showNotifyMeDialog(context, isDark, currentLoc),
+                icon: const Icon(Icons.notifications_active_outlined, color: Colors.white),
+                label: const Text('Notify Me When Available', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ).animate().fadeIn(delay: 550.ms),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      AppHaptics.lightTap();
+                      context.push('/location-selector');
+                    },
+                    icon: const Icon(Icons.edit_location_alt_outlined),
+                    label: const Text('Change Address'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : AppColors.secondary,
+                      side: BorderSide(color: isDark ? Colors.white38 : AppColors.borderLight),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      AppHaptics.mediumTap();
+                      _fetchCategoryShops();
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(delay: 650.ms),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = ref.watch(isDarkModeProvider);
-    final cart = ref.watch(cartProvider);
-    final totalItems = ref.watch(cartTotalItemsProvider);
-    final totalAmount = ref.watch(cartTotalAmountProvider);
-
-    // Filter packages matching category and subcategory
-    final packages = packageDatabase.where((p) {
-      if (widget.categoryId == 'all') {
-        if (_selectedSub == 'All') return true;
-        return p.categoryId == _selectedSub;
-      }
-      return p.categoryId == widget.categoryId && (_selectedSub.isEmpty || p.subCategory == _selectedSub);
-    }).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -84,387 +327,223 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
             context.pop();
           },
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              AppHaptics.mediumTap();
+              _fetchCategoryShops();
+            },
+          ),
+        ],
       ),
-      body: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Horizontal subcategory tags row
-              if (_subCategories.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 38,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _subCategories.length,
-                    itemBuilder: (context, index) {
-                      final sub = _subCategories[index];
-                      final isSelected = _selectedSub == sub;
-                      
-                      String displayTitle = sub;
-                      if (widget.categoryId == 'all') {
-                        if (sub == 'cleaning') {
-                          displayTitle = 'Cleaning';
-                        } else if (sub == 'plumbing') {
-                          displayTitle = 'Plumbing';
-                        } else if (sub == 'electrician') {
-                          displayTitle = 'Electrician';
-                        } else if (sub == 'appliances') {
-                          displayTitle = 'Appliances';
-                        } else if (sub == 'carpentry') {
-                          displayTitle = 'Carpentry';
-                        } else if (sub == 'All') {
-                          displayTitle = 'All Services';
-                        }
-                      }
-
-                      return GestureDetector(
-                        onTap: () {
-                          AppHaptics.selectionClick();
-                          setState(() {
-                            _selectedSub = sub;
-                          });
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected 
-                                ? (isDark ? Colors.white : AppColors.secondary) 
-                                : (isDark ? AppColors.surfaceDark : Colors.white),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isSelected 
-                                  ? (isDark ? Colors.white : AppColors.secondary) 
-                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                            ),
-                          ),
-                          child: Text(
-                            displayTitle,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected 
-                                  ? (isDark ? AppColors.secondary : Colors.white) 
-                                  : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              // Service Packages list
-              Expanded(
-                child: packages.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No services available under this section',
-                          style: AppTextStyles.bodyMedium(isDark),
-                        ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage.isNotEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                      const SizedBox(height: 16),
+                      Text(_errorMessage, style: TextStyle(color: isDark ? Colors.white70 : AppColors.secondary)),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _fetchCategoryShops,
+                        child: const Text('Retry'),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 90),
-                        itemCount: packages.length,
-                        itemBuilder: (context, index) {
-                          final pkg = packages[index];
-                          final isInCart = cart.containsKey(pkg.id);
-                          final cartItem = cart[pkg.id];
-                          final quantity = cartItem?.quantity ?? 0;
+                    ],
+                  ),
+                )
+              : (_shops == null || _shops!.isEmpty)
+                  ? _buildComingSoonScreen(context, isDark)
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16.0),
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: _shops!.length,
+                      itemBuilder: (context, index) {
+                        final shop = _shops![index];
+                        final isFav = ref.watch(wishlistProvider).contains(shop.id);
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppColors.surfaceDark : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.02),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                              border: isDark 
-                                  ? Border.all(color: AppColors.borderDark)
-                                  : Border.all(color: AppColors.borderLight),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
                             ),
-                            child: Row(
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              AppHaptics.mediumTap();
+                              // Route to Shop Details
+                              context.push('/shop/${shop.id}', extra: shop);
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Left details panel
-                                Expanded(
+                                // Shop Image Header
+                                Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                      child: Image.network(
+                                        shop.imagePath,
+                                        height: 160,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    // Star Rating Badge
+                                    Positioned(
+                                      top: 12,
+                                      right: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.success,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.star, color: Colors.white, size: 12),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${shop.rating}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // Wishlist Heart Icon
+                                    Positioned(
+                                      top: 12,
+                                      left: 12,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          AppHaptics.mediumTap();
+                                          ref.read(wishlistProvider.notifier).toggleFavourite(shop.id);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                isFav
+                                                    ? 'Removed ${shop.name} from Wishlist'
+                                                    : 'Added ${shop.name} to Wishlist',
+                                              ),
+                                              duration: const Duration(seconds: 1),
+                                              behavior: SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.4),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            isFav ? Icons.favorite : Icons.favorite_border,
+                                            color: Colors.redAccent,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                
+                                // Details Section
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        pkg.title,
-                                        style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 15),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: Colors.green.shade50,
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                const Icon(Icons.star, color: Colors.green, size: 10),
-                                                const SizedBox(width: 2),
-                                                Text(
-                                                  '${pkg.rating}',
-                                                  style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '(${pkg.reviewsCount} reviews)',
-                                            style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 10),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            '₹${pkg.price.toInt()}',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: isDark ? Colors.white : AppColors.secondary,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '₹${pkg.originalPrice.toInt()}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: AppColors.textSecondaryLight,
-                                              decoration: TextDecoration.lineThrough,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '${((pkg.originalPrice - pkg.price) / pkg.originalPrice * 100).toInt()}% OFF',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              color: AppColors.primary,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
+                                        shop.name,
+                                        style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 16),
                                       ),
                                       const SizedBox(height: 6),
+                                      // Category Tags
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: shop.categories.map((c) => Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade100,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            c,
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        )).toList(),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Divider(height: 1, thickness: 0.5),
+                                      const SizedBox(height: 12),
+                                      // Dynamic Distance & Delivery Info Row
                                       Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          const Icon(Icons.alarm, size: 12, color: AppColors.textSecondaryLight),
-                                          const SizedBox(width: 4),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.location_on_outlined, size: 16, color: AppColors.primary),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${shop.distanceKm.toStringAsFixed(1)} km away',
+                                                style: AppTextStyles.bodySmall(isDark).copyWith(fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.alarm, size: 16, color: AppColors.textSecondaryLight),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${shop.deliveryTimeMins} mins',
+                                                style: AppTextStyles.bodySmall(isDark),
+                                              ),
+                                            ],
+                                          ),
                                           Text(
-                                            pkg.durationText,
-                                            style: AppTextStyles.bodySmall(isDark).copyWith(fontWeight: FontWeight.w600),
+                                            shop.priceRange,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? Colors.white70 : AppColors.secondary,
+                                            ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 12),
-                                      // Bullet points description
-                                      ...pkg.bulletPoints.map((bullet) => Padding(
-                                            padding: const EdgeInsets.only(bottom: 4),
-                                            child: Row(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                const Padding(
-                                                  padding: EdgeInsets.only(top: 4.0, right: 6.0),
-                                                  child: Icon(Icons.circle, size: 4, color: AppColors.textSecondaryLight),
-                                                ),
-                                                Expanded(
-                                                  child: Text(
-                                                    bullet,
-                                                    style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 11),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          )),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                
-                                // Right image & Add/Minus panel
-                                Column(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.network(
-                                        pkg.imageUrl,
-                                        width: 100,
-                                        height: 100,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    
-                                    // ADD / Quantity Selector Button
-                                    SizedBox(
-                                      width: 88,
-                                      height: 36,
-                                      child: isInCart
-                                          ? Container(
-                                              decoration: BoxDecoration(
-                                                color: AppColors.primary,
-                                                borderRadius: BorderRadius.circular(18),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: AppColors.primary.withOpacity(0.2),
-                                                    blurRadius: 4,
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  GestureDetector(
-                                                    onTap: () {
-                                                      AppHaptics.lightTap();
-                                                      ref.read(cartProvider.notifier).removeItem(pkg.id);
-                                                    },
-                                                    child: const Padding(
-                                                      padding: EdgeInsets.symmetric(horizontal: 10.0),
-                                                      child: Icon(Icons.remove, color: Colors.white, size: 16),
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '$quantity',
-                                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                                                  ),
-                                                  GestureDetector(
-                                                    onTap: () {
-                                                      AppHaptics.lightTap();
-                                                      ref.read(cartProvider.notifier).addItem(pkg.id, pkg.title, pkg.price);
-                                                    },
-                                                    child: const Padding(
-                                                      padding: EdgeInsets.symmetric(horizontal: 10.0),
-                                                      child: Icon(Icons.add, color: Colors.white, size: 16),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            )
-                                          : ElevatedButton(
-                                              onPressed: () {
-                                                AppHaptics.heavyTap();
-                                                ref.read(cartProvider.notifier).addItem(pkg.id, pkg.title, pkg.price);
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-                                                foregroundColor: AppColors.primary,
-                                                side: const BorderSide(color: AppColors.primary, width: 1.5),
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                                                elevation: 0,
-                                                padding: EdgeInsets.zero,
-                                              ),
-                                              child: Text(
-                                                'ADD',
-                                                style: AppTextStyles.badgeText.copyWith(
-                                                  color: AppColors.primary,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                    ),
-                                  ],
-                                ),
                               ],
                             ),
-                          ).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.05, end: 0);
-                        },
-                      ),
-              ),
-            ],
-          ),
-
-          // Floating Cart Summary bottom popup card
-          if (totalItems > 0)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: GestureDetector(
-                onTap: () {
-                  AppHaptics.heavyTap();
-                  context.push('/checkout');
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.plusGradient,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.shopping_bag_outlined, color: Colors.white, size: 20),
                           ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '₹${totalAmount.toInt()}',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              Text(
-                                '$totalItems Item(s) Added',
-                                style: const TextStyle(color: Colors.white70, fontSize: 11),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: const [
-                          Text(
-                            'View Cart',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          SizedBox(width: 4),
-                          Icon(Icons.chevron_right, color: Colors.white, size: 18),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ).animate().slideY(begin: 1.0, end: 0.0, duration: 250.ms, curve: Curves.easeOutQuad),
-            ),
-        ],
-      ),
+                        ).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.05, end: 0);
+                      },
+                    ),
     );
   }
 }

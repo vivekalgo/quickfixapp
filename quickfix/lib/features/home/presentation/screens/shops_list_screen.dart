@@ -241,20 +241,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                             child: InkWell(
                               onTap: () {
                                 AppHaptics.mediumTap();
-                                final catId = shop.categories.isNotEmpty 
-                                    ? shop.categories.first.toLowerCase().split(' ')[0] 
-                                    : 'cleaning';
-                                String finalCat = 'cleaning';
-                                if (catId.contains('plumb')) {
-                                  finalCat = 'plumbing';
-                                } else if (catId.contains('elect') || catId.contains('light')) {
-                                  finalCat = 'electrician';
-                                } else if (catId.contains('appl') || catId.contains('repair')) {
-                                  finalCat = 'appliances';
-                                } else if (catId.contains('carp')) {
-                                  finalCat = 'carpentry';
-                                }
-                                context.push('/category/$finalCat');
+                                context.push('/shop/${shop.id}', extra: shop);
                               },
                               borderRadius: BorderRadius.circular(16),
                               child: Column(

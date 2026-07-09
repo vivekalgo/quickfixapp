@@ -23,7 +23,9 @@ const {
   Professional, 
   Banner, 
   Offer, 
-  Notification 
+  Notification,
+  Settings,
+  AuditLog
 } = require('./models');
 
 const app = express();
@@ -165,29 +167,25 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
   let phone = phoneNumber;
 
-  if (firebaseToken) {
-    try {
-      if (!admin.apps.length) {
-        throw new Error("Firebase Admin SDK is not initialized. Cannot verify token.");
-      }
-      const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
-      if (!decodedToken.phone_number) {
-        throw new Error("Decoded Firebase token does not contain a phone number.");
-      }
-      // Normalize phone number: e.g. "+919876543210" -> "9876543210"
-      phone = decodedToken.phone_number.replace('+91', '').replace(/\s+/g, '');
-    } catch (err) {
-      console.error('Firebase token verification failed:', err.message);
-      return res.status(401).json({ error: `Firebase Authentication Failed: ${err.message}` });
+  if (!firebaseToken) {
+    return res.status(401).json({ 
+      error: 'Firebase authentication token is required. Please verify your phone number via SMS OTP.' 
+    });
+  }
+
+  try {
+    if (!admin.apps.length) {
+      throw new Error("Firebase Admin SDK is not initialized. Cannot verify token.");
     }
-  } else {
-    if (!phone || !code) {
-      return res.status(400).json({ error: 'Phone number and verification code are required' });
+    const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+    if (!decodedToken.phone_number) {
+      throw new Error("Decoded Firebase token does not contain a phone number.");
     }
-    // Simulated OTP verification
-    if (code !== '123456') {
-      return res.status(400).json({ error: 'Invalid verification code' });
-    }
+    // Normalize phone number: e.g. "+919876543210" -> "9876543210"
+    phone = decodedToken.phone_number.replace('+91', '').replace(/\s+/g, '');
+  } catch (err) {
+    console.error('Firebase token verification failed:', err.message);
+    return res.status(401).json({ error: `Firebase Authentication Failed: ${err.message}` });
   }
 
   try {
@@ -418,9 +416,9 @@ app.post('/api/wallet/add-money', requireAuth, async (req, res) => {
 
 // 2. Shop Partners (Registration, Login, Update, Delete)
 app.post('/api/shops/register', async (req, res) => {
-  const { name, ownerName, password, phone, latitude, longitude, categories, imagePath } = req.body;
-  if (!name || !ownerName || !password || !phone) {
-    return res.status(400).json({ error: 'All primary fields (name, ownerName, password, phone) are required' });
+  const { name, ownerName, password, phone, latitude, longitude, categories, imagePath, email, gst, pan, aadhaar, verificationDocs, visitingCharges, serviceRadius, timings, verificationStatus } = req.body;
+  if (!name || !ownerName || !phone) {
+    return res.status(400).json({ error: 'Shop name, Owner name, and Phone number are required' });
   }
 
   try {
@@ -429,15 +427,35 @@ app.post('/api/shops/register', async (req, res) => {
       return res.status(400).json({ error: 'Shop with this phone number already registered' });
     }
 
+    // Auto-generate Shop Display ID (QFS000001, QFS000002...)
+    const allShops = await Shop.find({});
+    let maxIdNum = 0;
+    allShops.forEach(s => {
+      if (s.shopDisplayId && s.shopDisplayId.startsWith('QFS')) {
+        const numPart = parseInt(s.shopDisplayId.replace('QFS', ''), 10);
+        if (!isNaN(numPart) && numPart > maxIdNum) {
+          maxIdNum = numPart;
+        }
+      }
+    });
+    const nextNum = maxIdNum + 1;
+    const shopDisplayId = 'QFS' + String(nextNum).padStart(6, '0');
+
+    // Auto-generate temporary password if not provided
+    const tempPassword = password || ('QF@' + Math.floor(10000 + Math.random() * 90000));
+
     const salt = bcrypt.genSaltSync(10);
-    const hashedPassword = bcrypt.hashSync(password, salt);
+    const hashedPassword = bcrypt.hashSync(tempPassword, salt);
 
     const newShop = new Shop({
       id: `shop-${Date.now()}`,
+      shopDisplayId,
       name,
       ownerName,
       password: hashedPassword,
+      tempPassword,
       phone,
+      email: email || '',
       latitude: parseFloat(latitude) || 26.4912,
       longitude: parseFloat(longitude) || 80.3156,
       categories: categories || ["Cleaning"],
@@ -446,28 +464,57 @@ app.post('/api/shops/register', async (req, res) => {
       deliveryTimeMins: 20,
       priceRange: "₹₹",
       isOnline: true,
-      timings: "09:00 AM - 09:00 PM",
+      timings: timings || "09:00 AM - 09:00 PM",
       portfolioImages: [],
-      services: []
+      services: [],
+      status: 'active',
+      isOpen: true,
+      verificationStatus: verificationStatus || 'approved',
+      visitingCharges: parseFloat(visitingCharges) || 150.0,
+      serviceRadius: parseFloat(serviceRadius) || 5.0,
+      gst: gst || '',
+      pan: pan || '',
+      aadhaar: aadhaar || '',
+      verificationDocs: verificationDocs || [],
+      loginDisabled: false
     });
 
     await newShop.save();
     res.json({ success: true, shop: newShop });
   } catch (e) {
+    console.error('Register shop error:', e);
     res.status(500).json({ error: 'Failed to register shop partner' });
   }
 });
 
 app.post('/api/shops/login', async (req, res) => {
-  const { phone, password } = req.body;
-  if (!phone || !password) {
-    return res.status(400).json({ error: 'Phone and password are required' });
+  const { phone, password, shopId } = req.body;
+  if ((!phone && !shopId) || !password) {
+    return res.status(400).json({ error: 'Phone/Shop ID and password are required' });
   }
 
   try {
-    const shop = await Shop.findOne({ phone });
+    let shop;
+    if (shopId) {
+      const upperShopId = shopId.toUpperCase();
+      shop = await Shop.findOne({ shopDisplayId: upperShopId });
+      if (!shop) {
+        shop = await Shop.findOne({ id: shopId });
+      }
+    } else {
+      shop = await Shop.findOne({ phone });
+    }
+
     if (!shop) {
-      return res.status(401).json({ error: 'Invalid phone number or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (shop.loginDisabled) {
+      return res.status(403).json({ error: 'Login has been disabled for this shop' });
+    }
+
+    if (shop.status === 'suspended') {
+      return res.status(403).json({ error: 'This shop has been suspended' });
     }
 
     // Support legacy plaintext password or bcrypt hashes
@@ -479,13 +526,14 @@ app.post('/api/shops/login', async (req, res) => {
     }
 
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid phone number or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const token = jwt.sign({ id: shop._id, phone: shop.phone, role: 'partner' }, JWT_SECRET, { expiresIn: '30d' });
 
     res.json({ success: true, token, shop });
   } catch (e) {
+    console.error('Login process failed:', e);
     res.status(500).json({ error: 'Login process failed' });
   }
 });
@@ -518,6 +566,374 @@ app.delete('/api/shops/:id', async (req, res) => {
     }
   } catch (e) {
     res.status(500).json({ error: 'Failed to delete shop' });
+  }
+});
+
+// ==========================================================
+// PROVIDER PARTNER API ENDPOINTS
+// ==========================================================
+
+// Helper to sanitize booking customer info for privacy before accepting
+function sanitizeBookingForPrivacy(booking) {
+  const bookingObj = booking.toObject ? booking.toObject() : { ...booking };
+  if (bookingObj.status === 'pending' || bookingObj.status === 'rejected') {
+    bookingObj.customerName = 'Customer (Privacy Protected)';
+    bookingObj.customerPhone = 'Hidden until accepted';
+    bookingObj.customerAddress = bookingObj.approxAddress || 'Swaroop Nagar, Kanpur';
+    bookingObj.customerLat = undefined;
+    bookingObj.customerLng = undefined;
+    bookingObj.landmark = undefined;
+    bookingObj.houseNumber = undefined;
+    bookingObj.pinCode = undefined;
+    bookingObj.alternatePhone = undefined;
+  }
+  return bookingObj;
+}
+
+// 1. Provider Login
+app.post('/api/provider/login', async (req, res) => {
+  const { shopId, password } = req.body;
+  if (!shopId || !password) {
+    return res.status(400).json({ error: 'Shop ID and password are required' });
+  }
+
+  try {
+    const upperShopId = shopId.toUpperCase();
+    let shop = await Shop.findOne({ shopDisplayId: upperShopId });
+    if (!shop) {
+      shop = await Shop.findOne({ id: shopId });
+    }
+    if (!shop) {
+      shop = await Shop.findOne({ phone: shopId }); // fallback to phone
+    }
+
+    if (!shop) {
+      return res.status(401).json({ error: 'Invalid Shop ID or password' });
+    }
+
+    if (shop.loginDisabled) {
+      return res.status(403).json({ error: 'Login has been disabled for this account' });
+    }
+
+    if (shop.status === 'suspended') {
+      return res.status(403).json({ error: 'This provider account has been suspended' });
+    }
+
+    if (shop.verificationStatus !== 'approved') {
+      return res.status(403).json({ error: 'Your account is pending admin approval' });
+    }
+
+    let isValid = false;
+    if (shop.password.startsWith('$2a$') || shop.password.startsWith('$2b$')) {
+      isValid = bcrypt.compareSync(password, shop.password);
+    } else {
+      isValid = (password === shop.password);
+    }
+
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid Shop ID or password' });
+    }
+
+    const token = jwt.sign(
+      { id: shop._id, shopId: shop.id, phone: shop.phone, role: 'partner' },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      shop
+    });
+  } catch (e) {
+    console.error('Provider login error:', e);
+    res.status(500).json({ error: 'Internal server login failed' });
+  }
+});
+
+// 2. Change Password
+app.post('/api/provider/change-password', requireAuth, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ error: 'Old password and new password are required' });
+  }
+
+  try {
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Provider account not found' });
+    }
+
+    let isValid = false;
+    if (shop.password.startsWith('$2a$') || shop.password.startsWith('$2b$')) {
+      isValid = bcrypt.compareSync(oldPassword, shop.password);
+    } else {
+      isValid = (oldPassword === shop.password);
+    }
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Incorrect old password' });
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    shop.password = bcrypt.hashSync(newPassword, salt);
+    shop.isFirstLogin = false;
+    if (shop.tempPassword) shop.tempPassword = '';
+
+    await shop.save();
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (e) {
+    console.error('Change password error:', e);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// 3. Provider Dashboard Stats
+app.get('/api/provider/dashboard/:shopId', requireAuth, async (req, res) => {
+  const { shopId } = req.params;
+  try {
+    const shop = await Shop.findOne({ id: shopId });
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+
+    const bookings = await Booking.find({ shopId });
+    const today = new Date().toDateString();
+
+    let todayOrders = 0;
+    let pendingOrders = 0;
+    let acceptedOrders = 0;
+    let completedOrders = 0;
+    let cancelledOrders = 0;
+    let totalRevenue = 0.0;
+    let todayRevenue = 0.0;
+
+    for (const b of bookings) {
+      const bDateStr = new Date(b.date).toDateString();
+      const isToday = bDateStr === today;
+
+      if (isToday) todayOrders++;
+
+      if (b.status === 'pending') pendingOrders++;
+      else if (b.status === 'accepted' || b.status === 'navigating' || b.status === 'arrived' || b.status === 'work_started') acceptedOrders++;
+      else if (b.status === 'completed' || b.status === 'closed') {
+        completedOrders++;
+        totalRevenue += b.amount;
+        if (isToday) todayRevenue += b.amount;
+      }
+      else if (b.status === 'cancelled') cancelledOrders++;
+    }
+
+    const reviews = await Review.find({ shopId: shop.id });
+    const reviewsCount = reviews.length;
+    const avgRating = reviewsCount > 0 
+      ? parseFloat((reviews.reduce((sum, r) => sum + r.rating, 0) / reviewsCount).toFixed(1)) 
+      : shop.rating || 5.0;
+
+    res.json({
+      todayOrders,
+      pendingOrders,
+      acceptedOrders,
+      completedOrders,
+      cancelledOrders,
+      revenue: todayRevenue,
+      totalRevenue,
+      walletBalance: shop.walletBalance || 0.0,
+      rating: avgRating,
+      reviewsCount,
+      isOnline: shop.isOnline !== false
+    });
+  } catch (e) {
+    console.error('Dashboard stats error:', e);
+    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+  }
+});
+
+// 4. Toggle Online/Offline
+app.post('/api/provider/toggle-online', requireAuth, async (req, res) => {
+  const { isOnline } = req.body;
+  if (isOnline === undefined) {
+    return res.status(400).json({ error: 'isOnline status is required' });
+  }
+
+  try {
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+
+    shop.isOnline = isOnline;
+    await shop.save();
+    res.json({ success: true, isOnline: shop.isOnline });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update online status' });
+  }
+});
+
+// 5. Update Shop Services
+app.post('/api/provider/update-services', requireAuth, async (req, res) => {
+  const { services, customService } = req.body;
+  try {
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+
+    if (services) {
+      shop.services = services;
+    }
+
+    if (customService) {
+      const newService = {
+        id: `srv-custom-${Date.now()}`,
+        title: customService.title,
+        price: parseFloat(customService.price),
+        originalPrice: customService.originalPrice ? parseFloat(customService.originalPrice) : undefined,
+        rating: 5.0,
+        reviewsCount: 0,
+        durationText: customService.durationText || '1 hr',
+        bulletPoints: customService.bulletPoints || [],
+        imageUrl: customService.imageUrl || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300'
+      };
+      shop.services.push(newService);
+    }
+
+    await shop.save();
+    res.json({ success: true, services: shop.services });
+  } catch (e) {
+    console.error('Update services error:', e);
+    res.status(500).json({ error: 'Failed to update shop services' });
+  }
+});
+
+// 6. Update Shop Details (Hours, holidays, radius, charges)
+app.post('/api/provider/update-hours', requireAuth, async (req, res) => {
+  const { workingHours, holidays, serviceRadius, visitingCharges, emergencyAvailable } = req.body;
+  try {
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+
+    if (workingHours) shop.workingHours = workingHours;
+    if (holidays) shop.holidays = holidays;
+    if (serviceRadius !== undefined) shop.serviceRadius = parseFloat(serviceRadius);
+    if (visitingCharges !== undefined) shop.visitingCharges = parseFloat(visitingCharges);
+    if (emergencyAvailable !== undefined) shop.emergencyAvailable = emergencyAvailable;
+
+    await shop.save();
+    res.json({ success: true, shop });
+  } catch (e) {
+    console.error('Update shop hours/details error:', e);
+    res.status(500).json({ error: 'Failed to update details' });
+  }
+});
+
+// 7. Get Provider Earnings
+app.get('/api/provider/earnings/:shopId', requireAuth, async (req, res) => {
+  const { shopId } = req.params;
+  try {
+    const shop = await Shop.findOne({ id: shopId });
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+
+    res.json({
+      walletBalance: shop.walletBalance || 0.0,
+      commissionRate: shop.commissionRate || 15.0,
+      walletTransactions: shop.walletTransactions || []
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch earnings' });
+  }
+});
+
+// 8. Reply to Review
+app.post('/api/provider/reply-review', requireAuth, async (req, res) => {
+  const { reviewId, replyText } = req.body;
+  if (!reviewId || replyText === undefined) {
+    return res.status(400).json({ error: 'Review ID and reply text are required' });
+  }
+
+  try {
+    const review = await Review.findOne({ id: reviewId });
+    if (!review) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    review.reply = replyText;
+    await review.save();
+
+    // Also track in shop replies map
+    const shop = await Shop.findById(req.user.id);
+    if (shop) {
+      if (!shop.reviewReplies) shop.reviewReplies = {};
+      shop.reviewReplies.set(reviewId, replyText);
+      await shop.save();
+    }
+
+    res.json({ success: true, review });
+  } catch (e) {
+    console.error('Reply review error:', e);
+    res.status(500).json({ error: 'Failed to reply to review' });
+  }
+});
+
+// 9. Get Shop Reviews
+app.get('/api/reviews/shop/:shopId', async (req, res) => {
+  const { shopId } = req.params;
+  try {
+    const reviews = await Review.find({ shopId });
+    res.json(reviews);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load shop reviews' });
+  }
+});
+
+// 10. Provider Live Location Coordinates Updates
+app.post('/api/provider/update-location', requireAuth, async (req, res) => {
+  const { latitude, longitude } = req.body;
+  if (latitude === undefined || longitude === undefined) {
+    return res.status(400).json({ error: 'Latitude and Longitude are required' });
+  }
+
+  try {
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+
+    shop.providerLat = parseFloat(latitude);
+    shop.providerLng = parseFloat(longitude);
+    await shop.save();
+
+    // Also update any active bookings that are currently in 'navigating' status
+    await Booking.findOneAndUpdate(
+      { shopId: shop.id, status: 'navigating' },
+      { providerLat: parseFloat(latitude), providerLng: parseFloat(longitude) }
+    );
+
+    res.json({ success: true, providerLat: shop.providerLat, providerLng: shop.providerLng });
+  } catch (e) {
+    console.error('Update provider location error:', e);
+    res.status(500).json({ error: 'Failed to update location' });
+  }
+});
+
+// 11. Booking details (sanitized for privacy before accepted)
+app.get('/api/bookings/details/:bookingId', async (req, res) => {
+  const { bookingId } = req.params;
+  try {
+    const booking = await Booking.findOne({ id: bookingId });
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Apply privacy filter
+    const sanitized = sanitizeBookingForPrivacy(booking);
+    res.json(sanitized);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch booking details' });
   }
 });
 
@@ -821,7 +1237,16 @@ app.get('/api/bookings', async (req, res) => {
     if (customerId) query.customerId = customerId;
 
     const list = await Booking.find(query).sort({ createdAt: -1 });
-    res.json(list);
+    
+    // Apply privacy masking for providers if fetching shop's bookings
+    const sanitizedList = list.map(b => {
+      if (shopId) {
+        return sanitizeBookingForPrivacy(b);
+      }
+      return b;
+    });
+
+    res.json(sanitizedList);
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch bookings' });
   }
@@ -867,19 +1292,43 @@ const placeBooking = async (req, res) => {
     }
 
     const bookingId = `QF-${Math.floor(100000 + Math.random() * 900000)}`;
+    
+    // Look up shop to get current visiting charges and commission rate
+    const shop = await Shop.findOne({ id: shopId });
+    const visitingCharges = shop ? (shop.visitingCharges || 150.0) : 150.0;
+    const commissionRate = shop ? (shop.commissionRate || 15.0) : 15.0;
+    const providerName = shop ? shop.ownerName : 'Assigning Expert...';
+    
+    const parsedAmount = parseFloat(amount);
+    const estEarnings = parseFloat((parsedAmount * (1 - commissionRate / 100)).toFixed(2));
+    
+    const addr = customerAddress || (user && user.savedAddresses && user.savedAddresses[0]) || '113, Swaroop Nagar, Kanpur';
+    // Simple approx address logic: take last 2 parts of comma separated address
+    const addrParts = addr.split(',');
+    const approxAddress = addrParts.length > 1 
+      ? `${addrParts[addrParts.length - 2].trim()}, ${addrParts[addrParts.length - 1].trim()}`
+      : addr;
+
     const newBooking = new Booking({
       id: bookingId,
       customerId: user ? user._id : (customerId || 'cust-123'),
       customerName: user ? user.name : (customerName || 'John Doe'),
       customerPhone: user ? user.phone : (customerPhone || '9999888877'),
-      customerAddress: customerAddress || (user && user.savedAddresses && user.savedAddresses[0]) || '113, Swaroop Nagar, Kanpur',
+      customerAddress: addr,
+      approxAddress: approxAddress,
+      customerLat: req.body.latitude || (user && user.savedAddresses && user.savedAddresses[0] && user.savedAddresses[0].latitude) || 26.4912,
+      customerLng: req.body.longitude || (user && user.savedAddresses && user.savedAddresses[0] && user.savedAddresses[0].longitude) || 80.3156,
       shopId,
       title,
       slot: slot || '09:00 AM - 10:00 AM',
       date: date ? new Date(date) : new Date(),
-      amount: parseFloat(amount),
+      amount: parsedAmount,
+      visitingCharges,
+      estEarnings,
+      estDuration: req.body.durationText || '1.5 hrs',
+      specialInstructions: req.body.specialInstructions || '',
       status: 'pending',
-      providerName: 'Assigning Expert...'
+      providerName: providerName
     });
 
     await newBooking.save();
@@ -910,14 +1359,36 @@ app.post('/api/bookings/update-status', async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
+    const oldStatus = booking.status;
     booking.status = status;
     if (providerName) {
       booking.providerName = providerName;
     }
 
     await booking.save();
+
+    // Credit provider's wallet if transitioned to completed or closed
+    if ((status === 'completed' || status === 'closed' || status === 'payment_completed') && 
+        (oldStatus !== 'completed' && oldStatus !== 'closed' && oldStatus !== 'payment_completed')) {
+      const shop = await Shop.findOne({ id: booking.shopId });
+      if (shop) {
+        const earnings = booking.estEarnings || (booking.amount * 0.85);
+        shop.walletBalance = (shop.walletBalance || 0.0) + earnings;
+        if (!shop.walletTransactions) shop.walletTransactions = [];
+        shop.walletTransactions.push({
+          id: `TX-EARN-${Date.now()}`,
+          title: `Earnings for ${booking.title}`,
+          amount: parseFloat(earnings.toFixed(2)),
+          type: 'credit',
+          date: new Date()
+        });
+        await shop.save();
+      }
+    }
+
     res.json({ success: true, booking });
   } catch (e) {
+    console.error('Update status error:', e);
     res.status(500).json({ error: 'Failed to update booking status' });
   }
 });
@@ -967,6 +1438,402 @@ app.post('/api/notifications/send', async (req, res) => {
     res.json({ success: true, alert: newAlert });
   } catch (e) {
     res.status(500).json({ error: 'Failed to send alert notification' });
+  }
+});
+
+// --- ADMIN AND ENTERPRISE MANAGEMENT SYSTEM ENDPOINTS ---
+
+// Admin system stats
+app.get('/api/admin/stats', async (req, res) => {
+  try {
+    const users = await User.find({});
+    const shops = await Shop.find({});
+    const bookings = await Booking.find({});
+    const offers = await Offer.find({});
+    const alerts = await Notification.find({});
+
+    const totalCustomers = users.filter(u => u.accountStatus !== 'deleted').length;
+    const totalShops = shops.length;
+    const totalProviders = shops.filter(s => s.verificationStatus === 'approved').length;
+
+    const pendingBookings = bookings.filter(b => b.status === 'pending').length;
+    const activeBookings = bookings.filter(b => b.status === 'accepted' || b.status === 'on_the_way').length;
+    const completedBookings = bookings.filter(b => b.status === 'completed').length;
+    const cancelledBookings = bookings.filter(b => b.status === 'cancelled').length;
+
+    let revenue = 0;
+    bookings.forEach(b => {
+      if (b.status === 'completed') {
+        revenue += (parseFloat(b.amount) || 0);
+      }
+    });
+
+    let walletBalance = 0;
+    users.forEach(u => {
+      walletBalance += (parseFloat(u.walletBalance) || 0);
+    });
+
+    const onlineShops = shops.filter(s => s.isOnline && s.verificationStatus === 'approved' && s.status === 'active').length;
+    const offlineShops = totalShops - onlineShops;
+
+    let totalServices = 0;
+    shops.forEach(s => {
+      if (s.services) {
+        totalServices += s.services.length;
+      }
+    });
+
+    const activeCoupons = offers.filter(o => o.isActive).length;
+    const notificationsSent = alerts.length;
+
+    // Today's orders
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todaysOrders = bookings.filter(b => {
+      const bDate = new Date(b.createdAt || b.date);
+      return bDate >= today;
+    }).length;
+
+    res.json({
+      totalCustomers,
+      totalShops,
+      totalProviders,
+      activeBookings,
+      pendingBookings,
+      completedBookings,
+      cancelledBookings,
+      revenue: parseFloat(revenue.toFixed(2)),
+      walletBalance: parseFloat(walletBalance.toFixed(2)),
+      onlineShops,
+      offlineShops,
+      totalServices,
+      activeCoupons,
+      notificationsSent,
+      todaysOrders
+    });
+  } catch (e) {
+    console.error('Stats error:', e);
+    res.status(500).json({ error: 'Failed to load system stats' });
+  }
+});
+
+// Reports summary API for Chart.js
+app.get('/api/reports/summary', async (req, res) => {
+  try {
+    const bookings = await Booking.find({});
+    const daily = {};
+    const last7Days = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      last7Days.push(dateStr);
+      daily[dateStr] = { revenue: 0, count: 0 };
+    }
+
+    bookings.forEach(b => {
+      const bDate = new Date(b.createdAt || b.date);
+      const dateStr = bDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      if (daily[dateStr]) {
+        daily[dateStr].count += 1;
+        if (b.status === 'completed') {
+          daily[dateStr].revenue += (parseFloat(b.amount) || 0);
+        }
+      }
+    });
+
+    const dailyData = last7Days.map(day => ({
+      date: day,
+      revenue: parseFloat(daily[day].revenue.toFixed(2)),
+      bookings: daily[day].count
+    }));
+
+    const categoryStats = {};
+    const shops = await Shop.find({});
+    const shopCategoryMap = {};
+    shops.forEach(s => {
+      shopCategoryMap[s.id] = s.categories || [];
+    });
+
+    bookings.forEach(b => {
+      const cats = shopCategoryMap[b.shopId] || ['General'];
+      cats.forEach(c => {
+        if (!categoryStats[c]) {
+          categoryStats[c] = { revenue: 0, count: 0 };
+        }
+        categoryStats[c].count += 1;
+        if (b.status === 'completed') {
+          categoryStats[c].revenue += (parseFloat(b.amount) || 0);
+        }
+      });
+    });
+
+    res.json({
+      daily: dailyData,
+      categories: Object.entries(categoryStats).map(([name, val]) => ({
+        name,
+        revenue: parseFloat(val.revenue.toFixed(2)),
+        bookings: val.count
+      }))
+    });
+  } catch (e) {
+    console.error('Reports summary error:', e);
+    res.status(500).json({ error: 'Failed to load report data' });
+  }
+});
+
+// Customer management
+app.get('/api/users', async (req, res) => {
+  try {
+    const list = await User.find({});
+    res.json(list.filter(u => u.accountStatus !== 'deleted'));
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.post('/api/users/wallet-adjust', async (req, res) => {
+  const { userId, amount, type, title } = req.body;
+  if (!userId || isNaN(amount)) {
+    return res.status(400).json({ error: 'userId and valid amount are required' });
+  }
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const val = parseFloat(amount);
+    if (type === 'credit') {
+      user.walletBalance = (user.walletBalance || 0) + val;
+    } else {
+      user.walletBalance = Math.max(0, (user.walletBalance || 0) - val);
+    }
+    user.walletTransactions = user.walletTransactions || [];
+    user.walletTransactions.push({
+      id: `TX-ADJ-${Date.now()}`,
+      title: title || `Adjusted by Admin`,
+      amount: val,
+      type: type || 'credit',
+      date: new Date()
+    });
+    await user.save();
+    res.json({ success: true, walletBalance: user.walletBalance });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to adjust wallet' });
+  }
+});
+
+app.post('/api/users/toggle-status', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.accountStatus = user.accountStatus === 'active' ? 'inactive' : 'active';
+    await user.save();
+    res.json({ success: true, status: user.accountStatus });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update user status' });
+  }
+});
+
+// Admin-facing list of all shops
+app.get('/api/shops/all', async (req, res) => {
+  try {
+    const list = await Shop.find({});
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch all shops' });
+  }
+});
+
+// Shop Verification Status management
+app.post('/api/shops/approve', async (req, res) => {
+  const { id, verificationStatus } = req.body;
+  try {
+    const shop = await Shop.findOne({ id });
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+    shop.verificationStatus = verificationStatus;
+    await shop.save();
+    res.json({ success: true, shop });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to verify shop' });
+  }
+});
+
+// Suspend Shop management
+app.post('/api/shops/suspend', async (req, res) => {
+  const { id, suspend } = req.body;
+  try {
+    const shop = await Shop.findOne({ id });
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+    shop.status = suspend ? 'suspended' : 'active';
+    await shop.save();
+    res.json({ success: true, shop });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update shop suspend state' });
+  }
+});
+
+// Disable Login management
+app.post('/api/shops/toggle-login', async (req, res) => {
+  const { id, loginDisabled } = req.body;
+  try {
+    const shop = await Shop.findOne({ id });
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+    shop.loginDisabled = loginDisabled;
+    await shop.save();
+    res.json({ success: true, shop });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update login status' });
+  }
+});
+
+// Reset Password management
+app.post('/api/shops/reset-password', async (req, res) => {
+  const { id } = req.body;
+  try {
+    const shop = await Shop.findOne({ id });
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+    const tempPassword = 'QF@' + Math.floor(10000 + Math.random() * 90000);
+    const salt = bcrypt.genSaltSync(10);
+    shop.password = bcrypt.hashSync(tempPassword, salt);
+    shop.tempPassword = tempPassword;
+    await shop.save();
+    res.json({ success: true, tempPassword, shop });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// Banners & Coupons Updates
+app.post('/api/banners/update', async (req, res) => {
+  const { id, title, code, percent, imageUrl, redirectUrl, priority, expiryDate } = req.body;
+  try {
+    const banner = await Banner.findOneAndUpdate(
+      { id },
+      { title, code, percent, imageUrl, redirectUrl, priority: parseInt(priority) || 0, expiryDate },
+      { new: true }
+    );
+    if (!banner) return res.status(404).json({ error: 'Banner not found' });
+    res.json({ success: true, banner });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update banner' });
+  }
+});
+
+app.post('/api/offers/update', async (req, res) => {
+  const { code, title, description, minOrderAmount, maxDiscount, expiryDate, usageLimit } = req.body;
+  try {
+    const offer = await Offer.findOneAndUpdate(
+      { code: code.toUpperCase() },
+      { 
+        title, 
+        description, 
+        minOrderAmount: parseFloat(minOrderAmount) || 0, 
+        maxDiscount: parseFloat(maxDiscount) || 0, 
+        expiryDate, 
+        usageLimit: parseInt(usageLimit) || 0 
+      },
+      { new: true }
+    );
+    if (!offer) return res.status(404).json({ error: 'Offer not found' });
+    res.json({ success: true, offer });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update offer' });
+  }
+});
+
+// Global settings
+app.get('/api/settings', async (req, res) => {
+  try {
+    const settingsList = await Settings.find({});
+    const settingsObj = {};
+    settingsList.forEach(s => {
+      settingsObj[s.key] = s.value;
+    });
+    res.json({
+      taxRate: settingsObj.taxRate !== undefined ? settingsObj.taxRate : 5.0,
+      commission: settingsObj.commission !== undefined ? settingsObj.commission : 10.0,
+      visitingCharges: settingsObj.visitingCharges !== undefined ? settingsObj.visitingCharges : 150.0,
+      supportNumber: settingsObj.supportNumber !== undefined ? settingsObj.supportNumber : '9876543210',
+      terms: settingsObj.terms !== undefined ? settingsObj.terms : 'Standard Terms & Conditions apply.',
+      privacy: settingsObj.privacy !== undefined ? settingsObj.privacy : 'Standard Privacy Policy applies.',
+      emergencyContact: settingsObj.emergencyContact !== undefined ? settingsObj.emergencyContact : '100',
+      appVersion: settingsObj.appVersion !== undefined ? settingsObj.appVersion : '1.0.0',
+      maintenanceMode: settingsObj.maintenanceMode !== undefined ? settingsObj.maintenanceMode : false
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load app settings' });
+  }
+});
+
+app.post('/api/settings', async (req, res) => {
+  try {
+    const updatePromises = Object.entries(req.body).map(async ([key, value]) => {
+      return Settings.findOneAndUpdate(
+        { key },
+        { key, value },
+        { upsert: true, new: true }
+      );
+    });
+    await Promise.all(updatePromises);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Audit Logs
+app.get('/api/audit-logs', async (req, res) => {
+  try {
+    const logs = await AuditLog.find({}).sort({ createdAt: -1 });
+    res.json(logs);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load audit logs' });
+  }
+});
+
+app.post('/api/audit-logs', async (req, res) => {
+  const { action, target, details } = req.body;
+  try {
+    const log = new AuditLog({
+      id: `log-${Date.now()}`,
+      action,
+      target,
+      details,
+      ip: req.ip || '127.0.0.1'
+    });
+    await log.save();
+    res.json({ success: true, log });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to create audit log' });
+  }
+});
+
+// Category creation & deletion
+app.post('/api/categories/create', async (req, res) => {
+  const { id, name } = req.body;
+  if (!id || !name) return res.status(400).json({ error: 'id and name are required' });
+  try {
+    const cat = new Category({ id: id.toLowerCase(), name, isActive: true });
+    await cat.save();
+    res.json({ success: true, category: cat });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to create category' });
+  }
+});
+
+app.delete('/api/categories/:id', async (req, res) => {
+  try {
+    const deleted = await Category.findOneAndDelete({ id: req.params.id });
+    if (deleted) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Category not found' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete category' });
   }
 });
 
@@ -1083,14 +1950,16 @@ async function seedDatabase() {
     const shopCount = await Shop.countDocuments();
     if (shopCount === 0) {
       const salt = bcrypt.genSaltSync(10);
-      const hashedPassword = bcrypt.hashSync('password123', salt);
+      const hashedPassword = bcrypt.hashSync('QF@49321', salt);
       
       await Shop.create({
         id: 'shop-1',
+        shopDisplayId: 'QFS000135',
         name: "QuickFix Solutions Hub",
         ownerName: "Amit Sharma",
         password: hashedPassword,
         phone: "9876543210",
+        email: "amit@quickfix.com",
         latitude: 26.4912,
         longitude: 80.3156,
         address: "113, Swaroop Nagar, Kanpur, Uttar Pradesh - 208002",
@@ -1111,6 +1980,28 @@ async function seedDatabase() {
         portfolioImages: [
           "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300"
         ],
+        isFirstLogin: true,
+        ownerPhone: "9876543210",
+        ownerEmail: "amit@quickfix.com",
+        walletBalance: 2450.0,
+        walletTransactions: [
+          {
+            id: 'TX-INIT',
+            title: 'Initial Wallet Balance',
+            amount: 2450.0,
+            type: 'credit',
+            date: new Date()
+          }
+        ],
+        workingHours: {
+          'Monday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+          'Tuesday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+          'Wednesday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+          'Thursday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+          'Friday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+          'Saturday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+          'Sunday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' }
+        },
         services: [
           {
             id: "srv-1",
@@ -1129,7 +2020,7 @@ async function seedDatabase() {
           }
         ]
       });
-      console.log('Seeded default shop partner (phone: 9876543210, password: password123).');
+      console.log('Seeded default shop partner (ID: QFS000135, password: QF@49321).');
     }
 
   } catch (e) {

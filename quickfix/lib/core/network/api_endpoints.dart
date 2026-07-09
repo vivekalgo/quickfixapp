@@ -4,7 +4,7 @@ class ApiEndpoints {
   static const String _configuredBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
   static final String baseUrl = _configuredBaseUrl.isNotEmpty
       ? _configuredBaseUrl
-  : (Platform.isAndroid ? 'http://10.0.2.2:3000/api' : 'http://localhost:3000/api');
+      : 'https://quickfixapp-production.up.railway.app/api';
 
   // Authentication
   static const String sendOtp = '/auth/send-otp';
@@ -16,6 +16,7 @@ class ApiEndpoints {
   static const String shops = '/shops';
   static const String professionals = '/professionals';
   static const String reviews = '/reviews';
+  static const String banners = '/banners';
 
   // Bookings
   static const String packages = '/packages';

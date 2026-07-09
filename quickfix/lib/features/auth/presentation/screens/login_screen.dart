@@ -121,7 +121,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _verifyOtp() async {
     final otp = _otpController.text.trim();
-    final phone = _phoneController.text.trim();
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid 6-digit OTP code')),
@@ -133,31 +132,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _isLoading = true;
     });
-
-    // Bypassing Firebase for local testing with mock OTP 123456
-    if (otp == '123456') {
-      try {
-        await ref.read(authProvider.notifier).login(phone, otp);
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          AppHaptics.successNotification();
-          final shouldCompletePermissionFlow = !HiveService.isInitialPermissionFlowComplete();
-          context.go(shouldCompletePermissionFlow ? '/location' : '/home');
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Verification bypass failed: ${e.toString()}')),
-          );
-        }
-      }
-      return;
-    }
 
     try {
       if (_verificationId == null) {
@@ -192,7 +166,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         throw Exception("Firebase authentication token retrieval failed.");
       }
 
-      await ref.read(authProvider.notifier).login(phone, '123456', firebaseToken: idToken);
+      await ref.read(authProvider.notifier).login(phone, credential.smsCode ?? '', firebaseToken: idToken);
 
       if (mounted) {
         setState(() {

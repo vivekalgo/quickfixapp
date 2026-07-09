@@ -306,15 +306,19 @@ const ServiceSchema = new mongoose.Schema({
 // 3. Shop Schema (Service Provider shop profile)
 const ShopSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
+  shopDisplayId: { type: String, default: '' },
   name: { type: String, required: true },
   ownerName: { type: String, required: true },
   password: { type: String, required: true }, // will be hashed using bcrypt
+  tempPassword: { type: String, default: '' },
   phone: { type: String, required: true, unique: true },
+  email: { type: String, default: '' },
   latitude: { type: Number, default: 26.4912 },
   longitude: { type: Number, default: 80.3156 },
   address: { type: String, default: '' },
   serviceRadius: { type: Number, default: 5.0 },
   logoPath: { type: String, default: '' },
+  logoUrl: { type: String, default: '' },
   categories: { type: [String], default: ["Cleaning"] },
   imagePath: { type: String, default: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300' },
   rating: { type: Number, default: 5.0 },
@@ -324,11 +328,50 @@ const ShopSchema = new mongoose.Schema({
   timings: { type: String, default: "09:00 AM - 09:00 PM" },
   portfolioImages: [String],
   services: [ServiceSchema],
-  status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+  status: { type: String, enum: ['active', 'inactive', 'suspended'], default: 'active' },
   isOpen: { type: Boolean, default: true },
   verificationStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
   visitingCharges: { type: Number, default: 150.0 },
-  technicians: { type: [String], default: [] }
+  technicians: { type: [String], default: [] },
+  gst: { type: String, default: '' },
+  pan: { type: String, default: '' },
+  aadhaar: { type: String, default: '' },
+  verificationDocs: { type: [String], default: [] },
+  loginDisabled: { type: Boolean, default: false },
+  // Provider App extensions
+  isFirstLogin: { type: Boolean, default: true },
+  ownerPhone: { type: String, default: '' },
+  ownerEmail: { type: String, default: '' },
+  ownerPhotoUrl: { type: String, default: '' },
+  bankAccountNumber: { type: String, default: '' },
+  ifscCode: { type: String, default: '' },
+  upiId: { type: String, default: '' },
+  walletBalance: { type: Number, default: 0.0 },
+  walletTransactions: { type: Array, default: [] },
+  commissionRate: { type: Number, default: 15.0 }, // 15% commission default
+  workingHours: {
+    type: Map,
+    of: {
+      isClosed: { type: Boolean, default: false },
+      openTime: { type: String, default: '09:00 AM' },
+      closeTime: { type: String, default: '09:00 PM' }
+    },
+    default: {
+      'Monday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+      'Tuesday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+      'Wednesday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+      'Thursday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+      'Friday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+      'Saturday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' },
+      'Sunday': { isClosed: false, openTime: '09:00 AM', closeTime: '09:00 PM' }
+    }
+  },
+  holidays: { type: [String], default: [] },
+  emergencyAvailable: { type: Boolean, default: false },
+  reviewReplies: { type: Map, of: String, default: {} },
+  providerLat: { type: Number },
+  providerLng: { type: Number },
+  fcmToken: { type: String, default: '' }
 }, { timestamps: true });
 
 // 4. Booking Schema (Service Orders)
@@ -337,15 +380,25 @@ const BookingSchema = new mongoose.Schema({
   customerId: { type: String, required: true },
   customerName: { type: String, required: true },
   customerPhone: { type: String, required: true },
-  customerAddress: { type: String, required: true },
+  customerAddress: { type: String, required: true }, // complete full address
+  approxAddress: { type: String, default: '' }, // e.g. "Swaroop Nagar, Kanpur"
+  customerLat: { type: Number, default: 26.4912 },
+  customerLng: { type: Number, default: 80.3156 },
+  providerLat: { type: Number },
+  providerLng: { type: Number },
   shopId: { type: String, required: true },
   title: { type: String, required: true }, // Description of items ordered
   slot: { type: String, required: true },
   date: { type: Date, required: true },
   amount: { type: Number, required: true },
+  visitingCharges: { type: Number, default: 150.0 },
+  estEarnings: { type: Number, default: 0.0 },
+  estDuration: { type: String, default: '1.5 hrs' },
+  specialInstructions: { type: String, default: '' },
+  customerRating: { type: Number, default: 4.8 },
   status: { 
     type: String, 
-    enum: ['pending', 'accepted', 'rejected', 'on_the_way', 'completed', 'cancelled'], 
+    enum: ['pending', 'accepted', 'navigating', 'arrived', 'work_started', 'work_completed', 'payment_completed', 'cancelled', 'closed'], 
     default: 'pending' 
   },
   providerName: { type: String, default: 'Assigning Expert...' }
@@ -366,7 +419,9 @@ const ReviewSchema = new mongoose.Schema({
   rating: { type: Number, required: true },
   comment: { type: String, required: true },
   serviceName: { type: String },
-  locationName: { type: String }
+  locationName: { type: String },
+  shopId: { type: String, default: '' },
+  reply: { type: String, default: '' }
 });
 
 // 7. Professional Schema (Top service experts cards)
@@ -386,7 +441,10 @@ const BannerSchema = new mongoose.Schema({
   code: { type: String, required: true },
   percent: { type: String, required: true },
   imageUrl: { type: String },
-  isActive: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true },
+  redirectUrl: { type: String, default: '' },
+  priority: { type: Number, default: 0 },
+  expiryDate: { type: String, default: '' }
 });
 
 // 9. Promo Offer Coupon Schema
@@ -394,7 +452,12 @@ const OfferSchema = new mongoose.Schema({
   code: { type: String, required: true, unique: true },
   title: { type: String, required: true },
   description: { type: String, required: true },
-  isActive: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true },
+  minOrderAmount: { type: Number, default: 0 },
+  maxDiscount: { type: Number, default: 0 },
+  expiryDate: { type: String, default: '' },
+  usageLimit: { type: Number, default: 0 },
+  usedCount: { type: Number, default: 0 }
 });
 
 // 10. Broadcast Alert Notification Schema
@@ -416,6 +479,22 @@ const DemandSchema = new mongoose.Schema({
   longitude: { type: Number, required: true }
 }, { timestamps: true });
 
+// 12. Settings Schema
+const SettingsSchema = new mongoose.Schema({
+  key: { type: String, required: true, unique: true },
+  value: { type: mongoose.Schema.Types.Mixed }
+});
+
+// 13. Audit Log Schema
+const AuditLogSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  adminId: { type: String, default: 'super-admin' },
+  action: { type: String, required: true },
+  target: { type: String, default: '' },
+  details: { type: String, default: '' },
+  ip: { type: String, default: '127.0.0.1' }
+}, { timestamps: true });
+
 const MongooseModels = {
   User: mongoose.model('User', UserSchema),
   Shop: mongoose.model('Shop', ShopSchema),
@@ -426,7 +505,9 @@ const MongooseModels = {
   Banner: mongoose.model('Banner', BannerSchema),
   Offer: mongoose.model('Offer', OfferSchema),
   Notification: mongoose.model('Notification', NotificationSchema),
-  Demand: mongoose.model('Demand', DemandSchema)
+  Demand: mongoose.model('Demand', DemandSchema),
+  Settings: mongoose.model('Settings', SettingsSchema),
+  AuditLog: mongoose.model('AuditLog', AuditLogSchema)
 };
 
 const LocalModels = {
@@ -439,7 +520,9 @@ const LocalModels = {
   Banner: createMockModel('Banner', 'banners'),
   Offer: createMockModel('Offer', 'offers'),
   Notification: createMockModel('Notification', 'notifications'),
-  Demand: createMockModel('Demand', 'demands')
+  Demand: createMockModel('Demand', 'demands'),
+  Settings: createMockModel('Settings', 'settings'),
+  AuditLog: createMockModel('AuditLog', 'auditlogs')
 };
 
 function makeModelProxy(modelName) {
@@ -480,5 +563,7 @@ module.exports = {
   Banner: makeModelProxy('Banner'),
   Offer: makeModelProxy('Offer'),
   Notification: makeModelProxy('Notification'),
-  Demand: makeModelProxy('Demand')
+  Demand: makeModelProxy('Demand'),
+  Settings: makeModelProxy('Settings'),
+  AuditLog: makeModelProxy('AuditLog')
 };

@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'dart:math' as math;
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../features/home/presentation/providers/home_providers.dart';
+import '../../../../core/network/dio_client.dart';
 
 class LiveTrackingScreen extends ConsumerStatefulWidget {
   final String bookingId;
@@ -17,47 +20,94 @@ class LiveTrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
-  int _currentStep = 2; // 0: Confirmed, 1: Assigned, 2: Arriving/On the way, 3: Started, 4: Completed
-  double _providerDistance = 1.2;
-  int _providerTime = 12;
+  int _currentStep = 0; // 0: Confirmed, 1: Assigned, 2: Arriving/On the way, 3: Started, 4: Completed
+  double _providerDistance = 0.0;
+  int _providerTime = 0;
   GoogleMapController? _mapController;
-  LatLng _driverPosition = const LatLng(26.4820, 80.3080);
-
-  static const CameraPosition _initialPosition = CameraPosition(
-    target: LatLng(26.4912, 80.3156), // Swaroop Nagar, Kanpur location coordinates
-    zoom: 14.5,
-  );
+  LatLng _driverPosition = const LatLng(26.4912, 80.3156);
+  LatLng _customerPosition = const LatLng(26.4912, 80.3156);
+  String _providerName = 'Assigning Expert...';
+  String _providerPhone = '';
+  String _providerAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+  String _bookingStatus = 'pending';
+  Timer? _pollingTimer;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Simulate provider moving closer over time
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) {
-        setState(() {
-          _providerDistance = 0.6;
-          _providerTime = 6;
-          _driverPosition = const LatLng(26.4870, 80.3120);
-        });
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLng(_driverPosition),
-        );
-      }
-    });
+    _fetchBookingDetails();
+    // Poll booking details every 5 seconds for live status/GPS sync
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) => _fetchBookingDetails());
+  }
 
-    Future.delayed(const Duration(seconds: 8), () {
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  double _calculateDistance(LatLng p1, LatLng p2) {
+    var p = 0.017453292519943295;
+    var c = math.cos;
+    var a = 0.5 - c((p2.latitude - p1.latitude) * p)/2 + 
+          c(p1.latitude * p) * c(p2.latitude * p) * 
+          (1 - c((p2.longitude - p1.longitude) * p))/2;
+    return 12742 * math.asin(math.sqrt(a));
+  }
+
+  Future<void> _fetchBookingDetails() async {
+    try {
+      final response = await DioClient().get('/bookings/details/${widget.bookingId}');
+      final data = response.data;
+      if (data == null) return;
+
+      final status = data['status']?.toString() ?? 'pending';
+      final pName = data['providerName']?.toString() ?? 'Assigning Expert...';
+      final custLat = double.tryParse(data['customerLat']?.toString() ?? '26.4912') ?? 26.4912;
+      final custLng = double.tryParse(data['customerLng']?.toString() ?? '80.3156') ?? 80.3156;
+      final provLat = double.tryParse(data['providerLat']?.toString() ?? '') ?? custLat;
+      final provLng = double.tryParse(data['providerLng']?.toString() ?? '') ?? custLng;
+
+      int step = 0;
+      if (status == 'accepted') {
+        step = 1;
+      } else if (status == 'navigating' || status == 'arrived') {
+        step = 2;
+      } else if (status == 'work_started') {
+        step = 3;
+      } else if (status == 'work_completed' || status == 'payment_completed' || status == 'closed' || status == 'cancelled') {
+        step = 4;
+      }
+
+      final cPos = LatLng(custLat, custLng);
+      final dPos = LatLng(provLat, provLng);
+      final distance = _calculateDistance(cPos, dPos);
+      final timeMins = (distance * 10).round(); // Estimate 10 mins per km
+
       if (mounted) {
         setState(() {
-          _providerDistance = 0.1;
-          _providerTime = 2;
-          _currentStep = 3; // Work Started
-          _driverPosition = const LatLng(26.4908, 80.3152);
+          _currentStep = step;
+          _bookingStatus = status;
+          _providerName = pName;
+          _customerPosition = cPos;
+          _driverPosition = dPos;
+          _providerDistance = distance;
+          _providerTime = timeMins < 1 ? 1 : timeMins;
+          _isLoading = false;
         });
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLng(_driverPosition),
-        );
+
+        // Pan map camera to driver position
+        if (_mapController != null) {
+          _mapController!.animateCamera(
+            CameraUpdate.newLatLng(dPos),
+          );
+        }
       }
-    });
+    } catch (e) {
+      debugPrint('Error polling live tracking details: $e');
+    }
   }
 
   @override
@@ -65,12 +115,18 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
     final isDark = ref.watch(isDarkModeProvider);
 
     final List<Map<String, dynamic>> milestones = [
-      {'title': 'Booking Confirmed', 'subtitle': 'Order placed at 12:40 PM', 'icon': Icons.check_circle},
-      {'title': 'Expert Assigned', 'subtitle': 'Rohan Sharma (Electrician)', 'icon': Icons.person_pin},
-      {'title': 'Arriving / On the way', 'subtitle': 'Expert is riding a bike', 'icon': Icons.motorcycle},
-      {'title': 'Service Started', 'subtitle': 'Pin OTP verification matched', 'icon': Icons.construction},
-      {'title': 'Service Completed', 'subtitle': 'Rate & download invoice', 'icon': Icons.stars},
+      {'title': 'Booking Confirmed', 'subtitle': 'Order placed successfully', 'icon': Icons.check_circle},
+      {'title': 'Expert Assigned', 'subtitle': _providerName, 'icon': Icons.person_pin},
+      {'title': 'Arriving / On the way', 'subtitle': _bookingStatus == 'navigating' ? 'Expert is riding to your home' : (_bookingStatus == 'arrived' ? 'Expert has arrived' : 'On the way'), 'icon': Icons.motorcycle},
+      {'title': 'Service Started', 'subtitle': 'Work in progress', 'icon': Icons.construction},
+      {'title': 'Service Completed', 'subtitle': 'Rate & pay visiting charges', 'icon': Icons.stars},
     ];
+
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       body: Stack(
@@ -78,7 +134,10 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
           // 1. Google Maps Live Widget Integration
           Positioned.fill(
             child: GoogleMap(
-              initialCameraPosition: _initialPosition,
+              initialCameraPosition: CameraPosition(
+                target: _driverPosition,
+                zoom: 14.5,
+              ),
               mapType: MapType.normal,
               myLocationEnabled: true,
               zoomControlsEnabled: false,
@@ -88,16 +147,17 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
               markers: {
                 Marker(
                   markerId: const MarkerId('home'),
-                  position: const LatLng(26.4912, 80.3156),
+                  position: _customerPosition,
                   infoWindow: const InfoWindow(title: 'Service Address (Home)'),
                   icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
                 ),
-                Marker(
-                  markerId: const MarkerId('driver'),
-                  position: _driverPosition,
-                  infoWindow: InfoWindow(title: 'Rohan Sharma ($_providerTime mins away)'),
-                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-                ),
+                if (_bookingStatus != 'pending')
+                  Marker(
+                    markerId: const MarkerId('driver'),
+                    position: _driverPosition,
+                    infoWindow: InfoWindow(title: '$_providerName ($_providerTime mins away)'),
+                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                  ),
               },
             ),
           ),
@@ -191,11 +251,9 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        const CircleAvatar(
+                        CircleAvatar(
                           radius: 24,
-                          backgroundImage: NetworkImage(
-                            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                          ),
+                          backgroundImage: NetworkImage(_providerAvatar),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -203,7 +261,7 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Rohan Sharma',
+                                _providerName,
                                 style: AppTextStyles.headingSmall(isDark),
                               ),
                               Row(
@@ -211,7 +269,9 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
                                   const Icon(Icons.star, color: Colors.amber, size: 12),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '4.9 (320 reviews) • Premium Expert',
+                                    _bookingStatus == 'pending'
+                                        ? 'Awaiting Shop Assignment'
+                                        : '4.9 • Verified Expert',
                                     style: AppTextStyles.bodySmall(isDark),
                                   ),
                                 ],
@@ -219,20 +279,19 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
                             ],
                           ),
                         ),
-                        // Call button
-                        IconButton(
-                          icon: const Icon(Icons.phone_in_talk, color: AppColors.success),
-                          onPressed: () {
-                            AppHaptics.mediumTap();
-                            // Call Action simulation
-                          },
-                        ),
-                        // Chat button
+                        if (_providerPhone.isNotEmpty) ...[
+                          IconButton(
+                            icon: const Icon(Icons.phone_in_talk, color: AppColors.success),
+                            onPressed: () {
+                              AppHaptics.mediumTap();
+                            },
+                          ),
+                        ],
                         IconButton(
                           icon: const Icon(Icons.chat_bubble_outline, color: AppColors.primary),
                           onPressed: () {
                             AppHaptics.mediumTap();
-                            context.push('/support'); // Re-uses support chat
+                            context.push('/support');
                           },
                         ),
                       ],
@@ -347,37 +406,4 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
       ),
     );
   }
-}
-
-// Simulated map roads grid painter
-class RoadPainter extends CustomPainter {
-  final bool isDark;
-  RoadPainter({required this.isDark});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = isDark ? Colors.white10 : Colors.black.withOpacity(0.04)
-      ..strokeWidth = 32
-      ..strokeCap = StrokeCap.round;
-
-    final dashPaint = Paint()
-      ..color = isDark ? Colors.white24 : Colors.black12
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    // Road 1
-    canvas.drawLine(const Offset(40, 100), const Offset(360, 420), paint);
-    canvas.drawLine(const Offset(40, 100), const Offset(360, 420), dashPaint);
-
-    // Road 2
-    canvas.drawLine(const Offset(300, 150), const Offset(20, 360), paint);
-    canvas.drawLine(const Offset(300, 150), const Offset(20, 360), dashPaint);
-
-    // Grid details
-    canvas.drawCircle(const Offset(180, 200), 8, Paint()..color = Colors.green.withOpacity(0.15));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -770,6 +770,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
       methodParam = 'Razorpay';
     }
 
+    final cartShopId = ref.read(cartShopIdProvider);
+
     final bookingData = {
       'amount': amount,
       'title': itemsDesc.isNotEmpty ? itemsDesc : 'Home Repair Service',
@@ -779,7 +781,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
       'customerName': user?['name'] ?? 'John Doe',
       'customerPhone': user?['phone'] ?? '9999888877',
       'customerAddress': addresses[selectedAddressIndex]['details'],
-      'shopId': 'shop-1', // Default shop ID seed
+      'shopId': cartShopId ?? 'shop-1', 
       'paymentMethod': methodParam,
     };
 

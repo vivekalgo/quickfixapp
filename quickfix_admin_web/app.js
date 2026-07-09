@@ -6,11 +6,17 @@ let bookings = [];
 let banners = [];
 let offers = [];
 let alerts = [];
+let users = [];
+let categories = [];
+let settings = {};
+let auditLogs = [];
+let demands = [];
 
 // DOM Elements
 const navItems = document.querySelectorAll('.nav-item');
 const tabPanes = document.querySelectorAll('.tab-pane');
 const tabTitle = document.getElementById('tab-title');
+const themeToggle = document.getElementById('theme-toggle');
 
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,17 +24,94 @@ document.addEventListener('DOMContentLoaded', () => {
   setupModals();
   setupForms();
   setupServicesEvents();
+  setupTheme();
   
+  // Custom Filters & Dropdowns
   const statusFilter = document.getElementById('booking-filter-status');
   if (statusFilter) {
     statusFilter.addEventListener('change', renderManageBookingsTable);
   }
+
+  // Shop filter tabs
+  const shopFilters = document.querySelectorAll('.tab-filter');
+  shopFilters.forEach(btn => {
+    btn.addEventListener('click', () => {
+      shopFilters.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderShopsList();
+    });
+  });
   
+  // Initial loading sequence
   refreshAllData();
   
-  // Refresh loop every 5 seconds to get real-time bookings
-  setInterval(refreshAllData, 5000);
+  // Refresh loop every 10 seconds to keep stats and live stream up to date
+  setInterval(refreshAllData, 10000);
 });
+
+// Toast notification helper
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  
+  let icon = 'fa-circle-check';
+  if (type === 'error') icon = 'fa-circle-xmark';
+  if (type === 'warning') icon = 'fa-triangle-exclamation';
+  
+  toast.innerHTML = `
+    <i class="fa-solid ${icon}"></i>
+    <span>${message}</span>
+  `;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    toast.style.transition = 'all 0.3s ease-out';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+// Write operational Audit Log to backend
+async function logAdminActivity(action, target, details) {
+  try {
+    await fetch(`${API_URL}/audit-logs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, target, details })
+    });
+  } catch (e) {
+    console.error('Audit logging failed:', e);
+  }
+}
+
+// Theme setup & toggle
+function setupTheme() {
+  const currentTheme = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  updateThemeIcon(currentTheme);
+
+  themeToggle.addEventListener('click', () => {
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    updateThemeIcon(theme);
+    showToast(`Switched to ${theme} mode`, 'success');
+    renderCharts(); // Redraw charts with correct theme colors
+  });
+}
+
+function updateThemeIcon(theme) {
+  const icon = themeToggle.querySelector('i');
+  if (theme === 'dark') {
+    icon.className = 'fa-solid fa-sun';
+  } else {
+    icon.className = 'fa-solid fa-moon';
+  }
+}
 
 // Setup tab switches
 function setupTabs() {
@@ -42,14 +125,16 @@ function setupTabs() {
       
       item.classList.add('active');
       document.getElementById(tabId).classList.add('active');
-      
-      // Update title text
       tabTitle.textContent = item.textContent.trim();
 
-      // Auto-load demands when switching to that tab
-      if (tabId === 'demand-tab') {
-        loadDemands();
-      }
+      // Hook tab-specific fetch sequences
+      if (tabId === 'demand-tab') loadDemands();
+      if (tabId === 'customers-tab') loadCustomers();
+      if (tabId === 'payments-tab') loadPaymentStats();
+      if (tabId === 'categories-tab') loadCategories();
+      if (tabId === 'reports-tab') loadReports();
+      if (tabId === 'settings-tab') loadSettings();
+      if (tabId === 'audit-logs-tab') loadAuditLogs();
     });
   });
 }
@@ -58,11 +143,18 @@ function setupTabs() {
 function setupModals() {
   // Banner modal
   document.getElementById('btn-add-banner-modal').addEventListener('click', () => {
+    document.getElementById('banner-modal-title').textContent = "Create Carousel Banner";
+    document.getElementById('edit-banner-id').value = "";
+    document.getElementById('banner-form').reset();
     document.getElementById('banner-modal').classList.add('active');
   });
   
   // Offer modal
   document.getElementById('btn-add-offer-modal').addEventListener('click', () => {
+    document.getElementById('offer-modal-title').textContent = "Create Promo Coupon";
+    document.getElementById('edit-offer-mode').value = "create";
+    document.getElementById('offer-code').disabled = false;
+    document.getElementById('offer-form').reset();
     document.getElementById('offer-modal').classList.add('active');
   });
   
@@ -75,14 +167,15 @@ function setupModals() {
   });
 }
 
-// Refresh all data collections
+// Refresh all primary data collections
 async function refreshAllData() {
   await Promise.all([
     fetchShops(),
     fetchBookings(),
     fetchBanners(),
     fetchOffers(),
-    fetchAlerts()
+    fetchAlerts(),
+    fetchCategories()
   ]);
   
   updateDashboardStats();
@@ -92,12 +185,13 @@ async function refreshAllData() {
   renderBannersGrid();
   renderOffersGrid();
   renderAlertsHistory();
+  renderShopCategoriesCheckbox();
 }
 
 // Fetch helper functions
 async function fetchShops() {
   try {
-    const res = await fetch(`${API_URL}/shops`);
+    const res = await fetch(`${API_URL}/shops/all`);
     shops = await res.json();
   } catch (e) {
     console.error('Error fetching shops:', e);
@@ -140,17 +234,65 @@ async function fetchAlerts() {
   }
 }
 
-// Update dashboard header stats
-function updateDashboardStats() {
-  document.getElementById('stat-shops').textContent = shops.length;
-  document.getElementById('stat-bookings').textContent = bookings.length;
-  document.getElementById('stat-offers').textContent = offers.filter(o => o.isActive).length;
-  document.getElementById('stat-alerts').textContent = alerts.length;
+async function fetchCategories() {
+  try {
+    const res = await fetch(`${API_URL}/categories`);
+    categories = await res.json();
+  } catch (e) {
+    console.error('Error fetching categories:', e);
+  }
+}
+
+// Render categories checkbox inside Register Shop form
+function renderShopCategoriesCheckbox() {
+  const container = document.getElementById('shop-form-categories');
+  if (!container) return;
+  container.innerHTML = '';
+  if (categories.length === 0) {
+    container.innerHTML = '<p style="font-size:11px;color:var(--text-muted);">No categories available. Please add categories first.</p>';
+    return;
+  }
+  categories.forEach(c => {
+    const label = document.createElement('label');
+    label.innerHTML = `<input type="checkbox" name="categories" value="${c.name}"> ${c.name}`;
+    container.appendChild(label);
+  });
+}
+
+// Update dashboard stats cards dynamically
+async function updateDashboardStats() {
+  try {
+    const res = await fetch(`${API_URL}/admin/stats`);
+    const stats = await res.json();
+
+    document.getElementById('stat-customers').textContent = stats.totalCustomers;
+    document.getElementById('stat-shops').textContent = stats.totalShops;
+    document.getElementById('stat-providers').textContent = stats.totalProviders;
+    document.getElementById('stat-active-b').textContent = stats.activeBookings;
+    document.getElementById('stat-pending-b').textContent = stats.pendingBookings;
+    document.getElementById('stat-completed-b').textContent = stats.completedBookings;
+    document.getElementById('stat-cancelled-b').textContent = stats.cancelledBookings;
+    document.getElementById('stat-revenue').textContent = `₹${stats.revenue.toLocaleString()}`;
+    document.getElementById('stat-wallet').textContent = `₹${stats.walletBalance.toLocaleString()}`;
+    document.getElementById('stat-online-s').textContent = stats.onlineShops;
+    document.getElementById('stat-offline-s').textContent = stats.offlineShops;
+    document.getElementById('stat-services').textContent = stats.totalServices;
+    document.getElementById('stat-coupons').textContent = stats.activeCoupons;
+    document.getElementById('stat-notifications').textContent = stats.notificationsSent;
+    document.getElementById('stat-today-orders').textContent = stats.todaysOrders;
+    
+    // Weekly and Monthly estimates from completed bookings
+    document.getElementById('stat-weekly-reports').textContent = `₹${(stats.revenue * 0.25).toFixed(0).toLocaleString()}`;
+    document.getElementById('stat-monthly-reports').textContent = `₹${stats.revenue.toLocaleString()}`;
+  } catch (e) {
+    console.error('Error updating dashboard stats:', e);
+  }
 }
 
 // Render dynamic tables
 function renderBookingsTable() {
   const tbody = document.getElementById('bookings-tbody');
+  if (!tbody) return;
   tbody.innerHTML = '';
   
   if (bookings.length === 0) {
@@ -158,13 +300,13 @@ function renderBookingsTable() {
     return;
   }
   
-  bookings.forEach(b => {
+  bookings.slice(0, 10).forEach(b => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${b.id}</td>
       <td>${b.customerName}</td>
       <td>${b.providerName}</td>
-      <td style="color:var(--primary);">₹${b.amount}</td>
+      <td style="color:var(--primary-solid); font-weight: 600;">₹${b.amount}</td>
       <td>${new Date(b.date).toLocaleDateString('en-GB')} • ${b.slot}</td>
       <td><span class="badge badge-${b.status}">${b.status.replace('_', ' ')}</span></td>
     `;
@@ -172,44 +314,89 @@ function renderBookingsTable() {
   });
 }
 
-// Render active registered shops list
+// Render active registered shops list with admin features
 function renderShopsList() {
   const container = document.getElementById('shops-list');
+  if (!container) return;
+  
+  const activeFilterBtn = document.querySelector('.tab-filter.active');
+  const filterVal = activeFilterBtn ? activeFilterBtn.getAttribute('data-filter') : 'all';
+  
   container.innerHTML = '';
   
-  if (shops.length === 0) {
-    container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">No registered shops found.</p>';
+  const filteredShops = shops.filter(s => {
+    if (filterVal === 'all') return true;
+    if (filterVal === 'approved') return s.verificationStatus === 'approved';
+    if (filterVal === 'pending') return s.verificationStatus === 'pending';
+    if (filterVal === 'suspended') return s.status === 'suspended';
+    return true;
+  });
+  
+  if (filteredShops.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">No matching shops found.</p>';
     return;
   }
   
-  shops.forEach(s => {
+  filteredShops.forEach(s => {
     const div = document.createElement('div');
     div.className = 'shop-list-item';
+    
+    // Checkboxes & labels
+    const isOnlineChecked = s.isOnline ? 'checked' : '';
+    const isLoginDisabled = s.loginDisabled ? 'checked' : '';
+    
+    // Badges
+    let verifyBadge = '';
+    if (s.verificationStatus === 'approved') verifyBadge = '<span class="badge badge-active">Approved</span>';
+    else if (s.verificationStatus === 'pending') verifyBadge = '<span class="badge badge-pending">Pending Approval</span>';
+    else verifyBadge = '<span class="badge badge-suspended">Rejected</span>';
+
+    let suspendBadge = s.status === 'suspended' ? '<span class="badge badge-suspended" style="margin-left: 5px;">Suspended</span>' : '';
+
     div.innerHTML = `
-      <div class="shop-info">
-        <h4>${s.name}</h4>
-        <p>Owner: ${s.ownerName} • Phone: ${s.phone} • ID: ${s.id}</p>
-        <p style="font-size:11px;color:var(--primary);margin-top:4px;">Coords: ${s.latitude}, ${s.longitude} • Cats: ${s.categories.join(', ')}</p>
+      <div class="shop-info" style="flex-grow: 1;">
+        <h4 style="display:flex; align-items:center; gap:8px;">${s.name} <span style="font-size:11px;color:var(--text-muted);">(${s.shopDisplayId || 'No ID'})</span> ${verifyBadge} ${suspendBadge}</h4>
+        <p>Owner: ${s.ownerName} • Phone: ${s.phone} • Email: ${s.email || 'N/A'}</p>
+        <p style="font-size:11px;color:var(--primary-solid);margin-top:4px;">Coords: ${s.latitude}, ${s.longitude} • Radius: ${s.serviceRadius}km • Visiting Charges: ₹${s.visitingCharges}</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">GST: ${s.gst || 'N/A'} • PAN: ${s.pan || 'N/A'} • Aadhaar: ${s.aadhaar || 'N/A'}</p>
+        <p style="font-size:11px;color:var(--warning);margin-top:2px; font-family: monospace;">Login ID: ${s.shopDisplayId || 'N/A'} • Password: ${s.tempPassword || 'N/A'}</p>
       </div>
       <div class="shop-actions">
-        <div class="toggle-switch" style="border-top:none; padding-top:0; gap:8px;">
-          <span>Online</span>
-          <label class="switch">
-            <input type="checkbox" ${s.isOnline ? 'checked' : ''} onchange="toggleShopOnline('${s.id}', ${!s.isOnline})">
-            <span class="slider"></span>
-          </label>
+        <div style="display:flex; gap:12px; align-items:center; font-size:11px;">
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span>Online</span>
+            <label class="switch">
+              <input type="checkbox" ${isOnlineChecked} onchange="toggleShopOnline('${s.id}', ${!s.isOnline})">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span>Disable Login</span>
+            <label class="switch">
+              <input type="checkbox" ${isLoginDisabled} onchange="toggleShopLogin('${s.id}', ${!s.loginDisabled})">
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="openServicesModal('${s.id}')"><i class="fa-solid fa-gears"></i> Services</button>
-        <button class="btn btn-danger btn-sm btn-icon btn-delete" onclick="deleteShop('${s.id}')" title="Delete Shop"><i class="fa-solid fa-trash-can"></i></button>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          ${s.verificationStatus === 'pending' ? `<button class="btn btn-primary btn-sm" onclick="approveShop('${s.id}', 'approved')"><i class="fa-solid fa-check"></i> Approve</button>` : ''}
+          ${s.verificationStatus === 'pending' ? `<button class="btn btn-danger btn-sm" onclick="approveShop('${s.id}', 'rejected')"><i class="fa-solid fa-xmark"></i> Reject</button>` : ''}
+          ${s.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="suspendShop('${s.id}', true)"><i class="fa-solid fa-ban"></i> Suspend</button>` : `<button class="btn btn-secondary btn-sm" onclick="suspendShop('${s.id}', false)"><i class="fa-solid fa-unlock"></i> Unsuspend</button>`}
+          <button class="btn btn-secondary btn-sm" onclick="resetShopPassword('${s.id}')"><i class="fa-solid fa-key"></i> Pass Reset</button>
+          <button class="btn btn-secondary btn-sm" onclick="openServicesModal('${s.id}')"><i class="fa-solid fa-gears"></i> Services</button>
+          <button class="btn btn-secondary btn-sm" onclick="editShop('${s.id}')"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="deleteShop('${s.id}')" title="Delete Shop"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
       </div>
     `;
     container.appendChild(div);
   });
 }
 
-// Render banners grid
+// Render banners grid with edit/delete functions
 function renderBannersGrid() {
   const grid = document.getElementById('banners-grid');
+  if (!grid) return;
   grid.innerHTML = '';
   
   if (banners.length === 0) {
@@ -224,7 +411,9 @@ function renderBannersGrid() {
       <img src="${b.imageUrl}" alt="${b.title}">
       <div class="banner-details">
         <h4>${b.title}</h4>
-        <p>Code: ${b.code} • Ribbon: ${b.percent}</p>
+        <p>Code: ${b.code} • Tag: ${b.percent}</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Redirect: ${b.redirectUrl || 'None'} • Order: ${b.priority || 0}</p>
+        <p style="font-size:11px;color:var(--text-muted);">Expires: ${b.expiryDate || 'Never'}</p>
       </div>
       <div class="toggle-switch">
         <div style="display:flex; align-items:center; gap:8px;">
@@ -234,7 +423,10 @@ function renderBannersGrid() {
             <span class="slider"></span>
           </label>
         </div>
-        <button class="btn btn-icon btn-delete" onclick="deleteBanner('${b.id}')" title="Delete Banner" style="padding: 4px; font-size:12px; color:var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
+        <div>
+          <button class="btn btn-icon" onclick="editBanner('${b.id}')" title="Edit Banner" style="padding: 4px; font-size:12px; color:var(--primary-solid);"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-icon btn-delete" onclick="deleteBanner('${b.id}')" title="Delete Banner" style="padding: 4px; font-size:12px; color:var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
       </div>
     `;
     grid.appendChild(div);
@@ -244,6 +436,7 @@ function renderBannersGrid() {
 // Render offers coupons grid
 function renderOffersGrid() {
   const grid = document.getElementById('offers-grid');
+  if (!grid) return;
   grid.innerHTML = '';
   
   if (offers.length === 0) {
@@ -256,9 +449,11 @@ function renderOffersGrid() {
     div.className = 'offer-item';
     div.innerHTML = `
       <div class="offer-details">
-        <h4>Code: ${o.code}</h4>
+        <h4 style="color:var(--primary-solid); font-weight:700;">Code: ${o.code}</h4>
         <p><strong>${o.title}</strong></p>
         <p>${o.description}</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Min Order: ₹${o.minOrderAmount || 0} • Max Discount: ₹${o.maxDiscount || 0}</p>
+        <p style="font-size:11px;color:var(--text-muted);">Expiry: ${o.expiryDate || 'N/A'} • Limit: ${o.usageLimit || 0} (Used: ${o.usedCount || 0})</p>
       </div>
       <div class="toggle-switch">
         <div style="display:flex; align-items:center; gap:8px;">
@@ -268,7 +463,10 @@ function renderOffersGrid() {
             <span class="slider"></span>
           </label>
         </div>
-        <button class="btn btn-icon btn-delete" onclick="deleteOffer('${o.code}')" title="Delete Offer" style="padding: 4px; font-size:12px; color:var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
+        <div>
+          <button class="btn btn-icon" onclick="editOffer('${o.code}')" title="Edit Coupon" style="padding: 4px; font-size:12px; color:var(--primary-solid);"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-icon btn-delete" onclick="deleteOffer('${o.code}')" title="Delete Offer" style="padding: 4px; font-size:12px; color:var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
       </div>
     `;
     grid.appendChild(div);
@@ -278,6 +476,7 @@ function renderOffersGrid() {
 // Render alerts notifications history
 function renderAlertsHistory() {
   const container = document.getElementById('alerts-history');
+  if (!container) return;
   container.innerHTML = '';
   
   if (alerts.length === 0) {
@@ -288,15 +487,16 @@ function renderAlertsHistory() {
   alerts.forEach(a => {
     const div = document.createElement('div');
     div.className = 'alert-history-item';
+    div.style = "border-bottom:1px solid var(--border); padding: 12px 0;";
     div.innerHTML = `
-      <h4>${a.title} <span>${a.time}</span></h4>
-      <p>${a.body}</p>
+      <h4 style="display:flex; justify-content:space-between; font-size:13px;">${a.title} <span style="font-size:10px; color:var(--text-muted);">${new Date(a.createdAt || Date.now()).toLocaleString()}</span></h4>
+      <p style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${a.body}</p>
     `;
     container.appendChild(div);
   });
 }
 
-// Actions handlers
+// Toggle banner status
 async function toggleBanner(id) {
   try {
     await fetch(`${API_URL}/banners/toggle`, {
@@ -304,12 +504,14 @@ async function toggleBanner(id) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
     });
+    showToast('Banner visibility toggled', 'success');
     refreshAllData();
   } catch (e) {
     console.error('Error toggling banner:', e);
   }
 }
 
+// Toggle offer status
 async function toggleOffer(code) {
   try {
     await fetch(`${API_URL}/offers/toggle`, {
@@ -317,6 +519,7 @@ async function toggleOffer(code) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code })
     });
+    showToast('Coupon status updated', 'success');
     refreshAllData();
   } catch (e) {
     console.error('Error toggling offer:', e);
@@ -335,11 +538,13 @@ function setupForms() {
       checkedCats.push(cb.value);
     });
     
+    const shopIdVal = document.getElementById('edit-shop-id').value;
+    
     const bodyData = {
       name: document.getElementById('shop-name').value,
       ownerName: document.getElementById('owner-name').value,
       phone: document.getElementById('shop-phone').value,
-      password: document.getElementById('shop-password').value,
+      email: document.getElementById('shop-email').value,
       latitude: parseFloat(document.getElementById('shop-lat').value),
       longitude: parseFloat(document.getElementById('shop-lng').value),
       address: document.getElementById('shop-address').value,
@@ -347,72 +552,164 @@ function setupForms() {
       visitingCharges: parseFloat(document.getElementById('shop-visiting-charges').value) || 150,
       timings: document.getElementById('shop-timings').value,
       verificationStatus: document.getElementById('shop-verification').value,
-      status: 'active',
-      isOpen: true,
+      gst: document.getElementById('shop-gst').value,
+      pan: document.getElementById('shop-pan').value,
+      aadhaar: document.getElementById('shop-aadhaar').value,
+      verificationDocs: document.getElementById('shop-docs').value.split('\n').filter(d => d.trim().length > 0),
       categories: checkedCats
     };
     
     try {
-      const res = await fetch(`${API_URL}/shops/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData)
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(`Shop "${bodyData.name}" registered successfully!\nID: ${data.shop.id}\nPassword: ${bodyData.password}`);
-        document.getElementById('shop-form').reset();
-        refreshAllData();
+      let res, data;
+      if (shopIdVal) {
+        // Edit Shop mode
+        bodyData.id = shopIdVal;
+        res = await fetch(`${API_URL}/shops/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData)
+        });
+        data = await res.json();
+        if (data.success) {
+          showToast(`Shop "${bodyData.name}" details updated successfully!`, 'success');
+          await logAdminActivity('Update Shop', shopIdVal, `Updated details for ${bodyData.name}`);
+        }
+      } else {
+        // Create Shop mode
+        res = await fetch(`${API_URL}/shops/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData)
+        });
+        data = await res.json();
+        if (data.success) {
+          showToast(`Shop "${bodyData.name}" registered successfully!`, 'success');
+          await logAdminActivity('Register Shop', data.shop.shopDisplayId, `Registered new shop ${bodyData.name}`);
+          
+          // Display credentials copy dialog
+          alert(`Shop Partner Credentials Generated!\n\nShop ID: ${data.shop.shopDisplayId}\nTemporary Password: ${data.shop.tempPassword}\n\nPlease share these credentials securely with the provider.`);
+        } else {
+          showToast(data.error || 'Failed to create shop', 'error');
+        }
       }
+      
+      document.getElementById('shop-form').reset();
+      document.getElementById('edit-shop-id').value = "";
+      document.getElementById('btn-submit-shop').innerHTML = '<i class="fa-solid fa-store"></i> Register Shop';
+      document.getElementById('btn-cancel-shop-edit').style.display = 'none';
+      
+      refreshAllData();
     } catch (err) {
       console.error('Error registering shop:', err);
+      showToast('Backend connection failed', 'error');
     }
   });
+
+  document.getElementById('btn-cancel-shop-edit').addEventListener('click', () => {
+    document.getElementById('shop-form').reset();
+    document.getElementById('edit-shop-id').value = "";
+    document.getElementById('btn-submit-shop').innerHTML = '<i class="fa-solid fa-store"></i> Register Shop';
+    document.getElementById('btn-cancel-shop-edit').style.display = 'none';
+  });
   
-  // 2. Add Banner Form
+  // 2. Add/Edit Banner Form
   document.getElementById('banner-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const bannerIdVal = document.getElementById('edit-banner-id').value;
+    
     const bodyData = {
       title: document.getElementById('banner-title').value,
       code: document.getElementById('banner-code').value,
       percent: document.getElementById('banner-percent').value,
-      imageUrl: document.getElementById('banner-image').value
+      imageUrl: document.getElementById('banner-image').value,
+      redirectUrl: document.getElementById('banner-redirect').value,
+      priority: parseInt(document.getElementById('banner-priority').value) || 0,
+      expiryDate: document.getElementById('banner-expiry').value
     };
     
     try {
-      await fetch(`${API_URL}/banners`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData)
-      });
+      let res, data;
+      if (bannerIdVal) {
+        bodyData.id = bannerIdVal;
+        res = await fetch(`${API_URL}/banners/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData)
+        });
+        data = await res.json();
+        if (data.success) {
+          showToast('Banner details updated', 'success');
+          await logAdminActivity('Update Banner', bannerIdVal, `Updated banner: ${bodyData.title}`);
+        }
+      } else {
+        res = await fetch(`${API_URL}/banners`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData)
+        });
+        data = await res.json();
+        if (data.success) {
+          showToast('New Carousel Banner added', 'success');
+          await logAdminActivity('Create Banner', data.banner.id, `Created banner: ${bodyData.title}`);
+        }
+      }
+      
       document.getElementById('banner-modal').classList.remove('active');
       document.getElementById('banner-form').reset();
       refreshAllData();
     } catch (err) {
-      console.error('Error creating banner:', err);
+      console.error('Error saving banner:', err);
+      showToast('Failed to save banner', 'error');
     }
   });
 
-  // 3. Add Offer Form
+  // 3. Add/Edit Offer Form
   document.getElementById('offer-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const mode = document.getElementById('edit-offer-mode').value;
+    
     const bodyData = {
       code: document.getElementById('offer-code').value,
       title: document.getElementById('offer-title').value,
-      description: document.getElementById('offer-desc').value
+      description: document.getElementById('offer-desc').value,
+      minOrderAmount: parseFloat(document.getElementById('offer-min-order').value) || 0,
+      maxDiscount: parseFloat(document.getElementById('offer-max-discount').value) || 0,
+      expiryDate: document.getElementById('offer-expiry').value,
+      usageLimit: parseInt(document.getElementById('offer-usage-limit').value) || 1
     };
     
     try {
-      await fetch(`${API_URL}/offers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData)
-      });
+      let res, data;
+      if (mode === 'edit') {
+        res = await fetch(`${API_URL}/offers/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData)
+        });
+        data = await res.json();
+        if (data.success) {
+          showToast('Coupon details updated', 'success');
+          await logAdminActivity('Update Offer', bodyData.code, `Updated coupon: ${bodyData.code}`);
+        }
+      } else {
+        res = await fetch(`${API_URL}/offers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData)
+        });
+        data = await res.json();
+        if (data.success) {
+          showToast('New Promo Coupon created', 'success');
+          await logAdminActivity('Create Offer', bodyData.code, `Created coupon: ${bodyData.code}`);
+        }
+      }
+      
       document.getElementById('offer-modal').classList.remove('active');
       document.getElementById('offer-form').reset();
       refreshAllData();
     } catch (err) {
-      console.error('Error creating offer:', err);
+      console.error('Error saving offer:', err);
+      showToast('Failed to save coupon', 'error');
     }
   });
 
@@ -422,7 +719,9 @@ function setupForms() {
     const bodyData = {
       title: document.getElementById('alert-title').value,
       body: document.getElementById('alert-body').value,
-      icon: document.getElementById('alert-icon').value
+      icon: document.getElementById('alert-icon').value,
+      channel: document.getElementById('alert-channel').value,
+      audience: document.getElementById('alert-audience').value
     };
     
     try {
@@ -432,40 +731,241 @@ function setupForms() {
         body: JSON.stringify(bodyData)
       });
       document.getElementById('broadcast-form').reset();
+      showToast('Broadcast notifications successfully sent!', 'success');
+      await logAdminActivity('Broadcast Alert', 'ALL', `Alert: ${bodyData.title}`);
       refreshAllData();
-      alert('Broadcast notification sent successfully!');
     } catch (err) {
       console.error('Error sending broadcast:', err);
     }
   });
+
+  // 5. Category Creation Form
+  const categoryForm = document.getElementById('category-form');
+  if (categoryForm) {
+    categoryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const bodyData = {
+        id: document.getElementById('cat-id').value,
+        name: document.getElementById('cat-name').value
+      };
+      try {
+        const res = await fetch(`${API_URL}/categories/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Category created successfully', 'success');
+          await logAdminActivity('Create Category', bodyData.id, `Created category: ${bodyData.name}`);
+          categoryForm.reset();
+          loadCategories();
+          refreshAllData();
+        } else {
+          showToast(data.error || 'Failed to create category', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
+
+  // 6. Wallet Adjustment Form
+  const walletForm = document.getElementById('wallet-adjust-form');
+  if (walletForm) {
+    walletForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const bodyData = {
+        userId: document.getElementById('wallet-user-id').value,
+        amount: parseFloat(document.getElementById('wallet-amount').value),
+        type: document.getElementById('wallet-type').value,
+        title: document.getElementById('wallet-reason').value
+      };
+      try {
+        const res = await fetch(`${API_URL}/users/wallet-adjust`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Wallet balance adjusted successfully', 'success');
+          await logAdminActivity('Adjust Wallet', bodyData.userId, `${bodyData.type} ₹${bodyData.amount} for ${bodyData.title}`);
+          document.getElementById('wallet-modal').classList.remove('active');
+          loadCustomers();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
+
+  // 7. Global settings form
+  const settingsForm = document.getElementById('settings-form');
+  if (settingsForm) {
+    settingsForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const bodyData = {
+        taxRate: parseFloat(document.getElementById('set-tax').value),
+        commission: parseFloat(document.getElementById('set-commission').value),
+        visitingCharges: parseFloat(document.getElementById('set-visiting').value),
+        supportNumber: document.getElementById('set-support').value,
+        emergencyContact: document.getElementById('set-emergency').value,
+        appVersion: document.getElementById('set-version').value,
+        terms: document.getElementById('set-terms').value,
+        privacy: document.getElementById('set-privacy').value,
+        maintenanceMode: document.getElementById('set-maintenance').checked
+      };
+      try {
+        const res = await fetch(`${API_URL}/settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Global settings updated successfully', 'success');
+          await logAdminActivity('Update Settings', 'SYSTEM', 'Saved platform variables');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
 }
 
-// --- NEW ACTION HANDLERS & ENHANCEMENTS ---
-
-// Delete Shop
+// Delete Shop partner
 async function deleteShop(id) {
   const shop = shops.find(s => s.id === id);
   if (!shop) return;
   if (confirm(`Are you sure you want to delete the shop "${shop.name}"? This action cannot be undone.`)) {
     try {
-      const res = await fetch(`${API_URL}/shops/${id}`, {
-        method: 'DELETE'
-      });
+      const res = await fetch(`${API_URL}/shops/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
-        alert('Shop deleted successfully!');
+        showToast('Shop deleted successfully', 'success');
+        await logAdminActivity('Delete Shop', id, `Deleted shop: ${shop.name}`);
         refreshAllData();
-      } else {
-        alert('Failed to delete shop: ' + (data.error || 'Unknown error'));
       }
     } catch (e) {
-      console.error('Error deleting shop:', e);
-      alert('Error connecting to backend.');
+      console.error(e);
     }
   }
 }
 
-// Toggle Shop Online/Offline
+// Approve / Reject Shop
+async function approveShop(id, status) {
+  try {
+    const res = await fetch(`${API_URL}/shops/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, verificationStatus: status })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Shop status updated to: ${status}`, 'success');
+      await logAdminActivity('Shop Approval Status', id, `Verification status set to: ${status}`);
+      refreshAllData();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Suspend Shop
+async function suspendShop(id, suspend) {
+  try {
+    const res = await fetch(`${API_URL}/shops/suspend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, suspend })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Shop suspended state set to: ${suspend}`, 'success');
+      await logAdminActivity('Shop Suspend Toggle', id, `Shop suspend state set to: ${suspend}`);
+      refreshAllData();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Disable Login
+async function toggleShopLogin(id, disabled) {
+  try {
+    const res = await fetch(`${API_URL}/shops/toggle-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, loginDisabled: disabled })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Shop Login Enabled state updated`, 'success');
+      await logAdminActivity('Shop Login Toggle', id, `Login disabled set to: ${disabled}`);
+      refreshAllData();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Reset Shop password
+async function resetShopPassword(id) {
+  if (confirm('Are you sure you want to reset password and generate new credentials for this provider?')) {
+    try {
+      const res = await fetch(`${API_URL}/shops/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Password credentials generated!', 'success');
+        await logAdminActivity('Reset Shop Password', id, 'Regenerated credentials');
+        alert(`New Shop Credentials Generated!\n\nShop ID: ${data.shop.shopDisplayId}\nTemporary Password: ${data.tempPassword}\n\nPlease share this immediately with the provider.`);
+        refreshAllData();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+// Load shop data into form for editing
+function editShop(id) {
+  const shop = shops.find(s => s.id === id);
+  if (!shop) return;
+  
+  document.getElementById('edit-shop-id').value = shop.id;
+  document.getElementById('shop-name').value = shop.name;
+  document.getElementById('owner-name').value = shop.ownerName;
+  document.getElementById('shop-phone').value = shop.phone;
+  document.getElementById('shop-email').value = shop.email || '';
+  document.getElementById('shop-lat').value = shop.latitude;
+  document.getElementById('shop-lng').value = shop.longitude;
+  document.getElementById('shop-address').value = shop.address || '';
+  document.getElementById('shop-radius').value = shop.serviceRadius || 5.0;
+  document.getElementById('shop-visiting-charges').value = shop.visitingCharges || 150;
+  document.getElementById('shop-timings').value = shop.timings || '09:00 AM - 09:00 PM';
+  document.getElementById('shop-verification').value = shop.verificationStatus || 'approved';
+  document.getElementById('shop-gst').value = shop.gst || '';
+  document.getElementById('shop-pan').value = shop.pan || '';
+  document.getElementById('shop-aadhaar').value = shop.aadhaar || '';
+  document.getElementById('shop-docs').value = (shop.verificationDocs || []).join('\n');
+  
+  // Set categories checkboxes
+  document.querySelectorAll('input[name="categories"]').forEach(cb => {
+    cb.checked = (shop.categories || []).includes(cb.value);
+  });
+  
+  document.getElementById('btn-submit-shop').innerHTML = '<i class="fa-solid fa-save"></i> Save Shop Details';
+  document.getElementById('btn-cancel-shop-edit').style.display = 'inline-flex';
+  
+  showToast('Shop data loaded into form', 'warning');
+}
+
+// Toggle Online Status
 async function toggleShopOnline(id, nextState) {
   try {
     const res = await fetch(`${API_URL}/shops/update`, {
@@ -475,13 +975,30 @@ async function toggleShopOnline(id, nextState) {
     });
     const data = await res.json();
     if (data.success) {
+      showToast('Shop Online/Offline status toggled', 'success');
       refreshAllData();
-    } else {
-      alert('Failed to update shop status.');
     }
   } catch (e) {
-    console.error('Error toggling shop status:', e);
+    console.error('Error toggling shop online:', e);
   }
+}
+
+// Edit Banner
+function editBanner(id) {
+  const banner = banners.find(b => b.id === id);
+  if (!banner) return;
+  
+  document.getElementById('banner-modal-title').textContent = "Edit Carousel Banner";
+  document.getElementById('edit-banner-id').value = banner.id;
+  document.getElementById('banner-title').value = banner.title;
+  document.getElementById('banner-code').value = banner.code;
+  document.getElementById('banner-percent').value = banner.percent;
+  document.getElementById('banner-image').value = banner.imageUrl;
+  document.getElementById('banner-redirect').value = banner.redirectUrl || '';
+  document.getElementById('banner-priority').value = banner.priority || 0;
+  document.getElementById('banner-expiry').value = banner.expiryDate || '';
+  
+  document.getElementById('banner-modal').classList.add('active');
 }
 
 // Delete Banner
@@ -491,12 +1008,33 @@ async function deleteBanner(id) {
       const res = await fetch(`${API_URL}/banners/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
+        showToast('Banner removed', 'success');
+        await logAdminActivity('Delete Banner', id, 'Deleted banner resource');
         refreshAllData();
       }
     } catch (e) {
-      console.error('Error deleting banner:', e);
+      console.error(e);
     }
   }
+}
+
+// Edit Coupon code
+function editOffer(code) {
+  const offer = offers.find(o => o.code === code);
+  if (!offer) return;
+  
+  document.getElementById('offer-modal-title').textContent = "Edit Promo Coupon";
+  document.getElementById('edit-offer-mode').value = "edit";
+  document.getElementById('offer-code').value = offer.code;
+  document.getElementById('offer-code').disabled = true;
+  document.getElementById('offer-title').value = offer.title;
+  document.getElementById('offer-desc').value = offer.description;
+  document.getElementById('offer-min-order').value = offer.minOrderAmount || 0;
+  document.getElementById('offer-max-discount').value = offer.maxDiscount || 0;
+  document.getElementById('offer-expiry').value = offer.expiryDate || '';
+  document.getElementById('offer-usage-limit').value = offer.usageLimit || 1;
+  
+  document.getElementById('offer-modal').classList.add('active');
 }
 
 // Delete Offer
@@ -506,6 +1044,8 @@ async function deleteOffer(code) {
       const res = await fetch(`${API_URL}/offers/${code}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
+        showToast('Coupon code deleted', 'success');
+        await logAdminActivity('Delete Coupon', code, 'Removed promotional coupon');
         refreshAllData();
       }
     } catch (e) {
@@ -527,7 +1067,7 @@ function renderManageBookingsTable() {
   });
   
   if (filteredBookings.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:20px;">No bookings match the filter criteria.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-secondary);padding:20px;">No bookings match the filter criteria.</td></tr>';
     return;
   }
   
@@ -536,16 +1076,19 @@ function renderManageBookingsTable() {
     tr.innerHTML = `
       <td>${b.id}</td>
       <td>
-        <div style="font-weight:700;">${b.customerName}</div>
-        <div style="font-size:11px;color:var(--text-secondary);">${b.customerPhone} • ${b.customerAddress}</div>
+        <div style="font-weight:600;">${b.customerName}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${b.customerPhone} • ${b.customerAddress}</div>
       </td>
       <td>
-        <div style="font-weight:700;">${b.providerName}</div>
-        <div style="font-size:11px;color:var(--text-secondary);">Shop ID: ${b.shopId}</div>
+        <div style="font-weight:600;">${b.providerName}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Shop ID: ${b.shopId}</div>
       </td>
-      <td style="color:var(--primary);font-weight:700;">₹${b.amount}</td>
+      <td style="color:var(--primary-solid);font-weight:600;">₹${b.amount}</td>
       <td>${new Date(b.date).toLocaleDateString('en-GB')} • ${b.slot}</td>
       <td><span class="badge badge-${b.status}">${b.status.replace('_', ' ')}</span></td>
+      <td>
+        <input type="text" value="${b.providerName}" class="form-group" style="margin-bottom:0; padding:4px 8px; font-size:12px; width:130px;" onchange="updateProviderName('${b.id}', this.value)">
+      </td>
       <td>
         <select class="table-action-select" onchange="changeBookingStatus('${b.id}', this.value)">
           <option value="pending" ${b.status === 'pending' ? 'selected' : ''}>Pending</option>
@@ -576,20 +1119,39 @@ async function changeBookingStatus(bookingId, newStatus) {
     });
     const data = await res.json();
     if (data.success) {
+      showToast('Booking status synchronized with database', 'success');
+      await logAdminActivity('Update Booking Status', bookingId, `Status updated to ${newStatus}`);
       refreshAllData();
     } else {
-      alert('Failed to update booking status: ' + (data.error || 'Server error'));
+      showToast('Failed to update booking status: ' + (data.error || 'Server error'), 'error');
       refreshAllData();
     }
   } catch (e) {
     console.error('Error changing booking status:', e);
-    alert('Error connecting to backend.');
     refreshAllData();
   }
 }
 
-// --- SERVICE MANAGEMENT MODAL LOGIC ---
+// Update Provider Name dynamically
+async function updateProviderName(bookingId, providerName) {
+  try {
+    const res = await fetch(`${API_URL}/bookings/update-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: bookingId, status: bookings.find(b => b.id === bookingId).status, providerName })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Provider assigned successfully', 'success');
+      await logAdminActivity('Assign Provider', bookingId, `Assigned expert name: ${providerName}`);
+      refreshAllData();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
 
+// --- SERVICE MANAGEMENT MODAL LOGIC (PRESERVED) ---
 let activeServicesShopId = null;
 let tempServicesList = [];
 
@@ -752,44 +1314,299 @@ function setupServicesEvents() {
       });
       const data = await res.json();
       if (data.success) {
-        alert('Shop services updated successfully!');
+        showToast('Shop services updated successfully!', 'success');
+        await logAdminActivity('Modify Shop Services', activeServicesShopId, `Updated services catalog`);
         document.getElementById('services-modal').classList.remove('active');
         refreshAllData();
       } else {
-        alert('Failed to save shop services: ' + (data.error || 'Server error'));
+        showToast('Failed to save shop services: ' + (data.error || 'Server error'), 'error');
       }
     } catch (e) {
       console.error('Error saving services:', e);
-      alert('Network error while saving services.');
+      showToast('Network error while saving services', 'error');
     }
   });
 }
 
-// Bind handlers globally for dynamic HTML events
-window.openServicesModal = openServicesModal;
-window.deleteShop = deleteShop;
-window.toggleShopOnline = toggleShopOnline;
-window.deleteBanner = deleteBanner;
-window.deleteOffer = deleteOffer;
-window.moveService = moveService;
-window.loadServiceForEdit = loadServiceForEdit;
-window.deleteService = deleteService;
-window.changeBookingStatus = changeBookingStatus;
-window.renderManageBookingsTable = renderManageBookingsTable;
-window.loadDemands = loadDemands;
+// Load customer directory from backend
+async function loadCustomers() {
+  const tbody = document.getElementById('customers-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
+  
+  try {
+    const res = await fetch(`${API_URL}/users`);
+    users = await res.json();
+    
+    tbody.innerHTML = '';
+    if (users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No users registered yet.</td></tr>';
+      return;
+    }
+    
+    users.forEach(u => {
+      const isBlocked = u.accountStatus === 'inactive';
+      const toggleBtnText = isBlocked ? 'Unblock' : 'Block';
+      const statusBadge = isBlocked ? '<span class="badge badge-suspended">Blocked</span>' : '<span class="badge badge-active">Active</span>';
+      
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${u.id || u._id}</td>
+        <td><strong>${u.name || 'N/A'}</strong></td>
+        <td>${u.phone}</td>
+        <td>${u.email || 'N/A'}</td>
+        <td style="color:var(--success); font-weight:600;">₹${u.walletBalance || 0}</td>
+        <td><span style="text-transform:capitalize;">${u.membership || 'basic'}</span></td>
+        <td>${new Date(u.memberSince || u.createdAt || Date.now()).toLocaleDateString()}</td>
+        <td>${statusBadge}</td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="triggerWalletAdjustment('${u.id || u._id}', '${u.name || u.phone}')"><i class="fa-solid fa-wallet"></i> Adjust Escrow</button>
+          <button class="btn ${isBlocked ? 'btn-primary' : 'btn-danger'} btn-sm" onclick="toggleUserBlock('${u.id || u._id}')">${toggleBtnText}</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Trigger Wallet Adjust modal
+function triggerWalletAdjustment(userId, username) {
+  document.getElementById('wallet-user-id').value = userId;
+  document.getElementById('wallet-username').value = username;
+  document.getElementById('wallet-amount').value = '';
+  document.getElementById('wallet-reason').value = '';
+  document.getElementById('wallet-modal').classList.add('active');
+}
+
+// Block/Unblock user
+async function toggleUserBlock(userId) {
+  try {
+    const res = await fetch(`${API_URL}/users/toggle-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`User status updated to: ${data.status}`, 'success');
+      await logAdminActivity('Toggle User Ban', userId, `User state updated to: ${data.status}`);
+      loadCustomers();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Load operational Settings variables
+async function loadSettings() {
+  try {
+    const res = await fetch(`${API_URL}/settings`);
+    settings = await res.json();
+    
+    document.getElementById('set-tax').value = settings.taxRate || 5.0;
+    document.getElementById('set-commission').value = settings.commission || 10.0;
+    document.getElementById('set-visiting').value = settings.visitingCharges || 150;
+    document.getElementById('set-support').value = settings.supportNumber || '';
+    document.getElementById('set-emergency').value = settings.emergencyContact || '';
+    document.getElementById('set-version').value = settings.appVersion || '1.0.0';
+    document.getElementById('set-terms').value = settings.terms || '';
+    document.getElementById('set-privacy').value = settings.privacy || '';
+    document.getElementById('set-maintenance').checked = settings.maintenanceMode || false;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Load operational categories
+async function loadCategories() {
+  const container = document.getElementById('categories-list');
+  if (!container) return;
+  container.innerHTML = '<p style="grid-column:1/-1;text-align:center;">Loading Categories...</p>';
+  
+  try {
+    const res = await fetch(`${API_URL}/categories`);
+    categories = await res.json();
+    
+    container.innerHTML = '';
+    if (categories.length === 0) {
+      container.innerHTML = '<p style="grid-column:1/-1;text-align:center;">No active categories available.</p>';
+      return;
+    }
+    
+    categories.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'category-badge-item';
+      div.innerHTML = `
+        <h4>${c.name}</h4>
+        <button class="btn btn-icon btn-delete" onclick="deleteCategory('${c.id}')"><i class="fa-solid fa-trash-can"></i></button>
+      `;
+      container.appendChild(div);
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Delete category
+async function deleteCategory(id) {
+  if (confirm('Are you sure you want to delete this category? All service items under this label will remain active but category filters will break.')) {
+    try {
+      const res = await fetch(`${API_URL}/categories/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Category deleted successfully', 'success');
+        await logAdminActivity('Delete Category', id, 'Removed service category tag');
+        loadCategories();
+        refreshAllData();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+// Load financial stats page
+function loadPaymentStats() {
+  const payComm = document.getElementById('pay-platform-comm');
+  const payDue = document.getElementById('pay-provider-due');
+  const txTbody = document.getElementById('wallet-tx-tbody');
+  const setTbody = document.getElementById('settlement-tbody');
+  
+  if (!payComm) return;
+  
+  let platformCommission = 0;
+  let settlementsDue = 0;
+  
+  // Clean tx list
+  txTbody.innerHTML = '';
+  setTbody.innerHTML = '';
+  
+  // Calculate commission & settlements per shop
+  const shopSettlementMap = {};
+  shops.forEach(s => {
+    shopSettlementMap[s.id] = {
+      name: s.name,
+      phone: s.phone,
+      visiting: s.visitingCharges || 150,
+      bookingsCount: 0,
+      grossAmount: 0
+    };
+  });
+  
+  bookings.forEach(b => {
+    if (b.status === 'completed') {
+      const comm = b.amount * 0.10;
+      platformCommission += comm;
+      settlementsDue += (b.amount - comm);
+      
+      if (shopSettlementMap[b.shopId]) {
+        shopSettlementMap[b.shopId].bookingsCount += 1;
+        shopSettlementMap[b.shopId].grossAmount += b.amount;
+      }
+    }
+  });
+  
+  payComm.textContent = `₹${platformCommission.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  payDue.textContent = `₹${settlementsDue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  
+  // Populate settlements table
+  Object.entries(shopSettlementMap).forEach(([shopId, s]) => {
+    if (s.bookingsCount > 0) {
+      const tr = document.createElement('tr');
+      const earned = s.grossAmount * 0.90;
+      const commission = s.grossAmount * 0.10;
+      
+      tr.innerHTML = `
+        <td>${shopId}</td>
+        <td><strong>${s.name}</strong></td>
+        <td>${s.phone}</td>
+        <td>₹${s.visiting}</td>
+        <td>${s.bookingsCount} Completed</td>
+        <td style="font-weight:600;">₹${s.grossAmount}</td>
+        <td style="color:var(--success); font-weight:600;">₹${earned.toFixed(2)}</td>
+        <td style="color:var(--warning); font-weight:600;">₹${commission.toFixed(2)}</td>
+      `;
+      setTbody.appendChild(tr);
+    }
+  });
+
+  if (setTbody.innerHTML === '') {
+    setTbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-secondary);">No completed shop bookings yet for settlement.</td></tr>';
+  }
+
+  // Populate recent transaction logs
+  let txIndex = 0;
+  users.forEach(u => {
+    if (u.walletTransactions && u.walletTransactions.length > 0) {
+      u.walletTransactions.forEach(t => {
+        txIndex++;
+        const tr = document.createElement('tr');
+        const badgeClass = t.type === 'credit' ? 'badge-completed' : 'badge-cancelled';
+        tr.innerHTML = `
+          <td>${t.id || 'TX-'+txIndex}</td>
+          <td>${u.name || u.phone}</td>
+          <td style="font-weight:600;">₹${t.amount}</td>
+          <td><span class="badge ${badgeClass}">${t.type}</span></td>
+          <td>${t.title || 'Escrow adjustment'}</td>
+        `;
+        txTbody.appendChild(tr);
+      });
+    }
+  });
+
+  if (txTbody.innerHTML === '') {
+    txTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);">No escrow transactions log found.</td></tr>';
+  }
+}
+
+// Load Audit logs tab
+async function loadAuditLogs() {
+  const tbody = document.getElementById('audit-logs-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching log...</td></tr>';
+  
+  try {
+    const res = await fetch(`${API_URL}/audit-logs`);
+    auditLogs = await res.json();
+    
+    tbody.innerHTML = '';
+    if (auditLogs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Audit logs are clean.</td></tr>';
+      return;
+    }
+    
+    auditLogs.forEach(l => {
+      const date = new Date(l.createdAt || Date.now()).toLocaleString();
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${date}</td>
+        <td><span style="font-family: monospace;">${l.adminId}</span></td>
+        <td><strong>${l.action}</strong></td>
+        <td><span style="color:var(--primary-solid); font-family:monospace;">${l.target || 'N/A'}</span></td>
+        <td>${l.details}</td>
+        <td><code>${l.ip}</code></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 // Load customer demand submissions from backend
 async function loadDemands() {
   const tbody = document.getElementById('demand-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
 
   try {
     const res = await fetch(`${API_URL}/demand`);
-    const demands = await res.json();
+    demands = await res.json();
 
     if (!Array.isArray(demands) || demands.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">No customer demand submissions yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px;">No customer demand submissions yet.</td></tr>';
       return;
     }
 
@@ -798,16 +1615,241 @@ async function loadDemands() {
       const date = d.createdAt ? new Date(d.createdAt).toLocaleString('en-IN') : 'N/A';
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td style="color:var(--text-muted);font-size:12px;">${index + 1}</td>
-        <td style="font-weight:700;">${d.phone || 'N/A'}</td>
-        <td style="font-size:13px;">${d.address || 'N/A'}</td>
-        <td style="font-size:12px;color:var(--text-muted);">${(d.latitude || 0).toFixed(4)}, ${(d.longitude || 0).toFixed(4)}</td>
-        <td style="font-size:12px;color:var(--text-muted);">${date}</td>
+        <td>${index + 1}</td>
+        <td><strong>${d.phone}</strong></td>
+        <td>${d.address}</td>
+        <td><code>${d.latitude.toFixed(4)}, ${d.longitude.toFixed(4)}</code></td>
+        <td>${date}</td>
       `;
       tbody.appendChild(tr);
     });
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--danger);padding:24px;">Failed to load demand data. Ensure the backend server is running.</td></tr>';
-    console.error('Error loading demands:', e);
+    console.error('Failed to load demands:', e);
   }
 }
+
+// Chart renders
+let revenueTrendChart = null;
+let categorySplitChart = null;
+let fulfillmentStatusChart = null;
+
+async function loadReports() {
+  // Load aggregate metrics
+  let totalGross = 0;
+  let couponsCount = 0;
+  let completed = 0;
+  let cancelled = 0;
+  
+  bookings.forEach(b => {
+    if (b.status === 'completed') {
+      totalGross += b.amount;
+      completed++;
+    } else if (b.status === 'cancelled') {
+      cancelled++;
+    }
+  });
+  
+  const totalFulfill = completed + cancelled;
+  const rate = totalFulfill > 0 ? ((completed / totalFulfill) * 100).toFixed(1) : 100;
+  
+  document.getElementById('report-gross-volume').textContent = `₹${totalGross.toLocaleString()}`;
+  document.getElementById('report-commission').textContent = `₹${(totalGross * 0.10).toFixed(0).toLocaleString()}`;
+  document.getElementById('report-fulfillment-rate').textContent = `${rate}%`;
+  
+  // Render Top shops
+  const shopTotals = {};
+  shops.forEach(s => {
+    shopTotals[s.id] = { name: s.name, rating: s.rating || 5.0, bookingsCount: 0 };
+  });
+  bookings.forEach(b => {
+    if (shopTotals[b.shopId]) {
+      shopTotals[b.shopId].bookingsCount++;
+    }
+  });
+  
+  const topShopsTbody = document.getElementById('top-shops-tbody');
+  topShopsTbody.innerHTML = '';
+  Object.values(shopTotals)
+    .sort((a,b) => b.bookingsCount - a.bookingsCount)
+    .slice(0, 5)
+    .forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${s.name}</strong></td>
+        <td>⭐ ${s.rating.toFixed(1)}</td>
+        <td>${s.bookingsCount} orders</td>
+      `;
+      topShopsTbody.appendChild(tr);
+    });
+    
+  if (topShopsTbody.innerHTML === '') {
+    topShopsTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No shop sales recorded yet.</td></tr>';
+  }
+
+  // Draw Charts
+  await renderCharts();
+}
+
+async function renderCharts() {
+  try {
+    const res = await fetch(`${API_URL}/reports/summary`);
+    const summary = await res.json();
+    
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textColor = isDark ? '#94a3b8' : '#475569';
+    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+
+    // 1. Revenue trend Chart
+    if (revenueTrendChart) revenueTrendChart.destroy();
+    const revCtx = document.getElementById('revenueTrendChart');
+    if (revCtx) {
+      revenueTrendChart = new Chart(revCtx, {
+        type: 'line',
+        data: {
+          labels: summary.daily.map(d => d.date),
+          datasets: [
+            {
+              label: 'Platform Gross Revenue (₹)',
+              data: summary.daily.map(d => d.revenue),
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              fill: true,
+              tension: 0.3,
+              borderWidth: 2
+            },
+            {
+              label: 'Total Orders Placed',
+              data: summary.daily.map(d => d.bookings),
+              borderColor: '#8b5cf6',
+              backgroundColor: 'rgba(139, 92, 246, 0.1)',
+              fill: false,
+              tension: 0.1,
+              borderWidth: 1.5,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: textColor, font: { family: 'Outfit' } } }
+          },
+          scales: {
+            x: { grid: { color: gridColor }, ticks: { color: textColor } },
+            y: { grid: { color: gridColor }, ticks: { color: textColor } },
+            y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: textColor } }
+          }
+        }
+      });
+    }
+
+    // 2. Category split chart
+    if (categorySplitChart) categorySplitChart.destroy();
+    const catCtx = document.getElementById('categorySplitChart');
+    if (catCtx) {
+      categorySplitChart = new Chart(catCtx, {
+        type: 'doughnut',
+        data: {
+          labels: summary.categories.map(c => c.name),
+          datasets: [{
+            data: summary.categories.map(c => c.bookings),
+            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#64748b']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, font: { family: 'Outfit' } } }
+          }
+        }
+      });
+    }
+
+    // 3. Fulfillment Rate pie chart (in reports tab)
+    if (fulfillmentStatusChart) fulfillmentStatusChart.destroy();
+    const fulfillCtx = document.getElementById('fulfillmentStatusChart');
+    if (fulfillCtx) {
+      let pending = bookings.filter(b => b.status === 'pending').length;
+      let completed = bookings.filter(b => b.status === 'completed').length;
+      let cancelled = bookings.filter(b => b.status === 'cancelled').length;
+      let ongoing = bookings.filter(b => b.status === 'accepted' || b.status === 'on_the_way').length;
+
+      fulfillmentStatusChart = new Chart(fulfillCtx, {
+        type: 'pie',
+        data: {
+          labels: ['Completed', 'Cancelled', 'Ongoing', 'Pending'],
+          datasets: [{
+            data: [completed, cancelled, ongoing, pending],
+            backgroundColor: ['#10b981', '#ef4444', '#3b82f6', '#f59e0b']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, font: { family: 'Outfit' } } }
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Failed to render reports summary charts:', e);
+  }
+}
+
+// Client-side export to CSV
+function exportReportsCSV() {
+  let csvContent = "data:text/csv;charset=utf-8,";
+  csvContent += "Booking ID,Customer Name,Customer Phone,Customer Address,Shop ID,Provider Name,Amount,Status,Scheduled Date\n";
+  
+  bookings.forEach(b => {
+    const row = [
+      b.id,
+      `"${b.customerName}"`,
+      b.customerPhone,
+      `"${b.customerAddress}"`,
+      b.shopId,
+      `"${b.providerName}"`,
+      b.amount,
+      b.status,
+      new Date(b.date).toLocaleDateString()
+    ].join(",");
+    csvContent += row + "\n";
+  });
+  
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `quickfix_platform_bookings_report_${Date.now()}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('Booking reports CSV generated!', 'success');
+}
+
+// Bind handlers globally for dynamic HTML events
+window.openServicesModal = openServicesModal;
+window.deleteShop = deleteShop;
+window.toggleShopOnline = toggleShopOnline;
+window.toggleShopLogin = toggleShopLogin;
+window.approveShop = approveShop;
+window.suspendShop = suspendShop;
+window.resetShopPassword = resetShopPassword;
+window.editShop = editShop;
+window.deleteBanner = deleteBanner;
+window.editBanner = editBanner;
+window.deleteOffer = deleteOffer;
+window.editOffer = editOffer;
+window.moveService = moveService;
+window.loadServiceForEdit = loadServiceForEdit;
+window.deleteService = deleteService;
+window.changeBookingStatus = changeBookingStatus;
+window.updateProviderName = updateProviderName;
+window.renderManageBookingsTable = renderManageBookingsTable;
+window.loadDemands = loadDemands;
+window.triggerWalletAdjustment = triggerWalletAdjustment;
+window.toggleUserBlock = toggleUserBlock;
+window.loadAuditLogs = loadAuditLogs;
+window.exportReportsCSV = exportReportsCSV;

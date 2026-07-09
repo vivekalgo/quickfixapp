@@ -19,60 +19,6 @@ class WishlistScreen extends ConsumerStatefulWidget {
 class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Local copy of shop database for lookup
-  final List<Shop> _allShops = const [
-    Shop(
-      id: '1',
-      name: 'QuickFix Solutions',
-      categories: ['Plumbing', 'Electrical'],
-      rating: 4.6,
-      distanceKm: 1.2,
-      deliveryTimeMins: 15,
-      priceRange: '₹₹',
-      imagePath: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&auto=format&fit=crop&q=60',
-    ),
-    Shop(
-      id: '2',
-      name: 'HomeFix Services',
-      categories: ['Cleaning', 'Appliances'],
-      rating: 4.4,
-      distanceKm: 1.8,
-      deliveryTimeMins: 20,
-      priceRange: '₹',
-      imagePath: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=500&auto=format&fit=crop&q=60',
-    ),
-    Shop(
-      id: '3',
-      name: 'FixIt Pro',
-      categories: ['Carpentry', 'Painting'],
-      rating: 4.7,
-      distanceKm: 0.9,
-      deliveryTimeMins: 10,
-      priceRange: '₹₹',
-      imagePath: 'https://images.unsplash.com/photo-1534081333815-ae5019106622?w=500&auto=format&fit=crop&q=60',
-    ),
-  ];
-
-  // Local copy of professional database for lookup
-  final List<Professional> _allProfessionals = const [
-    Professional(
-      id: 'p1',
-      name: 'Rohan Sharma',
-      specialty: 'Expert Electrician',
-      rating: 4.9,
-      reviewsCount: 320,
-      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-    ),
-    Professional(
-      id: 'p2',
-      name: 'Suresh Kumar',
-      specialty: 'Master Plumber',
-      rating: 4.8,
-      reviewsCount: 240,
-      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -90,9 +36,8 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
     final isDark = ref.watch(isDarkModeProvider);
     final wishlist = ref.watch(wishlistProvider);
 
-    // Filter down to favorited items
-    final favShops = _allShops.where((shop) => wishlist.contains(shop.id)).toList();
-    final favExperts = _allProfessionals.where((prof) => wishlist.contains(prof.id)).toList();
+    final shopsAsync = ref.watch(nearbyShopsProvider);
+    final expertsAsync = ref.watch(topProfessionalsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -123,8 +68,25 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildShopsTab(favShops, isDark),
-          _buildExpertsTab(favExperts, isDark),
+          // Shops Tab
+          shopsAsync.when(
+            data: (allShops) {
+              final favShops = allShops.where((shop) => wishlist.contains(shop.id)).toList();
+              return _buildShopsTab(favShops, isDark);
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => _buildShopsTab([], isDark),
+          ),
+          
+          // Experts Tab
+          expertsAsync.when(
+            data: (allExperts) {
+              final favExperts = allExperts.where((prof) => wishlist.contains(prof.id)).toList();
+              return _buildExpertsTab(favExperts, isDark);
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => _buildExpertsTab([], isDark),
+          ),
         ],
       ),
     );
@@ -163,9 +125,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
           child: InkWell(
             onTap: () {
               AppHaptics.lightTap();
-              // Navigate to category screen matching the first category of the shop
-              final category = shop.categories.first.toLowerCase();
-              context.push('/category/$category');
+              context.push('/shop/${shop.id}', extra: shop);
             },
             borderRadius: BorderRadius.circular(16),
             child: Row(
@@ -214,7 +174,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
                             const Icon(Icons.location_on_outlined, color: AppColors.textSecondaryLight, size: 13),
                             const SizedBox(width: 2),
                             Text(
-                              '${shop.distanceKm} km',
+                              '${shop.distanceKm.toStringAsFixed(1)} km',
                               style: AppTextStyles.bodySmall(isDark),
                             ),
                           ],

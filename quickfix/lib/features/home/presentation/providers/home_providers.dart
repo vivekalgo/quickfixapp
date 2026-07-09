@@ -109,6 +109,15 @@ final topProfessionalsProvider = FutureProvider<List<Professional>>((ref) async 
   return repository.getTopProfessionals();
 });
 
+// Promo Banners Provider
+final bannersProvider = FutureProvider<List<PromoBanner>>((ref) async {
+  final repository = ref.watch(homeRepositoryProvider);
+  return repository.getBanners();
+});
+
+// Cart Shop ID Tracker Provider
+final cartShopIdProvider = StateProvider<String?>((ref) => null);
+
 // Customer Reviews Provider
 final customerReviewsProvider = FutureProvider<List<Review>>((ref) async {
   final repository = ref.watch(homeRepositoryProvider);
@@ -150,32 +159,22 @@ class LocationNotifier extends StateNotifier<UserLocation> {
   }
 
   Future<String?> _reverseGeocode(double lat, double lng) async {
+    const apiKey = 'AIzaSyDNwQdFkn1OJjBEd6_uKGNuJGnVYNNhBN4';
     try {
       final dio = Dio();
-      dio.options.headers['User-Agent'] = 'QuickFixApp/1.0';
       final response = await dio.get(
-        'https://nominatim.openstreetmap.org/reverse',
+        'https://maps.googleapis.com/maps/api/geocode/json',
         queryParameters: {
-          'lat': lat,
-          'lon': lng,
-          'format': 'json',
-          'addressdetails': 1,
+          'latlng': '$lat,$lng',
+          'key': apiKey,
+          'language': 'en',
         },
       );
-      if (response.statusCode == 200 && response.data != null) {
-        final data = response.data;
-        final address = data['address'] as Map<String, dynamic>?;
-        if (address != null) {
-          final road = address['road'] ?? address['suburb'] ?? address['neighbourhood'] ?? address['amenity'] ?? '';
-          final city = address['city'] ?? address['town'] ?? address['village'] ?? address['county'] ?? '';
-          final state = address['state'] ?? '';
-          final postcode = address['postcode'] ?? '';
-          final parts = [road, city, state, postcode].where((element) => element.toString().trim().isNotEmpty).toList();
-          if (parts.isNotEmpty) {
-            return parts.join(', ');
-          }
+      if (response.statusCode == 200) {
+        final results = response.data['results'] as List?;
+        if (results != null && results.isNotEmpty) {
+          return results[0]['formatted_address'] as String?;
         }
-        return data['display_name'] as String?;
       }
     } catch (e) {
       // Ignore reverse geocoding failures and fall back to coordinates.

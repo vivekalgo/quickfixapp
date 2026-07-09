@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QuickFix - Central Admin Dashboard</title>
+  <title>QuickFix - Enterprise Admin Panel</title>
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="app-container">
@@ -14,18 +15,26 @@
     <!-- Sidebar Menu -->
     <aside class="sidebar">
       <div class="logo">
-        <i class="fa-solid fa-screwdriver-wrench"></i>
-        <span>QuickFix Admin</span>
+        <i class="fa-solid fa-screwdriver-wrench text-gradient"></i>
+        <span>QuickFix Enterprise</span>
       </div>
       <nav class="nav-menu">
         <a href="#" class="nav-item active" data-tab="dashboard-tab"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
         <a href="#" class="nav-item" data-tab="shops-tab"><i class="fa-solid fa-store"></i> Manage Shops</a>
-        <a href="#" class="nav-item" data-tab="bookings-tab"><i class="fa-solid fa-receipt"></i> Manage Bookings</a>
-        <a href="#" class="nav-item" data-tab="offers-tab"><i class="fa-solid fa-tags"></i> Banners & Offers</a>
+        <a href="#" class="nav-item" data-tab="bookings-tab"><i class="fa-solid fa-receipt"></i> Bookings</a>
+        <a href="#" class="nav-item" data-tab="banners-tab"><i class="fa-solid fa-image"></i> Banners & Media</a>
+        <a href="#" class="nav-item" data-tab="coupons-tab"><i class="fa-solid fa-tags"></i> Coupons</a>
         <a href="#" class="nav-item" data-tab="broadcast-tab"><i class="fa-solid fa-paper-plane"></i> Broadcast Alerts</a>
+        <a href="#" class="nav-item" data-tab="customers-tab"><i class="fa-solid fa-user-group"></i> Customers</a>
+        <a href="#" class="nav-item" data-tab="payments-tab"><i class="fa-solid fa-credit-card"></i> Payments & Wallet</a>
+        <a href="#" class="nav-item" data-tab="categories-tab"><i class="fa-solid fa-folder-open"></i> Categories</a>
+        <a href="#" class="nav-item" data-tab="reports-tab"><i class="fa-solid fa-chart-bar"></i> Reports & Analytics</a>
+        <a href="#" class="nav-item" data-tab="settings-tab"><i class="fa-solid fa-sliders"></i> App Settings</a>
+        <a href="#" class="nav-item" data-tab="roles-tab"><i class="fa-solid fa-user-shield"></i> Role Permissions</a>
+        <a href="#" class="nav-item" data-tab="audit-logs-tab"><i class="fa-solid fa-shield-halved"></i> Audit Logs</a>
         <a href="#" class="nav-item" data-tab="demand-tab"><i class="fa-solid fa-location-crosshairs"></i> Customer Demand</a>
       </nav>
-      <div class="version">v1.0.0 (Enterprise)</div>
+      <div class="version">v2.0.0 (Stable)</div>
     </aside>
 
     <!-- Main Content Area -->
@@ -36,41 +45,166 @@
         <div class="page-title">
           <h1 id="tab-title">System Overview</h1>
         </div>
-        <div class="admin-profile">
-          <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" alt="Admin Avatar">
-          <span>Super Admin</span>
+        <div class="header-right">
+          <div class="sync-indicator">
+            <span class="pulse-dot"></span>
+            <span>Real-time Sync</span>
+          </div>
+          <button id="theme-toggle" class="btn-theme" title="Toggle Theme">
+            <i class="fa-solid fa-moon"></i>
+          </button>
+          <div class="admin-profile">
+            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" alt="Admin Avatar">
+            <div class="admin-profile-info">
+              <span class="admin-name">Super Admin</span>
+              <span class="admin-role">System Root</span>
+            </div>
+          </div>
         </div>
       </header>
 
       <!-- TAB: Dashboard -->
       <div class="tab-pane active" id="dashboard-tab">
-        <div class="stats-grid">
+        <div class="stats-grid stats-18">
           <div class="stat-card">
-            <div class="stat-icon"><i class="fa-solid fa-store"></i></div>
+            <div class="stat-icon icon-users"><i class="fa-solid fa-user-group"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-customers">0</h3>
+              <p>Total Customers</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-shops"><i class="fa-solid fa-store"></i></div>
             <div class="stat-details">
               <h3 id="stat-shops">0</h3>
-              <p>Registered Shops</p>
+              <p>Total Shops</p>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon"><i class="fa-solid fa-receipt"></i></div>
+            <div class="stat-icon icon-providers"><i class="fa-solid fa-user-tie"></i></div>
             <div class="stat-details">
-              <h3 id="stat-bookings">0</h3>
-              <p>Total Bookings</p>
+              <h3 id="stat-providers">0</h3>
+              <p>Approved Providers</p>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon"><i class="fa-solid fa-tag"></i></div>
+            <div class="stat-icon icon-active"><i class="fa-solid fa-spinner fa-spin"></i></div>
             <div class="stat-details">
-              <h3 id="stat-offers">0</h3>
-              <p>Active Offers</p>
+              <h3 id="stat-active-b">0</h3>
+              <p>Active Bookings</p>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon"><i class="fa-solid fa-bell"></i></div>
+            <div class="stat-icon icon-pending"><i class="fa-solid fa-clock"></i></div>
             <div class="stat-details">
-              <h3 id="stat-alerts">0</h3>
-              <p>Broadcasts Sent</p>
+              <h3 id="stat-pending-b">0</h3>
+              <p>Pending Bookings</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-completed"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-completed-b">0</h3>
+              <p>Completed Bookings</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-cancelled"><i class="fa-solid fa-circle-xmark"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-cancelled-b">0</h3>
+              <p>Cancelled Bookings</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-revenue"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-revenue">₹0</h3>
+              <p>Platform Revenue</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-wallet"><i class="fa-solid fa-wallet"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-wallet">₹0</h3>
+              <p>Escrow Wallet Balance</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-online"><i class="fa-solid fa-wifi"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-online-s">0</h3>
+              <p>Online Shops</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-offline"><i class="fa-solid fa-plane-slash"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-offline-s">0</h3>
+              <p>Offline Shops</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-services"><i class="fa-solid fa-gear"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-services">0</h3>
+              <p>Total Services</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-coupons"><i class="fa-solid fa-tags"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-coupons">0</h3>
+              <p>Active Coupons</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-broadcast"><i class="fa-solid fa-paper-plane"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-broadcast-status">Online</h3>
+              <p>Broadcast Service</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-sent"><i class="fa-solid fa-bell"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-notifications">0</h3>
+              <p>Notifications Sent</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-today"><i class="fa-solid fa-calendar-day"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-today-orders">0</h3>
+              <p>Today's Orders</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-weekly"><i class="fa-solid fa-chart-line"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-weekly-reports">₹0</h3>
+              <p>Weekly Growth</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon icon-monthly"><i class="fa-solid fa-chart-pie"></i></div>
+            <div class="stat-details">
+              <h3 id="stat-monthly-reports">₹0</h3>
+              <p>Monthly Sales</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-charts-row">
+          <div class="card chart-card">
+            <h3><i class="fa-solid fa-trend-up"></i> Weekly Platform Revenue Stream</h3>
+            <div class="chart-container">
+              <canvas id="revenueTrendChart"></canvas>
+            </div>
+          </div>
+          <div class="card chart-card">
+            <h3><i class="fa-solid fa-folder-closed"></i> Category Business Split</h3>
+            <div class="chart-container">
+              <canvas id="categorySplitChart"></canvas>
             </div>
           </div>
         </div>
@@ -98,43 +232,6 @@
         </div>
       </div>
 
-      <!-- TAB: Manage Bookings -->
-      <div class="tab-pane" id="bookings-tab">
-        <div class="card table-card">
-          <div class="card-header">
-            <h2><i class="fa-solid fa-receipt"></i> Booking Administration Portal</h2>
-            <div class="filter-group" style="display: flex; gap: 12px; align-items: center;">
-              <select id="booking-filter-status" class="form-group" style="width: 180px; padding: 8px 12px; margin-bottom: 0; background-color: var(--background); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); outline: none;">
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="accepted">Accepted</option>
-                <option value="on_the_way">On The Way</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Booking ID</th>
-                  <th>Customer Info</th>
-                  <th>Shop Provider</th>
-                  <th>Amount</th>
-                  <th>Scheduled Date</th>
-                  <th>Current Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="manage-bookings-tbody">
-                <!-- Dynamic manage bookings go here -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
       <!-- TAB: Manage Shops -->
       <div class="tab-pane" id="shops-tab">
         <div class="split-layout">
@@ -142,6 +239,7 @@
           <div class="card form-card">
             <h2><i class="fa-solid fa-circle-plus"></i> Register Hyperlocal Shop</h2>
             <form id="shop-form">
+              <input type="hidden" id="edit-shop-id">
               <div class="form-group">
                 <label for="shop-name">Shop Name</label>
                 <input type="text" id="shop-name" required placeholder="e.g. Swaroop Nagar Plumbers">
@@ -150,13 +248,15 @@
                 <label for="owner-name">Owner Name</label>
                 <input type="text" id="owner-name" required placeholder="e.g. Amit Kumar">
               </div>
-              <div class="form-group">
-                <label for="shop-phone">Phone Number</label>
-                <input type="tel" id="shop-phone" required placeholder="e.g. 9876543210">
-              </div>
-              <div class="form-group">
-                <label for="shop-password">Login Password</label>
-                <input type="password" id="shop-password" required placeholder="Create portal password">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-phone">Phone Number</label>
+                  <input type="tel" id="shop-phone" required placeholder="e.g. 9876543210">
+                </div>
+                <div class="form-group">
+                  <label for="shop-email">Email Address</label>
+                  <input type="email" id="shop-email" placeholder="e.g. owner@swaroop.com">
+                </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
@@ -170,7 +270,7 @@
               </div>
               <div class="form-group">
                 <label for="shop-address">Full Address</label>
-                <input type="text" id="shop-address" placeholder="e.g. 113, Swaroop Nagar, Kanpur, UP - 208002">
+                <input type="text" id="shop-address" placeholder="e.g. 113, Swaroop Nagar, Kanpur, UP">
               </div>
               <div class="form-row">
                 <div class="form-group">
@@ -196,23 +296,48 @@
                   </select>
                 </div>
               </div>
-              <div class="form-group">
-                <label>Service Categories</label>
-                <div class="checkbox-group">
-                  <label><input type="checkbox" name="categories" value="Cleaning" checked> Cleaning</label>
-                  <label><input type="checkbox" name="categories" value="Plumbing"> Plumbing</label>
-                  <label><input type="checkbox" name="categories" value="Electrician"> Electrician</label>
-                  <label><input type="checkbox" name="categories" value="Appliances"> Appliances</label>
-                  <label><input type="checkbox" name="categories" value="Carpentry"> Carpentry</label>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-gst">GST Number</label>
+                  <input type="text" id="shop-gst" placeholder="e.g. 09AAAAA0000A1Z1">
+                </div>
+                <div class="form-group">
+                  <label for="shop-pan">PAN Card</label>
+                  <input type="text" id="shop-pan" placeholder="e.g. ABCDE1234F">
                 </div>
               </div>
-              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-store"></i> Register Shop</button>
+              <div class="form-group">
+                <label for="shop-aadhaar">Aadhaar Card ID</label>
+                <input type="text" id="shop-aadhaar" placeholder="e.g. 1234 5678 9012">
+              </div>
+              <div class="form-group">
+                <label>Verification Documents URLs (one per line)</label>
+                <textarea id="shop-docs" rows="2" placeholder="https://s3.aws.com/doc-id1.jpg"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Service Categories</label>
+                <div class="checkbox-group" id="shop-form-categories">
+                  <!-- Categories loaded dynamically -->
+                </div>
+              </div>
+              <div class="form-row">
+                <button type="submit" class="btn btn-primary" id="btn-submit-shop"><i class="fa-solid fa-store"></i> Register Shop</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel-shop-edit" style="display:none;">Cancel Edit</button>
+              </div>
             </form>
           </div>
 
           <!-- Shops list -->
           <div class="card list-card">
-            <h2><i class="fa-solid fa-list"></i> Registered Active Shops</h2>
+            <div class="card-header">
+              <h2><i class="fa-solid fa-list"></i> Registered Active Shops</h2>
+              <div class="shop-filter-tabs">
+                <button class="tab-filter active" data-filter="all">All</button>
+                <button class="tab-filter" data-filter="approved">Approved</button>
+                <button class="tab-filter" data-filter="pending">Pending</button>
+                <button class="tab-filter" data-filter="suspended">Suspended</button>
+              </div>
+            </div>
             <div class="shops-list-container" id="shops-list">
               <!-- Dynamic shops list goes here -->
             </div>
@@ -220,9 +345,46 @@
         </div>
       </div>
 
-      <!-- TAB: Banners & Offers -->
-      <div class="tab-pane" id="offers-tab">
-        <!-- Banners manager -->
+      <!-- TAB: Bookings -->
+      <div class="tab-pane" id="bookings-tab">
+        <div class="card table-card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-receipt"></i> Booking Administration Portal</h2>
+            <div class="filter-group" style="display: flex; gap: 12px; align-items: center;">
+              <select id="booking-filter-status" class="form-group" style="width: 180px; padding: 8px 12px; margin-bottom: 0; background-color: var(--background); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); outline: none;">
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
+                <option value="on_the_way">On The Way</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Booking ID</th>
+                  <th>Customer Info</th>
+                  <th>Shop Provider</th>
+                  <th>Amount</th>
+                  <th>Scheduled Date</th>
+                  <th>Current Status</th>
+                  <th>Assign Provider Name</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="manage-bookings-tbody">
+                <!-- Dynamic manage bookings go here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Banners & Media -->
+      <div class="tab-pane" id="banners-tab">
         <div class="card section-card">
           <div class="card-header">
             <h2><i class="fa-solid fa-image"></i> Dynamic Carousel Banners</h2>
@@ -232,15 +394,17 @@
             <!-- Dynamic banners go here -->
           </div>
         </div>
+      </div>
 
-        <!-- Offers manager -->
+      <!-- TAB: Coupons -->
+      <div class="tab-pane" id="coupons-tab">
         <div class="card section-card">
           <div class="card-header">
             <h2><i class="fa-solid fa-tag"></i> Active Promo Coupons</h2>
-            <button class="btn btn-secondary btn-sm" id="btn-add-offer-modal"><i class="fa-solid fa-plus"></i> Create Offer</button>
+            <button class="btn btn-secondary btn-sm" id="btn-add-offer-modal"><i class="fa-solid fa-plus"></i> Create Coupon</button>
           </div>
           <div class="offers-grid" id="offers-grid">
-            <!-- Dynamic offers go here -->
+            <!-- Dynamic coupons go here -->
           </div>
         </div>
       </div>
@@ -258,6 +422,25 @@
               <div class="form-group">
                 <label for="alert-body">Message Content</label>
                 <textarea id="alert-body" rows="4" required placeholder="Enter push notification details..."></textarea>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="alert-channel">Notification Channel</label>
+                  <select id="alert-channel">
+                    <option value="push">Push Notification 📲</option>
+                    <option value="sms">SMS text message 💬</option>
+                    <option value="email">Email dispatch 📧</option>
+                    <option value="in_app">In-App Banner 🏷️</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="alert-audience">Target Audience</label>
+                  <select id="alert-audience">
+                    <option value="all">All Registered Users</option>
+                    <option value="city">Selected City</option>
+                    <option value="shops">All Shop Owners</option>
+                  </select>
+                </div>
               </div>
               <div class="form-group">
                 <label for="alert-icon">Alert Icon Category</label>
@@ -282,46 +465,401 @@
         </div>
       </div>
 
+      <!-- TAB: Customers -->
+      <div class="tab-pane" id="customers-tab">
+        <div class="card table-card">
+          <h2><i class="fa-solid fa-user-group"></i> Customer Directory</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer ID</th>
+                  <th>Name</th>
+                  <th>Phone Number</th>
+                  <th>Email</th>
+                  <th>Wallet Balance</th>
+                  <th>Membership</th>
+                  <th>Joined Date</th>
+                  <th>Account Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="customers-tbody">
+                <!-- Dynamic customer rows go here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Payments & Wallet -->
+      <div class="tab-pane" id="payments-tab">
+        <div class="dashboard-charts-row" style="margin-bottom: 24px;">
+          <div class="card" style="flex:1;">
+            <h3>Commission & Revenue Split</h3>
+            <div class="settlement-stat" style="margin-top: 16px;">
+              <div class="set-row"><span>Platform Commission Rate</span><strong>10%</strong></div>
+              <div class="set-row"><span>Total Platform Charges Collected</span><strong id="pay-platform-comm">₹0</strong></div>
+              <div class="set-row"><span>Total Settlements Due to Providers</span><strong id="pay-provider-due">₹0</strong></div>
+            </div>
+          </div>
+          <div class="card" style="flex:1.5;">
+            <h3>Quick Wallet Transactions</h3>
+            <div class="table-container" style="max-height: 180px; overflow-y:auto; margin-top:12px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tx ID</th>
+                    <th>User</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="wallet-tx-tbody">
+                  <!-- Dynamic wallet logs go here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card table-card">
+          <h2><i class="fa-solid fa-money-check-dollar"></i> Provider Settlement Summaries</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Shop ID</th>
+                  <th>Shop Name</th>
+                  <th>Phone</th>
+                  <th>Visiting Charges</th>
+                  <th>Total Completed Bookings</th>
+                  <th>Gross Billing Amount</th>
+                  <th>Settled to Provider (90%)</th>
+                  <th>Commission Taken (10%)</th>
+                </tr>
+              </thead>
+              <tbody id="settlement-tbody">
+                <!-- Dynamic settlements go here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Categories -->
+      <div class="tab-pane" id="categories-tab">
+        <div class="split-layout">
+          <div class="card form-card">
+            <h2><i class="fa-solid fa-square-plus"></i> Create Service Category</h2>
+            <form id="category-form">
+              <div class="form-group">
+                <label for="cat-id">Category ID (Lowercase slug)</label>
+                <input type="text" id="cat-id" required placeholder="e.g. cleaning">
+              </div>
+              <div class="form-group">
+                <label for="cat-name">Display Name</label>
+                <input type="text" id="cat-name" required placeholder="e.g. Deep Cleaning">
+              </div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Add Category</button>
+            </form>
+          </div>
+
+          <div class="card list-card">
+            <h2><i class="fa-solid fa-list-check"></i> Current Service Categories</h2>
+            <div class="categories-list" id="categories-list">
+              <!-- Dynamic categories lists go here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Reports & Analytics -->
+      <div class="tab-pane" id="reports-tab">
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-chart-line"></i> Aggregate System Analytics</h2>
+            <button class="btn btn-secondary btn-sm" onclick="exportReportsCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV Report</button>
+          </div>
+          <div class="report-metrics-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 16px 0;">
+            <div class="report-box">
+              <span>Gross Volume (Completed)</span>
+              <h3 id="report-gross-volume">₹0</h3>
+            </div>
+            <div class="report-box">
+              <span>Platform Take (10%)</span>
+              <h3 id="report-commission">₹0</h3>
+            </div>
+            <div class="report-box">
+              <span>Active Coupons applied</span>
+              <h3 id="report-coupons-used">0</h3>
+            </div>
+            <div class="report-box">
+              <span>Successful Fulfillment Rate</span>
+              <h3 id="report-fulfillment-rate">100%</h3>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top:24px;">
+            <div>
+              <h4>Fulfillment Rates by Status</h4>
+              <canvas id="fulfillmentStatusChart"></canvas>
+            </div>
+            <div>
+              <h4>Top Performing Shops Table</h4>
+              <div class="table-container" style="margin-top:16px;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Shop Name</th>
+                      <th>Rating</th>
+                      <th>Bookings</th>
+                    </tr>
+                  </thead>
+                  <tbody id="top-shops-tbody">
+                    <!-- Dynamic Top Shops go here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: App Settings -->
+      <div class="tab-pane" id="settings-tab">
+        <div class="card form-card" style="max-width: 800px; margin: 0 auto;">
+          <h2><i class="fa-solid fa-gears text-gradient"></i> Global Application Settings</h2>
+          <form id="settings-form" style="margin-top: 20px;">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="set-tax">Standard Tax Rate (%)</label>
+                <input type="number" step="0.1" id="set-tax" value="5.0">
+              </div>
+              <div class="form-group">
+                <label for="set-commission">Platform Commission (%)</label>
+                <input type="number" step="0.5" id="set-commission" value="10.0">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="set-visiting">Default Visiting Charge (₹)</label>
+                <input type="number" id="set-visiting" value="150">
+              </div>
+              <div class="form-group">
+                <label for="set-support">Support Hotline Number</label>
+                <input type="text" id="set-support" value="9876543210">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="set-emergency">Emergency SOS Contact</label>
+                <input type="text" id="set-emergency" value="100">
+              </div>
+              <div class="form-group">
+                <label for="set-version">Client App Target Version</label>
+                <input type="text" id="set-version" value="1.0.0">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="set-terms">Terms & Conditions Agreement</label>
+              <textarea id="set-terms" rows="4"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="set-privacy">Privacy Policy Document</label>
+              <textarea id="set-privacy" rows="4"></textarea>
+            </div>
+            <div class="form-group toggle-row">
+              <div class="toggle-details">
+                <h4>System Maintenance Mode</h4>
+                <p>Blocks consumer and provider apps from performing database writes during deployment cycles.</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="set-maintenance">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Global Settings</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- TAB: Role Permissions -->
+      <div class="tab-pane" id="roles-tab">
+        <div class="card">
+          <h2><i class="fa-solid fa-user-shield"></i> Administration Permissions Matrix</h2>
+          <p style="color: var(--text-muted); font-size:13px; margin-bottom: 24px;">Audit role clearances and edit operational limits below.</p>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Security Role</th>
+                  <th>Dashboard</th>
+                  <th>Shop Management</th>
+                  <th>Coupon Create</th>
+                  <th>Broadcast Alerts</th>
+                  <th>App Settings</th>
+                  <th>Finance Logs</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Super Admin</strong></td>
+                  <td>✅ Full Access</td>
+                  <td>✅ Full Access</td>
+                  <td>✅ Full Access</td>
+                  <td>✅ Full Access</td>
+                  <td>✅ Full Access</td>
+                  <td>✅ Full Access</td>
+                </tr>
+                <tr>
+                  <td><strong>Admin Manager</strong></td>
+                  <td>✅ Full Access</td>
+                  <td>✅ Full Access</td>
+                  <td>✅ Full Access</td>
+                  <td>✅ Full Access</td>
+                  <td>❌ Blocked</td>
+                  <td>✅ Read Only</td>
+                </tr>
+                <tr>
+                  <td><strong>Support Executive</strong></td>
+                  <td>✅ Read Only</td>
+                  <td>✅ Read Only</td>
+                  <td>❌ Blocked</td>
+                  <td>✅ Push Only</td>
+                  <td>❌ Blocked</td>
+                  <td>❌ Blocked</td>
+                </tr>
+                <tr>
+                  <td><strong>Finance Auditor</strong></td>
+                  <td>✅ Read Only</td>
+                  <td>❌ Blocked</td>
+                  <td>❌ Blocked</td>
+                  <td>❌ Blocked</td>
+                  <td>❌ Blocked</td>
+                  <td>✅ Full Access</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Audit Logs -->
+      <div class="tab-pane" id="audit-logs-tab">
+        <div class="card table-card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-shield-halved"></i> Global Security Audit Trail</h2>
+            <button class="btn btn-secondary btn-sm" onclick="loadAuditLogs()"><i class="fa-solid fa-rotate"></i> Refresh Trails</button>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Admin ID</th>
+                  <th>Action Context</th>
+                  <th>Target Object</th>
+                  <th>Detail logs</th>
+                  <th>Source IP Address</th>
+                </tr>
+              </thead>
+              <tbody id="audit-logs-tbody">
+                <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">Loading Audit Trails...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Customer Demand -->
+      <div class="tab-pane" id="demand-tab">
+        <div class="card section-card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-location-crosshairs"></i> Customer Location Demand</h2>
+            <button class="btn btn-secondary btn-sm" onclick="loadDemands()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">These are customers who requested QuickFix services in areas where we are not yet live. Use this data to prioritize city expansion.</p>
+          <div style="overflow-x: auto;">
+            <table class="data-table" id="demand-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Phone</th>
+                  <th>Address</th>
+                  <th>Coordinates</th>
+                  <th>Submitted At</th>
+                </tr>
+              </thead>
+              <tbody id="demand-tbody">
+                <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading demand data...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
 
   <!-- Modal: Add Banner -->
   <div class="modal" id="banner-modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Create Carousel Banner</h3>
+        <h3 id="banner-modal-title">Create Carousel Banner</h3>
         <i class="fa-solid fa-xmark close-modal" data-modal="banner-modal"></i>
       </div>
       <form id="banner-form">
+        <input type="hidden" id="edit-banner-id">
         <div class="form-group">
           <label for="banner-title">Promo Title</label>
           <input type="text" id="banner-title" required placeholder="e.g. Save 20% on Electricals">
         </div>
-        <div class="form-group">
-          <label for="banner-code">Coupon Code</label>
-          <input type="text" id="banner-code" required placeholder="e.g. ELEC20">
-        </div>
-        <div class="form-group">
-          <label for="banner-percent">Display Ribbon Tag</label>
-          <input type="text" id="banner-percent" required placeholder="e.g. 20% OFF">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="banner-code">Coupon Code</label>
+            <input type="text" id="banner-code" required placeholder="e.g. ELEC20">
+          </div>
+          <div class="form-group">
+            <label for="banner-percent">Display Ribbon Tag</label>
+            <input type="text" id="banner-percent" required placeholder="e.g. 20% OFF">
+          </div>
         </div>
         <div class="form-group">
           <label for="banner-image">Image URL</label>
-          <input type="url" id="banner-image" placeholder="https://images.unsplash.com/... (optional)">
+          <input type="url" id="banner-image" required placeholder="https://images.unsplash.com/...">
         </div>
-        <button type="submit" class="btn btn-primary">Create Banner</button>
+        <div class="form-group">
+          <label for="banner-redirect">Redirect URL (On Click)</label>
+          <input type="text" id="banner-redirect" placeholder="e.g. /category/electrician">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="banner-priority">Banner Priority Order</label>
+            <input type="number" id="banner-priority" value="0">
+          </div>
+          <div class="form-group">
+            <label for="banner-expiry">Expiry Date</label>
+            <input type="date" id="banner-expiry">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Banner</button>
       </form>
     </div>
   </div>
 
-  <!-- Modal: Add Offer -->
+  <!-- Modal: Add Offer Coupon -->
   <div class="modal" id="offer-modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Create Promo Coupon</h3>
+        <h3 id="offer-modal-title">Create Promo Coupon</h3>
         <i class="fa-solid fa-xmark close-modal" data-modal="offer-modal"></i>
       </div>
       <form id="offer-form">
+        <input type="hidden" id="edit-offer-mode" value="create">
         <div class="form-group">
           <label for="offer-code">Coupon Code</label>
           <input type="text" id="offer-code" required placeholder="e.g. MONSOON50">
@@ -334,7 +872,60 @@
           <label for="offer-desc">Coupon Description</label>
           <input type="text" id="offer-desc" required placeholder="e.g. Get flat 50% discount on deep cleaning">
         </div>
-        <button type="submit" class="btn btn-primary">Create Offer</button>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="offer-min-order">Min Order Amount (₹)</label>
+            <input type="number" id="offer-min-order" value="0">
+          </div>
+          <div class="form-group">
+            <label for="offer-max-discount">Max Discount Amount (₹)</label>
+            <input type="number" id="offer-max-discount" value="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="offer-expiry">Expiry Date</label>
+            <input type="date" id="offer-expiry">
+          </div>
+          <div class="form-group">
+            <label for="offer-usage-limit">Usage Limit (Per User)</label>
+            <input type="number" id="offer-usage-limit" value="1">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Coupon</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Adjust Wallet Balance -->
+  <div class="modal" id="wallet-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Adjust Customer Wallet Escrow</h3>
+        <i class="fa-solid fa-xmark close-modal" data-modal="wallet-modal"></i>
+      </div>
+      <form id="wallet-adjust-form">
+        <input type="hidden" id="wallet-user-id">
+        <div class="form-group">
+          <label for="wallet-username">Customer Name</label>
+          <input type="text" id="wallet-username" readonly style="background-color: var(--border); cursor: not-allowed;">
+        </div>
+        <div class="form-group">
+          <label for="wallet-amount">Adjustment Amount (₹)</label>
+          <input type="number" id="wallet-amount" required placeholder="e.g. 500" min="1">
+        </div>
+        <div class="form-group">
+          <label for="wallet-type">Adjustment Mode</label>
+          <select id="wallet-type">
+            <option value="credit">✅ Credit Balance (Refund / Top-Up)</option>
+            <option value="debit">❌ Debit Balance (Penalty / Chargeback)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="wallet-reason">Adjustment Context / Reason</label>
+          <input type="text" id="wallet-reason" required placeholder="e.g. Refund for QF-839129 cancellation">
+        </div>
+        <button type="submit" class="btn btn-primary">Apply Adjustment</button>
       </form>
     </div>
   </div>
@@ -402,33 +993,6 @@
       </div>
     </div>
   </div>
-
-      <!-- TAB: Customer Demand -->
-      <div class="tab-pane" id="demand-tab">
-        <div class="card section-card">
-          <div class="card-header">
-            <h2><i class="fa-solid fa-location-crosshairs"></i> Customer Location Demand</h2>
-            <button class="btn btn-secondary btn-sm" id="btn-refresh-demand" onclick="loadDemands()"><i class="fa-solid fa-rotate"></i> Refresh</button>
-          </div>
-          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">These are customers who requested QuickFix services in areas where we are not yet live. Use this data to prioritize city expansion.</p>
-          <div style="overflow-x: auto;">
-            <table class="data-table" id="demand-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Phone</th>
-                  <th>Address</th>
-                  <th>Coordinates</th>
-                  <th>Submitted At</th>
-                </tr>
-              </thead>
-              <tbody id="demand-tbody">
-                <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading demand data...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
 
   <script src="app.js"></script>
 </body>

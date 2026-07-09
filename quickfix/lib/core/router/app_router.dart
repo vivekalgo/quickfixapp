@@ -27,6 +27,9 @@ import '../../features/profile/presentation/screens/offers_screen.dart';
 import '../../features/profile/presentation/screens/notifications_screen.dart';
 import '../../features/home/presentation/screens/location_selector_screen.dart';
 
+import '../../features/home/presentation/screens/shop_details_screen.dart';
+import '../../features/home/data/models/home_models.dart';
+
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
@@ -109,6 +112,15 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final id = state.pathParameters['id'] ?? '';
         return CategoryScreen(categoryId: id);
+      },
+    ),
+    GoRoute(
+      path: '/shop/:id',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final id = state.pathParameters['id'] ?? '';
+        final initialShop = state.extra as Shop?;
+        return ShopDetailsScreen(shopId: id, initialShop: initialShop);
       },
     ),
     GoRoute(

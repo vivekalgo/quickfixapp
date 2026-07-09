@@ -40,16 +40,7 @@ class HomeRemoteDataSource {
     final data = response.data as List;
 
     return data.map((json) {
-      return Shop(
-        id: json['id']?.toString() ?? '',
-        name: json['name']?.toString() ?? '',
-        categories: (json['categories'] as List?)?.map((e) => e.toString()).toList() ?? [],
-        rating: double.tryParse(json['rating']?.toString() ?? '') ?? 4.0,
-        distanceKm: double.tryParse(json['distanceKm']?.toString() ?? '') ?? 1.0,
-        deliveryTimeMins: int.tryParse(json['deliveryTimeMins']?.toString() ?? '') ?? 15,
-        priceRange: json['priceRange']?.toString() ?? '₹',
-        imagePath: json['imagePath']?.toString() ?? '',
-      );
+      return Shop.fromJson(json as Map<String, dynamic>);
     }).toList();
   }
 
@@ -64,17 +55,14 @@ class HomeRemoteDataSource {
     final data = response.data as List;
 
     return data.map((json) {
-      return Shop(
-        id: json['id']?.toString() ?? '',
-        name: json['name']?.toString() ?? '',
-        categories: (json['categories'] as List?)?.map((e) => e.toString()).toList() ?? [],
-        rating: double.tryParse(json['rating']?.toString() ?? '') ?? 4.0,
-        distanceKm: double.tryParse(json['distanceKm']?.toString() ?? '') ?? 1.0,
-        deliveryTimeMins: int.tryParse(json['deliveryTimeMins']?.toString() ?? '') ?? 15,
-        priceRange: json['priceRange']?.toString() ?? '₹',
-        imagePath: json['imagePath']?.toString() ?? '',
-      );
+      return Shop.fromJson(json as Map<String, dynamic>);
     }).toList();
+  }
+
+  Future<List<PromoBanner>> getBanners() async {
+    final response = await _client.get(ApiEndpoints.banners);
+    final data = response.data as List;
+    return data.map((json) => PromoBanner.fromJson(json as Map<String, dynamic>)).toList();
   }
 
   Future<List<Professional>> getTopProfessionals() async {
