@@ -159,22 +159,20 @@ class LocationNotifier extends StateNotifier<UserLocation> {
   }
 
   Future<String?> _reverseGeocode(double lat, double lng) async {
-    const apiKey = 'AIzaSyDNwQdFkn1OJjBEd6_uKGNuJGnVYNNhBN4';
     try {
       final dio = Dio();
+      dio.options.headers['User-Agent'] = 'QuickFixApp/1.0';
       final response = await dio.get(
-        'https://maps.googleapis.com/maps/api/geocode/json',
+        'https://nominatim.openstreetmap.org/reverse',
         queryParameters: {
-          'latlng': '$lat,$lng',
-          'key': apiKey,
-          'language': 'en',
+          'lat': lat,
+          'lon': lng,
+          'format': 'json',
+          'addressdetails': 1,
         },
       );
-      if (response.statusCode == 200) {
-        final results = response.data['results'] as List?;
-        if (results != null && results.isNotEmpty) {
-          return results[0]['formatted_address'] as String?;
-        }
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data['display_name'] as String?;
       }
     } catch (e) {
       // Ignore reverse geocoding failures and fall back to coordinates.

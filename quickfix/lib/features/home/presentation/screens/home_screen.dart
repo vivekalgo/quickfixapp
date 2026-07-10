@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:dio/dio.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
@@ -10,6 +9,7 @@ import '../../../../core/utils/haptics.dart';
 import '../../data/models/home_models.dart';
 import '../providers/home_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../../core/network/network_providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -2397,8 +2397,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       }
                       setDialogState(() => isSubmitting = true);
                       try {
-                        final dio = Dio()..options.baseUrl = 'http://10.0.2.2:5000/api';
-                        await dio.post('/demand/submit', data: {
+                        final dioClient = ref.read(dioClientProvider);
+                        await dioClient.post('/demand/submit', data: {
                           'phone': phone,
                           'address': currentLoc.address,
                           'latitude': currentLoc.latitude,

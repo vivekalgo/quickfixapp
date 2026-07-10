@@ -519,9 +519,9 @@ app.post('/api/shops/login', async (req, res) => {
 
     // Support legacy plaintext password or bcrypt hashes
     let isValid = false;
-    if (shop.password.startsWith('$2a$') || shop.password.startsWith('$2b$')) {
+    try {
       isValid = bcrypt.compareSync(password, shop.password);
-    } else {
+    } catch (e) {
       isValid = (password === shop.password); // fallback logic
     }
 
@@ -624,9 +624,9 @@ app.post('/api/provider/login', async (req, res) => {
     }
 
     let isValid = false;
-    if (shop.password.startsWith('$2a$') || shop.password.startsWith('$2b$')) {
+    try {
       isValid = bcrypt.compareSync(password, shop.password);
-    } else {
+    } catch (e) {
       isValid = (password === shop.password);
     }
 
@@ -665,9 +665,9 @@ app.post('/api/provider/change-password', requireAuth, async (req, res) => {
     }
 
     let isValid = false;
-    if (shop.password.startsWith('$2a$') || shop.password.startsWith('$2b$')) {
+    try {
       isValid = bcrypt.compareSync(oldPassword, shop.password);
-    } else {
+    } catch (e) {
       isValid = (oldPassword === shop.password);
     }
 
@@ -1839,6 +1839,7 @@ app.delete('/api/categories/:id', async (req, res) => {
 
 // --- DATABASE AUTO-SEEDER ---
 async function seedDatabase() {
+  return; // Auto-seeding disabled to allow starting with a 100% fresh database
   try {
     // 1. Categories
     const catCount = await Category.countDocuments();

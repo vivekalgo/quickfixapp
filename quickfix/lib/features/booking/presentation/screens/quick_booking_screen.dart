@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
-import 'package:dio/dio.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
-import '../../../../core/database/hive_service.dart';
+import '../../../../core/network/network_providers.dart';
 
 class QuickBookingScreen extends ConsumerStatefulWidget {
   const QuickBookingScreen({super.key});
@@ -57,12 +55,9 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
     try {
       final authState = ref.read(authProvider);
       final activeLocation = ref.read(currentAddressProvider);
-      final dio = Dio();
-      dio.options.baseUrl = 'http://10.0.2.2:5000/api';
+      final dioClient = ref.read(dioClientProvider);
 
-      final token = HiveService.getAuthToken();
-
-      await dio.post(
+      await dioClient.post(
         '/bookings/create',
         data: {
           'userId': authState.user?['id'] ?? 'guest',
@@ -77,9 +72,6 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
           'amount': feeAmount,
           'type': 'quick_booking',
         },
-        options: Options(headers: {
-          if (token != null) 'Authorization': 'Bearer $token',
-        }),
       );
 
       if (!mounted) return;

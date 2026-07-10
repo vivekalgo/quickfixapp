@@ -10,8 +10,6 @@ import '../../../../core/utils/haptics.dart';
 import '../../../../core/database/hive_service.dart';
 import '../providers/home_providers.dart';
 
-const String _mapsApiKey = 'AIzaSyDNwQdFkn1OJjBEd6_uKGNuJGnVYNNhBN4';
-
 class LocationSelectorScreen extends ConsumerStatefulWidget {
   const LocationSelectorScreen({super.key});
 
@@ -115,23 +113,22 @@ class _LocationSelectorScreenState
     });
     try {
       final dio = Dio();
+      dio.options.headers['User-Agent'] = 'QuickFixApp/1.0';
       final response = await dio.get(
-        'https://maps.googleapis.com/maps/api/geocode/json',
+        'https://nominatim.openstreetmap.org/reverse',
         queryParameters: {
-          'latlng': '${pos.latitude},${pos.longitude}',
-          'key': _mapsApiKey,
-          'language': 'en',
+          'lat': pos.latitude,
+          'lon': pos.longitude,
+          'format': 'json',
+          'addressdetails': 1,
         },
       );
-      if (response.statusCode == 200) {
-        final results = response.data['results'] as List?;
-        if (results != null && results.isNotEmpty) {
-          final addr = results[0]['formatted_address'] as String? ?? '';
-          if (mounted) {
-            setState(() {
-              _resolvedAddress = addr;
-            });
-          }
+      if (response.statusCode == 200 && response.data != null) {
+        final displayName = response.data['display_name'] as String?;
+        if (displayName != null && mounted) {
+          setState(() {
+            _resolvedAddress = displayName;
+          });
         }
       }
     } catch (_) {
@@ -146,8 +143,6 @@ class _LocationSelectorScreenState
     }
   }
 
-  // ──────────────────────────── Places Autocomplete ────────────────────────────
-
   Future<void> _fetchSuggestions(String input) async {
     if (input.trim().length < 2) {
       setState(() {
@@ -159,26 +154,38 @@ class _LocationSelectorScreenState
     setState(() => _isSearching = true);
     try {
       final dio = Dio();
+      dio.options.headers['User-Agent'] = 'QuickFixApp/1.0';
       final response = await dio.get(
-        'https://maps.googleapis.com/maps/api/place/autocomplete/json',
+        'https://nominatim.openstreetmap.org/search',
         queryParameters: {
-          'input': input,
-          'key': _mapsApiKey,
-          'language': 'en',
-          'components': 'country:in',
-          'types': 'geocode',
+          'q': input,
+          'format': 'json',
+          'addressdetails': 1,
+          'limit': 10,
+          'countrycodes': 'in',
         },
       );
-      if (response.statusCode == 200) {
-        final predictions = response.data['predictions'] as List? ?? [];
+      if (response.statusCode == 200 && response.data != null) {
+        final predictions = response.data as List? ?? [];
         if (mounted) {
           setState(() {
             _suggestions = predictions.map<Map<String, dynamic>>((p) {
+              final displayName = p['display_name'] as String? ?? '';
+              final name = p['name'] as String? ?? '';
+              final lat = double.tryParse(p['lat']?.toString() ?? '') ?? 26.4912;
+              final lon = double.tryParse(p['lon']?.toString() ?? '') ?? 80.3156;
+              
+              final parts = displayName.split(',');
+              final mainText = name.isNotEmpty ? name : (parts.isNotEmpty ? parts.first : 'Location');
+              final secondaryText = parts.skip(1).join(',').trim();
+
               return {
-                'description': p['description'] as String? ?? '',
-                'place_id': p['place_id'] as String? ?? '',
-                'main_text': (p['structured_formatting']?['main_text'] as String?) ?? (p['description'] as String? ?? ''),
-                'secondary_text': (p['structured_formatting']?['secondary_text'] as String?) ?? '',
+                'description': displayName,
+                'place_id': p['place_id']?.toString() ?? '',
+                'lat': lat,
+                'lon': lon,
+                'main_text': mainText,
+                'secondary_text': secondaryText,
               };
             }).toList();
             _showSuggestions = _suggestions.isNotEmpty;
@@ -194,50 +201,32 @@ class _LocationSelectorScreenState
 
   Future<void> _selectSuggestion(Map<String, dynamic> suggestion) async {
     FocusScope.of(context).unfocus();
-    _searchController.text = suggestion['description'] as String;
+    _searchController.text = suggestion['main_text'] as String;
     setState(() {
       _showSuggestions = false;
       _isResolving = true;
     });
     AppHaptics.lightTap();
 
-    try {
-      final dio = Dio();
-      final response = await dio.get(
-        'https://maps.googleapis.com/maps/api/place/details/json',
-        queryParameters: {
-          'place_id': suggestion['place_id'],
-          'fields': 'geometry,formatted_address',
-          'key': _mapsApiKey,
-        },
-      );
-      if (response.statusCode == 200 &&
-          response.data['result'] != null) {
-        final loc = response.data['result']['geometry']['location'];
-        final lat = (loc['lat'] as num).toDouble();
-        final lng = (loc['lng'] as num).toDouble();
-        final addr = response.data['result']['formatted_address'] as String? ??
-            suggestion['description'] as String;
+    final lat = suggestion['lat'] as double;
+    final lng = suggestion['lon'] as double;
+    final addr = suggestion['description'] as String;
 
-        final latLng = LatLng(lat, lng);
-        if (mounted) {
-          setState(() {
-            _pinPosition = latLng;
-            _resolvedLat = lat;
-            _resolvedLng = lng;
-            _resolvedAddress = addr;
-            _isResolving = false;
-          });
-        }
-        _mapController?.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(target: latLng, zoom: 16),
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isResolving = false);
+    final latLng = LatLng(lat, lng);
+    if (mounted) {
+      setState(() {
+        _pinPosition = latLng;
+        _resolvedLat = lat;
+        _resolvedLng = lng;
+        _resolvedAddress = addr;
+        _isResolving = false;
+      });
     }
+    _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: latLng, zoom: 16),
+      ),
+    );
   }
 
   // ──────────────────────────── Confirm Selection ────────────────────────────

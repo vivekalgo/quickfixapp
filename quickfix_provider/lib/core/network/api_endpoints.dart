@@ -1,13 +1,9 @@
-import 'dart:io';
-
 class ApiEndpoints {
   static const String _configuredBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
   
   static final String baseUrl = _configuredBaseUrl.isNotEmpty
       ? _configuredBaseUrl
-      : (Platform.isAndroid 
-          ? 'http://10.0.2.2:3000/api' 
-          : 'http://localhost:3000/api');
+      : 'https://quickfixapp-production.up.railway.app/api';
 
   // Provider Auth
   static const String login = '/provider/login';
