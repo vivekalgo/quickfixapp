@@ -28,7 +28,8 @@ const {
   AuditLog,
   Promotion,
   SpecialCard,
-  CmsSection
+  CmsSection,
+  CustomSection
 } = require('./models');
 
 const app = express();
@@ -1803,6 +1804,98 @@ app.post('/api/homepage/layout/reorder', async (req, res) => {
   }
 });
 
+// --- Custom Homepage Sections API ---
+app.get('/api/custom-sections', async (req, res) => {
+  try {
+    let list = await CustomSection.find({ isActive: true });
+    list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load custom sections' });
+  }
+});
+
+app.get('/api/admin/custom-sections', async (req, res) => {
+  try {
+    let list = await CustomSection.find({});
+    list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load all custom sections' });
+  }
+});
+
+app.get('/api/custom-sections/:id', async (req, res) => {
+  try {
+    const section = await CustomSection.findOne({ id: req.params.id });
+    if (!section) return res.status(404).json({ error: 'Custom section not found' });
+    res.json(section);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch custom section' });
+  }
+});
+
+app.post('/api/custom-sections', async (req, res) => {
+  const { id, title, subtitle, bannerImageUrl, bannerBadgeText, bannerActionType, bannerActionValue, seeAllActionType, seeAllActionValue, serviceItems, priority, isActive } = req.body;
+  try {
+    let section;
+    if (id) {
+      section = await CustomSection.findOneAndUpdate(
+        { id },
+        { title, subtitle, bannerImageUrl, bannerBadgeText, bannerActionType: bannerActionType || 'No Action', bannerActionValue, seeAllActionType: seeAllActionType || 'No Action', seeAllActionValue, serviceItems: serviceItems || [], priority: parseInt(priority) || 0, isActive: isActive !== false },
+        { new: true }
+      );
+      if (!section) return res.status(404).json({ error: 'Custom section not found' });
+      // Also update the matching CmsSection title/isActive
+      await CmsSection.findOneAndUpdate({ id }, { title, isActive: isActive !== false, priority: parseInt(priority) || 0 });
+    } else {
+      const newId = `custom-section-${Date.now()}`;
+      // Create the CmsSection layout entry so it appears in homepage layout
+      const allSections = await CmsSection.find({});
+      const newPriority = allSections.length;
+      const layoutSection = new CmsSection({
+        id: newId,
+        title: title,
+        type: 'custom_section',
+        priority: newPriority,
+        isActive: isActive !== false
+      });
+      await layoutSection.save();
+      section = new CustomSection({
+        id: newId,
+        title, subtitle, bannerImageUrl, bannerBadgeText,
+        bannerActionType: bannerActionType || 'No Action',
+        bannerActionValue,
+        seeAllActionType: seeAllActionType || 'No Action',
+        seeAllActionValue,
+        serviceItems: serviceItems || [],
+        priority: parseInt(priority) || newPriority,
+        isActive: isActive !== false
+      });
+      await section.save();
+    }
+    res.json({ success: true, section });
+  } catch (e) {
+    console.error('Error saving custom section:', e);
+    res.status(500).json({ error: 'Failed to save custom section' });
+  }
+});
+
+app.delete('/api/custom-sections/:id', async (req, res) => {
+  try {
+    const deleted = await CustomSection.findOneAndDelete({ id: req.params.id });
+    // Also remove from CmsSection layout
+    await CmsSection.findOneAndDelete({ id: req.params.id });
+    if (deleted) {
+      res.json({ success: true, section: deleted });
+    } else {
+      res.status(404).json({ error: 'Custom section not found' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Delete custom section failed' });
+  }
+});
+
 // 4. Promo Coupons, Banners & Offers
 app.get('/api/banners', async (req, res) => {
   try {
@@ -2526,10 +2619,10 @@ app.post('/api/audit-logs', async (req, res) => {
 
 // Category creation & deletion
 app.post('/api/categories/create', async (req, res) => {
-  const { id, name } = req.body;
+  const { id, name, iconUrl } = req.body;
   if (!id || !name) return res.status(400).json({ error: 'id and name are required' });
   try {
-    const cat = new Category({ id: id.toLowerCase(), name, isActive: true });
+    const cat = new Category({ id: id.toLowerCase(), name, iconUrl: iconUrl || '', isActive: true });
     await cat.save();
     res.json({ success: true, category: cat });
   } catch (e) {

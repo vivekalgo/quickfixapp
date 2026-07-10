@@ -88,4 +88,13 @@ class HomeRepositoryImpl implements HomeRepository {
       return const [];
     }
   }
+
+  @override
+  Future<List<CustomSection>> getCustomSections() async {
+    try {
+      return await _remoteDataSource.getCustomSections();
+    } catch (e) {
+      return const [];
+    }
+  }
 }

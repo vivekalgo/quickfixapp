@@ -216,8 +216,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
 
     if (addresses.isEmpty) {
       addresses.add({
-        'type': 'Default Address',
-        'details': '113, Swaroop Nagar, Kanpur, Uttar Pradesh - 208002',
+        'type': 'No Address Found',
+        'details': 'Please add or select a delivery address.',
       });
     }
 

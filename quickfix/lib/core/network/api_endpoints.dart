@@ -18,6 +18,7 @@ class ApiEndpoints {
   static const String promotions = '/promotions';
   static const String specialCards = '/special-cards';
   static const String homepageLayout = '/homepage/layout';
+  static const String customSections = '/custom-sections';
 
   // Bookings
   static const String packages = '/packages';

@@ -10,4 +10,5 @@ abstract class HomeRepository {
   Future<List<Promotion>> getPromotions();
   Future<List<SpecialCard>> getSpecialCards();
   Future<List<CmsSection>> getHomepageLayout();
+  Future<List<CustomSection>> getCustomSections();
 }

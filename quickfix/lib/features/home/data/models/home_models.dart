@@ -424,5 +424,91 @@ class CmsSection {
   }
 }
 
+class CustomSectionServiceItem {
+  final String id;
+  final String title;
+  final String imageUrl;
+  final double rating;
+  final String reviewsCount;
+  final String startingPrice;
+  final String actionType;
+  final String actionValue;
+
+  const CustomSectionServiceItem({
+    required this.id,
+    required this.title,
+    required this.imageUrl,
+    required this.rating,
+    required this.reviewsCount,
+    required this.startingPrice,
+    required this.actionType,
+    required this.actionValue,
+  });
+
+  factory CustomSectionServiceItem.fromJson(Map<String, dynamic> json) {
+    return CustomSectionServiceItem(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      imageUrl: json['imageUrl']?.toString() ?? '',
+      rating: double.tryParse(json['rating']?.toString() ?? '4.5') ?? 4.5,
+      reviewsCount: json['reviewsCount']?.toString() ?? '',
+      startingPrice: json['startingPrice']?.toString() ?? '',
+      actionType: json['actionType']?.toString() ?? 'Open Shop',
+      actionValue: json['actionValue']?.toString() ?? '',
+    );
+  }
+}
+
+class CustomSection {
+  final String id;
+  final String title;
+  final String subtitle;
+  final String bannerImageUrl;
+  final String bannerBadgeText;
+  final String bannerActionType;
+  final String bannerActionValue;
+  final String seeAllActionType;
+  final String seeAllActionValue;
+  final List<CustomSectionServiceItem> serviceItems;
+  final int priority;
+  final bool isActive;
+
+  const CustomSection({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.bannerImageUrl,
+    required this.bannerBadgeText,
+    required this.bannerActionType,
+    required this.bannerActionValue,
+    required this.seeAllActionType,
+    required this.seeAllActionValue,
+    required this.serviceItems,
+    required this.priority,
+    required this.isActive,
+  });
+
+  factory CustomSection.fromJson(Map<String, dynamic> json) {
+    return CustomSection(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      subtitle: json['subtitle']?.toString() ?? '',
+      bannerImageUrl: json['bannerImageUrl']?.toString() ?? '',
+      bannerBadgeText: json['bannerBadgeText']?.toString() ?? '',
+      bannerActionType: json['bannerActionType']?.toString() ?? 'No Action',
+      bannerActionValue: json['bannerActionValue']?.toString() ?? '',
+      seeAllActionType: json['seeAllActionType']?.toString() ?? 'No Action',
+      seeAllActionValue: json['seeAllActionValue']?.toString() ?? '',
+      serviceItems: (json['serviceItems'] as List?)
+              ?.map((e) => CustomSectionServiceItem.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      priority: int.tryParse(json['priority']?.toString() ?? '0') ?? 0,
+      isActive: json['isActive'] != false,
+    );
+  }
+}
+
+
 
 

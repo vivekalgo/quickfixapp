@@ -9,16 +9,6 @@ import '../../../../core/utils/haptics.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../features/home/presentation/providers/home_providers.dart';
 
-final _notificationsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  try {
-    final res = await DioClient().get('/notifications');
-    final data = res.data as List;
-    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-  } catch (e) {
-    return [];
-  }
-});
-
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -27,7 +17,6 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
-  final Set<String> _readIds = {};
 
   IconData _iconForColor(String iconColor) {
     switch (iconColor) {
@@ -53,7 +42,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = ref.watch(isDarkModeProvider);
-    final notificationsAsync = ref.watch(_notificationsProvider);
+    final notificationsAsync = ref.watch(notificationsProvider);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
@@ -74,7 +63,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             icon: const Icon(Icons.refresh_outlined),
             onPressed: () {
               AppHaptics.lightTap();
-              ref.invalidate(_notificationsProvider);
+              ref.invalidate(notificationsProvider);
             },
           ),
         ],
@@ -97,7 +86,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
           return RefreshIndicator(
             color: AppColors.primary,
-            onRefresh: () async => ref.invalidate(_notificationsProvider),
+            onRefresh: () async => ref.invalidate(notificationsProvider),
             child: ListView.builder(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.all(16),
@@ -105,13 +94,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               itemBuilder: (context, index) {
                 final item = notifications[index];
                 final id = item['id']?.toString() ?? index.toString();
-                final isRead = _readIds.contains(id);
+                final isRead = ref.watch(readNotificationsProvider).contains(id);
                 final iconColor = item['iconColor']?.toString() ?? 'primary';
                 final color = _colorForTag(iconColor, isDark);
                 final icon = _iconForColor(iconColor);
 
                 return GestureDetector(
-                  onTap: () => setState(() => _readIds.add(id)),
+                  onTap: () => ref.read(readNotificationsProvider.notifier).markAsRead(id),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
@@ -183,7 +172,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       Text('Could not load notifications', style: AppTextStyles.headingSmall(isDark)),
       const SizedBox(height: 12),
       ElevatedButton(
-        onPressed: () => ref.invalidate(_notificationsProvider),
+        onPressed: () => ref.invalidate(notificationsProvider),
         style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
         child: const Text('Retry', style: TextStyle(color: Colors.white)),
       ),

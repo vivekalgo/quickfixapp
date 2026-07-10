@@ -110,7 +110,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     if (query.contains('refund')) {
       return 'I have initiated a query for booking #QF-8947265. The refund of ₹548 will be credited to your QuickFix Wallet within 24 hours of confirmation.';
     } else if (query.contains('delay')) {
-      return 'Apologies for the delay! I have reached out to Rohan Sharma. He is currently on the bike, 0.6 km away, and will reach Swaroop Nagar in 6 minutes.';
+      return 'Apologies for the delay! I have reached out to Rohan Sharma. He is currently on the bike, 0.6 km away, and will reach your location in 6 minutes.';
     } else if (query.contains('cancel')) {
       return 'To cancel your active booking, please visit the Booking History page, select your current booking and click "Cancel Booking". Let me know if you need help.';
     }

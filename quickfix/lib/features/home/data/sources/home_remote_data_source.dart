@@ -96,6 +96,13 @@ class HomeRemoteDataSource {
     return data.map((json) => CmsSection.fromJson(json as Map<String, dynamic>)).toList();
   }
 
+  Future<List<CustomSection>> getCustomSections() async {
+    final response = await _client.get(ApiEndpoints.customSections);
+    final data = response.data as List;
+    return data.map((json) => CustomSection.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+
   // Helper icons and color utilities
   IconData _parseIcon(String id) {
     switch (id) {

@@ -8,6 +8,7 @@ import '../../../../core/database/hive_service.dart';
 import 'package:dio/dio.dart';
 
 import '../../../../core/network/network_providers.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../data/sources/home_remote_data_source.dart';
 
 // Remote Data Source Provider
@@ -119,6 +120,12 @@ final homepageLayoutProvider = FutureProvider<List<CmsSection>>((ref) async {
   return repository.getHomepageLayout();
 });
 
+// Custom Homepage Sections Provider
+final customSectionsProvider = FutureProvider<List<CustomSection>>((ref) async {
+  final repository = ref.watch(homeRepositoryProvider);
+  return repository.getCustomSections();
+});
+
 // Cart Shop ID Tracker Provider
 final cartShopIdProvider = StateProvider<String?>((ref) => null);
 
@@ -144,12 +151,12 @@ class LocationNotifier extends StateNotifier<UserLocation> {
     }
     final address = HiveService.getSavedAddress();
     if (address.isNotEmpty) {
-      return UserLocation(address: address, latitude: 26.4912, longitude: 80.3156);
+      return UserLocation(address: address, latitude: 0.0, longitude: 0.0);
     }
     return const UserLocation(
-      address: '113, Swaroop Nagar, Kanpur, Uttar Pradesh - 208002',
-      latitude: 26.4912,
-      longitude: 80.3156,
+      address: 'Detecting Location...',
+      latitude: 0.0,
+      longitude: 0.0,
     );
   }
 
@@ -296,5 +303,62 @@ class WishlistNotifier extends StateNotifier<List<String>> {
 
 final wishlistProvider = StateNotifierProvider<WishlistNotifier, List<String>>((ref) {
   return WishlistNotifier();
+});
+
+// Global Notifications Providers
+final notificationsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final res = await DioClient().get('/notifications');
+    final data = res.data as List;
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+class ReadNotificationsNotifier extends StateNotifier<Set<String>> {
+  ReadNotificationsNotifier() : super(HiveService.getReadNotificationIds().toSet());
+
+  void markAsRead(String id) {
+    if (!state.contains(id)) {
+      state = {...state, id};
+      HiveService.markNotificationAsRead(id);
+    }
+  }
+
+  void markAllAsRead(List<String> ids) {
+    bool changed = false;
+    final newState = Set<String>.from(state);
+    for (final id in ids) {
+      if (!newState.contains(id)) {
+        newState.add(id);
+        HiveService.markNotificationAsRead(id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      state = newState;
+    }
+  }
+}
+
+final readNotificationsProvider = StateNotifierProvider<ReadNotificationsNotifier, Set<String>>((ref) {
+  return ReadNotificationsNotifier();
+});
+
+final unreadNotificationsCountProvider = Provider<int>((ref) {
+  final notificationsAsync = ref.watch(notificationsProvider);
+  final readIds = ref.watch(readNotificationsProvider);
+
+  return notificationsAsync.when(
+    data: (list) {
+      return list.where((item) {
+        final id = item['id']?.toString() ?? '';
+        return !readIds.contains(id);
+      }).length;
+    },
+    loading: () => 0,
+    error: (_, __) => 0,
+  );
 });
 

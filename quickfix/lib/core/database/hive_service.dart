@@ -105,7 +105,7 @@ class HiveService {
     return box.get('saved_address', defaultValue: '') as String;
   }
 
-  static Future<void> saveAddress(String address, {double lat = 26.4912, double lng = 80.3156}) async {
+  static Future<void> saveAddress(String address, {double lat = 0.0, double lng = 0.0}) async {
     final box = Hive.box(_cacheBox);
     final savedAddresses = getSavedAddresses();
     
@@ -175,5 +175,21 @@ class HiveService {
       list.add(providerId);
     }
     await box.put('favourite_providers', list);
+  }
+
+  // Read Notifications Cache
+  static List<String> getReadNotificationIds() {
+    final box = Hive.box(_cacheBox);
+    final list = box.get('read_notifications', defaultValue: <String>[]) as List;
+    return list.map((e) => e.toString()).toList();
+  }
+
+  static Future<void> markNotificationAsRead(String notificationId) async {
+    final box = Hive.box(_cacheBox);
+    final list = getReadNotificationIds();
+    if (!list.contains(notificationId)) {
+      list.add(notificationId);
+      await box.put('read_notifications', list);
+    }
   }
 }

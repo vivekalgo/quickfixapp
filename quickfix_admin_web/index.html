@@ -563,6 +563,10 @@
                 <label for="cat-name">Display Name</label>
                 <input type="text" id="cat-name" required placeholder="e.g. Deep Cleaning">
               </div>
+              <div class="form-group">
+                <label for="cat-icon-url">Icon Image URL</label>
+                <input type="url" id="cat-icon-url" placeholder="e.g. https://images.unsplash.com/... or flat icon URL">
+              </div>
               <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Add Category</button>
             </form>
           </div>
@@ -636,6 +640,7 @@
             <button class="btn btn-secondary subtab-btn" data-subtab="cms-specials-subtab"><i class="fa-solid fa-fire"></i> Special For You</button>
             <button class="btn btn-secondary subtab-btn" data-subtab="cms-experts-subtab"><i class="fa-solid fa-user-tie"></i> Top Rated Experts</button>
             <button class="btn btn-secondary subtab-btn" data-subtab="cms-reviews-subtab"><i class="fa-solid fa-comments"></i> Testimonials & Reviews</button>
+            <button class="btn btn-secondary subtab-btn" data-subtab="cms-custom-sections-subtab"><i class="fa-solid fa-puzzle-piece"></i> Custom Sections</button>
           </div>
         </div>
 
@@ -778,7 +783,20 @@
         </div>
       </div>
 
-      <!-- TAB: App Settings -->
+        <!-- Subtab: Custom Sections -->
+        <div class="subtab-pane" id="cms-custom-sections-subtab" style="display: none;">
+          <div class="card section-card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <h2><i class="fa-solid fa-puzzle-piece text-gradient"></i> Custom Homepage Sections</h2>
+              <button class="btn btn-primary btn-sm" id="btn-add-custom-section-modal"><i class="fa-solid fa-plus"></i> Create Custom Section</button>
+            </div>
+            <p style="color: var(--text-muted); font-size:13px; margin-bottom: 20px;">Create fully customizable homepage sections with Urban-style banner images and service card lists. Each section syncs to the customer app in real-time.</p>
+            <div id="custom-sections-list" style="display: flex; flex-direction: column; gap: 16px;">
+              <!-- Dynamic custom sections go here -->
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="tab-pane" id="settings-tab">
         <div class="card form-card" style="max-width: 800px; margin: 0 auto;">
           <h2><i class="fa-solid fa-gears text-gradient"></i> Global Application Settings</h2>
@@ -1382,6 +1400,116 @@
           </div>
         </div>
         <button type="submit" class="btn btn-primary">Save Expert</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Create/Edit Custom Section -->
+  <div class="modal" id="custom-section-modal" style="align-items: flex-start; padding-top: 20px;">
+    <div class="modal-content" style="max-height: 90vh; overflow-y: auto; width: 720px; max-width: 95vw;">
+      <div class="modal-header">
+        <h3 id="custom-section-modal-title">Create Custom Section</h3>
+        <i class="fa-solid fa-xmark close-modal" data-modal="custom-section-modal"></i>
+      </div>
+      <form id="custom-section-form">
+        <input type="hidden" id="edit-custom-section-id">
+
+        <!-- Section Info -->
+        <div style="background: var(--surface); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border);">
+          <h4 style="margin-bottom: 14px; color: var(--primary-solid);"><i class="fa-solid fa-circle-info"></i> Section Info</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="custom-section-title">Section Title *</label>
+              <input type="text" id="custom-section-title" required placeholder="e.g. Cleaning Essentials">
+            </div>
+            <div class="form-group">
+              <label for="custom-section-subtitle">Subtitle / Description</label>
+              <input type="text" id="custom-section-subtitle" placeholder="e.g. Top cleaning services this month">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="custom-section-priority">Display Priority <small>(lower = higher on page)</small></label>
+              <input type="number" id="custom-section-priority" value="99" min="0">
+            </div>
+            <div class="form-group">
+              <label for="custom-section-active">Visibility Status</label>
+              <select id="custom-section-active">
+                <option value="true">✅ Active (Visible on App)</option>
+                <option value="false">❌ Inactive (Hidden)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="custom-section-see-all-action">"See All" Button Opens</label>
+              <select id="custom-section-see-all-action">
+                <option value="Open Category">Open Category</option>
+                <option value="Open Shop">Open Shop</option>
+                <option value="Open Internal Screen">Open Internal Screen</option>
+                <option value="No Action">No Action (Hide button)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="custom-section-see-all-value">"See All" Action Value</label>
+              <input type="text" id="custom-section-see-all-value" placeholder="e.g. cleaning (category id) or shop-id">
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner Config -->
+        <div style="background: var(--surface); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border);">
+          <h4 style="margin-bottom: 14px; color: var(--primary-solid);"><i class="fa-solid fa-image"></i> Banner Configuration <small style="font-weight: normal; color: var(--text-muted);">(Urban Company Style)</small></h4>
+          <div class="form-group">
+            <label for="custom-section-banner-image">Banner Image URL</label>
+            <input type="url" id="custom-section-banner-image" placeholder="https://images.unsplash.com/photo-... or your hosted image URL">
+          </div>
+          <!-- Live Banner Preview -->
+          <div id="custom-section-banner-preview" style="display:none; margin-bottom: 12px; border-radius: 14px; overflow:hidden; height: 160px; position: relative;">
+            <img id="custom-section-banner-img" style="width:100%; height:100%; object-fit:cover;" src="" onerror="this.style.display='none'">
+            <div style="position:absolute; inset:0; background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.65)); display:flex; flex-direction:column; justify-content:flex-end; padding:14px;">
+              <span id="custom-section-banner-badge-preview" style="background: #1a9e3f; color:white; font-size:10px; padding:2px 8px; border-radius:5px; width:fit-content; margin-bottom:5px;"></span>
+              <span id="custom-section-banner-title-preview" style="color:white; font-size:18px; font-weight:bold; line-height:1.2;"></span>
+              <div style="margin-top:8px; background:white; border-radius:6px; padding:4px 12px; width:fit-content; font-size:11px; font-weight:bold; color:#222;">Explore now</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="custom-section-banner-badge">Badge / Offer Text</label>
+              <input type="text" id="custom-section-banner-badge" placeholder="e.g. Up to ₹1,700 off">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="custom-section-banner-action">Banner Click Opens</label>
+              <select id="custom-section-banner-action">
+                <option value="Open Category">Open Category</option>
+                <option value="Open Shop">Open Shop</option>
+                <option value="Open Internal Screen">Open Internal Screen</option>
+                <option value="Open External URL">Open External URL</option>
+                <option value="No Action">No Action</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="custom-section-banner-value">Banner Action Value</label>
+              <input type="text" id="custom-section-banner-value" placeholder="e.g. cleaning (for category) or shop-id">
+            </div>
+          </div>
+        </div>
+
+        <!-- Service Cards -->
+        <div style="background: var(--surface); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+            <h4 style="color: var(--primary-solid);"><i class="fa-solid fa-th-large"></i> Service Cards <small style="font-weight: normal; color: var(--text-muted);">(horizontal scroll list)</small></h4>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-service-item"><i class="fa-solid fa-plus"></i> Add Card</button>
+          </div>
+          <p style="color:var(--text-muted); font-size:12px; margin-bottom: 12px;">Service cards appear in a horizontal scrollable row below the banner (like "Sofa Cleaning", "Bathroom Cleaning" cards on Urban Company).</p>
+          <div id="service-items-container" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Service items added dynamically -->
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%; padding: 14px;"><i class="fa-solid fa-floppy-disk"></i> Save Custom Section</button>
       </form>
     </div>
   </div>

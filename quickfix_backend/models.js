@@ -16,7 +16,7 @@ function readDb() {
       fs.writeFileSync(dbPath, JSON.stringify({}));
     }
     const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands', 'promotions', 'specialcards', 'cmssections'];
+    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands', 'promotions', 'specialcards', 'cmssections', 'customsections'];
     let changed = false;
     for (const col of collections) {
       if (!data[col]) {
@@ -431,6 +431,7 @@ const BookingSchema = new mongoose.Schema({
 const CategorySchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   name: { type: String, required: true },
+  iconUrl: { type: String, default: '' },
   isActive: { type: Boolean, default: true }
 });
 
@@ -584,6 +585,34 @@ const CmsSectionSchema = new mongoose.Schema({
   settings: { type: mongoose.Schema.Types.Mixed, default: {} }
 }, { timestamps: true });
 
+// 17. Custom Homepage Section Service Item Schema (sub-document)
+const CustomSectionServiceItemSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  title: { type: String, required: true },
+  imageUrl: { type: String, default: '' },
+  rating: { type: Number, default: 4.5 },
+  reviewsCount: { type: String, default: '' },
+  startingPrice: { type: String, default: '' },
+  actionType: { type: String, default: 'Open Shop' },
+  actionValue: { type: String, default: '' }
+});
+
+// 17. Custom Homepage Section Schema (banner + service card list)
+const CustomSectionSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  subtitle: { type: String, default: '' },
+  bannerImageUrl: { type: String, default: '' },
+  bannerBadgeText: { type: String, default: '' },
+  bannerActionType: { type: String, default: 'Open Category' },
+  bannerActionValue: { type: String, default: '' },
+  seeAllActionType: { type: String, default: 'Open Category' },
+  seeAllActionValue: { type: String, default: '' },
+  serviceItems: { type: [CustomSectionServiceItemSchema], default: [] },
+  priority: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true }
+}, { timestamps: true });
+
 const MongooseModels = {
   User: mongoose.model('User', UserSchema),
   Shop: mongoose.model('Shop', ShopSchema),
@@ -599,7 +628,8 @@ const MongooseModels = {
   AuditLog: mongoose.model('AuditLog', AuditLogSchema),
   Promotion: mongoose.model('Promotion', PromotionSchema),
   SpecialCard: mongoose.model('SpecialCard', SpecialCardSchema),
-  CmsSection: mongoose.model('CmsSection', CmsSectionSchema)
+  CmsSection: mongoose.model('CmsSection', CmsSectionSchema),
+  CustomSection: mongoose.model('CustomSection', CustomSectionSchema)
 };
 
 const LocalModels = {
@@ -617,7 +647,8 @@ const LocalModels = {
   AuditLog: createMockModel('AuditLog', 'auditlogs'),
   Promotion: createMockModel('Promotion', 'promotions'),
   SpecialCard: createMockModel('SpecialCard', 'specialcards'),
-  CmsSection: createMockModel('CmsSection', 'cmssections')
+  CmsSection: createMockModel('CmsSection', 'cmssections'),
+  CustomSection: createMockModel('CustomSection', 'customsections')
 };
 
 function makeModelProxy(modelName) {
@@ -663,5 +694,6 @@ module.exports = {
   AuditLog: makeModelProxy('AuditLog'),
   Promotion: makeModelProxy('Promotion'),
   SpecialCard: makeModelProxy('SpecialCard'),
-  CmsSection: makeModelProxy('CmsSection')
+  CmsSection: makeModelProxy('CmsSection'),
+  CustomSection: makeModelProxy('CustomSection')
 };

@@ -753,7 +753,8 @@ function setupForms() {
       e.preventDefault();
       const bodyData = {
         id: document.getElementById('cat-id').value,
-        name: document.getElementById('cat-name').value
+        name: document.getElementById('cat-name').value,
+        iconUrl: document.getElementById('cat-icon-url').value
       };
       try {
         const res = await fetch(`${API_URL}/categories/create`, {
@@ -1447,8 +1448,15 @@ async function loadCategories() {
     categories.forEach(c => {
       const div = document.createElement('div');
       div.className = 'category-badge-item';
+      div.style = "display: flex; align-items: center; justify-content: space-between; gap: 10px;";
+      
+      const imgHtml = c.iconUrl ? `<img src="${c.iconUrl}" alt="${c.name}" style="width: 24px; height: 24px; object-fit: contain; border-radius: 4px;">` : `<i class="fa-solid fa-folder" style="font-size: 18px; color: var(--primary-solid);"></i>`;
+      
       div.innerHTML = `
-        <h4>${c.name}</h4>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          ${imgHtml}
+          <h4>${c.name} <span style="font-size: 10px; color: var(--text-muted);">(${c.id})</span></h4>
+        </div>
         <button class="btn btn-icon btn-delete" onclick="deleteCategory('${c.id}')"><i class="fa-solid fa-trash-can"></i></button>
       `;
       container.appendChild(div);
@@ -1875,13 +1883,15 @@ async function loadCmsData() {
     fetchCmsPromotions(),
     fetchCmsSpecials(),
     fetchCmsExperts(),
-    fetchCmsReviews()
+    fetchCmsReviews(),
+    fetchCmsCustomSections()
   ]);
   renderCmsLayout();
   renderCmsPromotions();
   renderCmsSpecials();
   renderCmsExperts();
   renderCmsReviews();
+  renderCustomSectionsList();
   populateExpertShopsDropdown();
 }
 
@@ -2502,6 +2512,8 @@ function setupCmsEvents() {
       document.getElementById('expert-modal').classList.add('active');
     });
   }
+
+  setupCustomSectionEvents();
 }
 
 function setupCmsForms() {
@@ -2669,3 +2681,323 @@ window.deleteReview = deleteReview;
 window.loadCmsData = loadCmsData;
 window.saveCmsLayoutOrder = saveCmsLayoutOrder;
 window.exportReportsCSV = exportReportsCSV;
+
+// Custom Sections CMS Logic
+let cmsCustomSections = [];
+
+async function fetchCmsCustomSections() {
+  try {
+    const res = await fetch(`${API_URL}/admin/custom-sections`);
+    cmsCustomSections = await res.json();
+  } catch (e) {
+    console.error('Error fetching custom sections:', e);
+    cmsCustomSections = [];
+  }
+}
+
+function renderCustomSectionsList() {
+  const container = document.getElementById('custom-sections-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!cmsCustomSections || cmsCustomSections.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:40px; color:var(--text-muted);">
+        <i class="fa-solid fa-puzzle-piece" style="font-size:32px; margin-bottom:12px; display:block;"></i>
+        <p>No custom sections yet. Click 'Create Custom Section' to get started!</p>
+      </div>`;
+    return;
+  }
+
+  cmsCustomSections.forEach(sec => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 12px;';
+    
+    const bannerPreview = sec.bannerImageUrl 
+      ? `<div style="position:relative; height:120px; overflow:hidden;">
+           <img src="${sec.bannerImageUrl}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">
+           <div style="position:absolute; inset:0; background:linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.7)); display:flex; flex-direction:column; justify-content:flex-end; padding:10px;">
+             ${sec.bannerBadgeText ? `<span style="background:#1a9e3f; color:white; font-size:9px; padding:2px 8px; border-radius:3px; width:fit-content; margin-bottom:3px;">${sec.bannerBadgeText}</span>` : ''}
+             <span style="color:white; font-size:15px; font-weight:bold;">${sec.title}</span>
+           </div>
+         </div>` 
+      : `<div style="height:60px; background: linear-gradient(135deg, var(--primary-solid), var(--primary-end)); display:flex; align-items:center; justify-content:center; padding: 10px;">
+           <span style="color:white; font-weight:bold;"><i class="fa-solid fa-puzzle-piece"></i> ${sec.title}</span>
+         </div>`;
+    
+    const serviceItemsPreview = sec.serviceItems && sec.serviceItems.length > 0
+      ? `<div style="display:flex; gap:12px; overflow-x:auto; padding-top:8px; padding-bottom:8px;">
+          ${sec.serviceItems.map(item => `
+            <div style="min-width:100px; max-width:100px; text-align:center;">
+              <div style="width:100px; height:70px; border-radius:8px; overflow:hidden; background:var(--background); border:1px solid var(--border);">
+                ${item.imageUrl ? `<img src="${item.imageUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-wrench" style="color:var(--text-muted);"></i></div>`}
+              </div>
+              <div style="font-size:10px; margin-top:4px; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500;">${item.title}</div>
+              <div style="font-size:9px; color:var(--text-muted);">${item.startingPrice ? `${item.startingPrice}` : ''} ${item.rating ? `⭐${item.rating}` : ''}</div>
+            </div>
+          `).join('')}
+         </div>`
+      : `<p style="color:var(--text-muted); font-size:12px; font-style:italic; margin-top:8px;">No service cards added to this section.</p>`;
+
+    card.innerHTML = `
+      ${bannerPreview}
+      <div style="padding: 14px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+          <div>
+            <strong style="font-size:14px; color:var(--text-primary);">${sec.title}</strong>
+            ${sec.subtitle ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${sec.subtitle}</div>` : ''}
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge ${sec.isActive ? 'badge-accepted' : 'badge-rejected'}">${sec.isActive ? 'Active' : 'Inactive'}</span>
+            <button class="btn btn-secondary btn-sm" onclick="editCustomSection('${sec.id}')"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="deleteCustomSection('${sec.id}')"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        </div>
+        <div style="margin-bottom:6px;">
+          <span style="font-size:11px; color:var(--text-muted);"><i class="fa-solid fa-layer-group"></i> Priority: ${sec.priority} | Click action: ${sec.bannerActionType || 'No Action'} (${sec.bannerActionValue || 'none'})</span>
+        </div>
+        ${serviceItemsPreview}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function setupCustomSectionBannerPreview() {
+  const imgInput = document.getElementById('custom-section-banner-image');
+  const badgeInput = document.getElementById('custom-section-banner-badge');
+  const titleInput = document.getElementById('custom-section-title');
+  const previewDiv = document.getElementById('custom-section-banner-preview');
+  const previewImg = document.getElementById('custom-section-banner-img');
+  const previewBadge = document.getElementById('custom-section-banner-badge-preview');
+  const previewTitle = document.getElementById('custom-section-banner-title-preview');
+
+  function updatePreview() {
+    const url = imgInput.value.trim();
+    if (url) {
+      previewDiv.style.display = 'block';
+      previewImg.src = url;
+      previewBadge.textContent = badgeInput.value || '';
+      previewBadge.style.display = badgeInput.value ? 'inline-block' : 'none';
+      previewTitle.textContent = titleInput.value || 'Banner Title';
+    } else {
+      previewDiv.style.display = 'none';
+    }
+  }
+
+  if (imgInput) imgInput.addEventListener('input', updatePreview);
+  if (badgeInput) badgeInput.addEventListener('input', updatePreview);
+  if (titleInput) titleInput.addEventListener('input', updatePreview);
+}
+
+function addServiceItemRow(data = {}) {
+  const container = document.getElementById('service-items-container');
+  if (!container) return;
+
+  const itemId = data.id || `si-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  const row = document.createElement('div');
+  row.className = 'service-item-row';
+  row.setAttribute('data-item-id', itemId);
+  row.style.cssText = 'background: var(--background); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; position:relative;';
+  row.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <strong style="font-size:12px; color:var(--primary-solid);"><i class="fa-solid fa-wrench"></i> Service Card Details</strong>
+      <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.service-item-row').remove()" style="padding: 2px 6px; font-size:10px;"><i class="fa-solid fa-trash-can"></i> Remove</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:8px;">
+        <label style="font-size:11px; margin-bottom:2px;">Service Title *</label>
+        <input type="text" class="si-title" value="${data.title || ''}" placeholder="e.g. Sofa Cleaning" required style="padding: 6px; font-size:12px;">
+      </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label style="font-size:11px; margin-bottom:2px;">Image URL</label>
+        <input type="url" class="si-image" value="${data.imageUrl || ''}" placeholder="https://images.unsplash.com/..." style="padding: 6px; font-size:12px;">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:8px;">
+        <label style="font-size:11px; margin-bottom:2px;">Rating (0 - 5)</label>
+        <input type="number" class="si-rating" value="${data.rating || 4.5}" step="0.1" min="0" max="5" style="padding: 6px; font-size:12px;">
+      </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label style="font-size:11px; margin-bottom:2px;">Reviews Count</label>
+        <input type="text" class="si-reviews" value="${data.reviewsCount || ''}" placeholder="e.g. 1.2K or 580" style="padding: 6px; font-size:12px;">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:8px;">
+        <label style="font-size:11px; margin-bottom:2px;">Starting Price</label>
+        <input type="text" class="si-price" value="${data.startingPrice || ''}" placeholder="e.g. ₹599" style="padding: 6px; font-size:12px;">
+      </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label style="font-size:11px; margin-bottom:2px;">On Click Action</label>
+        <select class="si-action" style="padding: 6px; font-size:12px;">
+          <option value="Open Shop" ${(data.actionType || 'Open Shop') === 'Open Shop' ? 'selected' : ''}>Open Shop</option>
+          <option value="Open Category" ${data.actionType === 'Open Category' ? 'selected' : ''}>Open Category</option>
+          <option value="Open Internal Screen" ${data.actionType === 'Open Internal Screen' ? 'selected' : ''}>Open Internal Screen</option>
+          <option value="No Action" ${data.actionType === 'No Action' ? 'selected' : ''}>No Action</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label style="font-size:11px; margin-bottom:2px;">Action Value (Shop ID / Category ID / Screen Path)</label>
+      <input type="text" class="si-action-value" value="${data.actionValue || ''}" placeholder="e.g. shop-123 or cleaning" style="padding: 6px; font-size:12px;">
+    </div>
+    <input type="hidden" class="si-id" value="${itemId}">
+  `;
+  container.appendChild(row);
+}
+
+function collectServiceItems() {
+  const rows = document.querySelectorAll('.service-item-row');
+  const items = [];
+  rows.forEach(row => {
+    const title = row.querySelector('.si-title')?.value?.trim();
+    if (!title) return;
+    items.push({
+      id: row.querySelector('.si-id')?.value || `si-${Date.now()}`,
+      title,
+      imageUrl: row.querySelector('.si-image')?.value?.trim() || '',
+      rating: parseFloat(row.querySelector('.si-rating')?.value) || 4.5,
+      reviewsCount: row.querySelector('.si-reviews')?.value?.trim() || '',
+      startingPrice: row.querySelector('.si-price')?.value?.trim() || '',
+      actionType: row.querySelector('.si-action')?.value || 'Open Shop',
+      actionValue: row.querySelector('.si-action-value')?.value?.trim() || ''
+    });
+  });
+  return items;
+}
+
+function editCustomSection(id) {
+  const sec = cmsCustomSections.find(s => s.id === id);
+  if (!sec) return;
+
+  document.getElementById('custom-section-modal-title').textContent = 'Edit Custom Section';
+  document.getElementById('edit-custom-section-id').value = sec.id;
+  document.getElementById('custom-section-title').value = sec.title;
+  document.getElementById('custom-section-subtitle').value = sec.subtitle || '';
+  document.getElementById('custom-section-banner-image').value = sec.bannerImageUrl || '';
+  document.getElementById('custom-section-banner-badge').value = sec.bannerBadgeText || '';
+  document.getElementById('custom-section-banner-action').value = sec.bannerActionType || 'Open Category';
+  document.getElementById('custom-section-banner-value').value = sec.bannerActionValue || '';
+  document.getElementById('custom-section-see-all-action').value = sec.seeAllActionType || 'Open Category';
+  document.getElementById('custom-section-see-all-value').value = sec.seeAllActionValue || '';
+  document.getElementById('custom-section-priority').value = sec.priority || 0;
+  document.getElementById('custom-section-active').value = sec.isActive !== false ? 'true' : 'false';
+
+  // Clear and populate service items
+  const container = document.getElementById('service-items-container');
+  container.innerHTML = '';
+  (sec.serviceItems || []).forEach(item => addServiceItemRow(item));
+
+  // Update banner preview
+  const previewDiv = document.getElementById('custom-section-banner-preview');
+  const previewImg = document.getElementById('custom-section-banner-img');
+  const previewBadge = document.getElementById('custom-section-banner-badge-preview');
+  const previewTitle = document.getElementById('custom-section-banner-title-preview');
+  if (sec.bannerImageUrl) {
+    previewDiv.style.display = 'block';
+    previewImg.src = sec.bannerImageUrl;
+    previewBadge.textContent = sec.bannerBadgeText || '';
+    previewBadge.style.display = sec.bannerBadgeText ? 'inline-block' : 'none';
+    previewTitle.textContent = sec.title;
+  } else {
+    previewDiv.style.display = 'none';
+  }
+
+  document.getElementById('custom-section-modal').classList.add('active');
+}
+
+async function deleteCustomSection(id) {
+  if (!confirm('Delete this custom section? It will be removed from layouts and the application.')) return;
+  try {
+    const res = await fetch(`${API_URL}/custom-sections/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Custom section deleted', 'success');
+      await logAdminActivity('Delete Custom Section', id, 'Deleted custom homepage section');
+      await fetchCmsCustomSections();
+      renderCustomSectionsList();
+      await fetchCmsLayout();
+      renderCmsLayout();
+    } else {
+      showToast(data.error || 'Delete failed', 'error');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('Failed to delete custom section', 'error');
+  }
+}
+
+function setupCustomSectionEvents() {
+  const addServiceItemBtn = document.getElementById('btn-add-service-item');
+  if (addServiceItemBtn) {
+    addServiceItemBtn.addEventListener('click', () => addServiceItemRow());
+  }
+
+  const addBtn = document.getElementById('btn-add-custom-section-modal');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      document.getElementById('custom-section-modal-title').textContent = 'Create Custom Section';
+      document.getElementById('edit-custom-section-id').value = '';
+      document.getElementById('custom-section-form').reset();
+      document.getElementById('service-items-container').innerHTML = '';
+      document.getElementById('custom-section-banner-preview').style.display = 'none';
+      document.getElementById('custom-section-modal').classList.add('active');
+    });
+  }
+
+  const form = document.getElementById('custom-section-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-custom-section-id').value;
+      const title = document.getElementById('custom-section-title').value;
+      const subtitle = document.getElementById('custom-section-subtitle').value;
+      const bannerImageUrl = document.getElementById('custom-section-banner-image').value;
+      const bannerBadgeText = document.getElementById('custom-section-banner-badge').value;
+      const bannerActionType = document.getElementById('custom-section-banner-action').value;
+      const bannerActionValue = document.getElementById('custom-section-banner-value').value;
+      const seeAllActionType = document.getElementById('custom-section-see-all-action').value;
+      const seeAllActionValue = document.getElementById('custom-section-see-all-value').value;
+      const priority = document.getElementById('custom-section-priority').value;
+      const isActive = document.getElementById('custom-section-active').value === 'true';
+      const serviceItems = collectServiceItems();
+
+      const body = { id, title, subtitle, bannerImageUrl, bannerBadgeText, bannerActionType, bannerActionValue, seeAllActionType, seeAllActionValue, serviceItems, priority, isActive };
+
+      try {
+        const res = await fetch(`${API_URL}/custom-sections`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(id ? 'Custom section updated!' : 'Custom section created!', 'success');
+          await logAdminActivity(id ? 'Edit Custom Section' : 'Create Custom Section', data.section.id, `Saved custom section: ${title}`);
+          document.getElementById('custom-section-modal').classList.remove('active');
+          await fetchCmsCustomSections();
+          renderCustomSectionsList();
+          await fetchCmsLayout();
+          renderCmsLayout();
+        } else {
+          showToast('Failed to save section: ' + (data.error || 'Unknown error'), 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to save custom section', 'error');
+      }
+    });
+  }
+
+  setupCustomSectionBannerPreview();
+}
+
+// Bindings
+window.editCustomSection = editCustomSection;
+window.deleteCustomSection = deleteCustomSection;
+window.fetchCmsCustomSections = fetchCmsCustomSections;
+window.renderCustomSectionsList = renderCustomSectionsList;
+window.setupCustomSectionEvents = setupCustomSectionEvents;
+
