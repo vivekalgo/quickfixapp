@@ -70,21 +70,7 @@ final categoriesProvider = FutureProvider<List<ServiceCategory>>((ref) async {
         ]
       : normalized;
 
-  final hasMore = baseCategories.any((c) => c.id == 'more');
-  if (hasMore) {
-    return baseCategories;
-  }
-
-  return [
-    ...baseCategories,
-    const ServiceCategory(
-      id: 'more',
-      name: 'More',
-      icon: Icons.grid_view_outlined,
-      backgroundColor: Color(0xFFF1F5F9),
-      iconColor: Color(0xFF475569),
-    ),
-  ];
+  return baseCategories;
 });
 
 // Selected Nearby Shop Filter Tag Provider
@@ -113,6 +99,24 @@ final topProfessionalsProvider = FutureProvider<List<Professional>>((ref) async 
 final bannersProvider = FutureProvider<List<PromoBanner>>((ref) async {
   final repository = ref.watch(homeRepositoryProvider);
   return repository.getBanners();
+});
+
+// Promotions Provider
+final promotionsProvider = FutureProvider<List<Promotion>>((ref) async {
+  final repository = ref.watch(homeRepositoryProvider);
+  return repository.getPromotions();
+});
+
+// Special Cards Provider
+final specialCardsProvider = FutureProvider<List<SpecialCard>>((ref) async {
+  final repository = ref.watch(homeRepositoryProvider);
+  return repository.getSpecialCards();
+});
+
+// Homepage Layout Provider
+final homepageLayoutProvider = FutureProvider<List<CmsSection>>((ref) async {
+  final repository = ref.watch(homeRepositoryProvider);
+  return repository.getHomepageLayout();
 });
 
 // Cart Shop ID Tracker Provider

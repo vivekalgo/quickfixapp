@@ -15,6 +15,9 @@ class ApiEndpoints {
   static const String professionals = '/professionals';
   static const String reviews = '/reviews';
   static const String banners = '/banners';
+  static const String promotions = '/promotions';
+  static const String specialCards = '/special-cards';
+  static const String homepageLayout = '/homepage/layout';
 
   // Bookings
   static const String packages = '/packages';

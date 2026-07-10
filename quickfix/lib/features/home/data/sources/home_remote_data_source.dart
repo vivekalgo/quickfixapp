@@ -22,6 +22,7 @@ class HomeRemoteDataSource {
         icon: _parseIcon(id),
         backgroundColor: _parseColor(id, isBg: true),
         iconColor: _parseColor(id, isBg: false),
+        iconUrl: json['iconUrl']?.toString() ?? json['imageUrl']?.toString(),
       );
     }).toList();
   }
@@ -68,34 +69,31 @@ class HomeRemoteDataSource {
   Future<List<Professional>> getTopProfessionals() async {
     final response = await _client.get(ApiEndpoints.professionals);
     final data = response.data as List;
-
-    return data.map((json) {
-      return Professional(
-        id: json['id']?.toString() ?? '',
-        name: json['name']?.toString() ?? '',
-        specialty: json['specialty']?.toString() ?? '',
-        rating: double.tryParse(json['rating']?.toString() ?? '') ?? 4.5,
-        reviewsCount: int.tryParse(json['reviewsCount']?.toString() ?? '') ?? 100,
-        avatarUrl: json['imageUrl']?.toString() ?? '',
-      );
-    }).toList();
+    return data.map((json) => Professional.fromJson(json as Map<String, dynamic>)).toList();
   }
 
   Future<List<Review>> getCustomerReviews() async {
     final response = await _client.get(ApiEndpoints.reviews);
     final data = response.data as List;
+    return data.map((json) => Review.fromJson(json as Map<String, dynamic>)).toList();
+  }
 
-    return data.map((json) {
-      return Review(
-        id: json['id']?.toString() ?? '',
-        userName: json['userName']?.toString() ?? '',
-        userAvatar: json['userAvatar']?.toString() ?? '',
-        rating: double.tryParse(json['rating']?.toString() ?? '') ?? 5.0,
-        comment: json['comment']?.toString() ?? '',
-        serviceName: json['serviceName']?.toString() ?? '',
-        locationName: json['locationName']?.toString() ?? '',
-      );
-    }).toList();
+  Future<List<Promotion>> getPromotions() async {
+    final response = await _client.get(ApiEndpoints.promotions);
+    final data = response.data as List;
+    return data.map((json) => Promotion.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<SpecialCard>> getSpecialCards() async {
+    final response = await _client.get(ApiEndpoints.specialCards);
+    final data = response.data as List;
+    return data.map((json) => SpecialCard.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<CmsSection>> getHomepageLayout() async {
+    final response = await _client.get(ApiEndpoints.homepageLayout);
+    final data = response.data as List;
+    return data.map((json) => CmsSection.fromJson(json as Map<String, dynamic>)).toList();
   }
 
   // Helper icons and color utilities

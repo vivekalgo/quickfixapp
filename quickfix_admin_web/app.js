@@ -1,4 +1,6 @@
-const API_URL = 'https://quickfixapp-production.up.railway.app/api';
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+  ? 'http://localhost:3000/api' 
+  : 'https://quickfixapp-production.up.railway.app/api';
 
 // State variables
 let shops = [];
@@ -25,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setupForms();
   setupServicesEvents();
   setupTheme();
+  setupSubtabs();
+  setupCmsEvents();
+  setupCmsForms();
   
   // Custom Filters & Dropdowns
   const statusFilter = document.getElementById('booking-filter-status');
@@ -137,6 +142,7 @@ function setupTabs() {
       if (tabId === 'reports-tab') loadReports();
       if (tabId === 'settings-tab') loadSettings();
       if (tabId === 'audit-logs-tab') loadAuditLogs();
+      if (tabId === 'cms-tab') loadCmsData();
     });
   });
 }
@@ -1834,6 +1840,792 @@ function exportReportsCSV() {
   showToast('Booking reports CSV generated!', 'success');
 }
 
+// --- HOMEPAGE CMS INTEGRATION LOGIC ---
+let cmsLayout = [];
+let cmsPromotions = [];
+let cmsSpecials = [];
+let cmsExperts = [];
+let cmsReviews = [];
+
+function setupSubtabs() {
+  const subtabBtns = document.querySelectorAll('.subtab-btn');
+  const subtabPanes = document.querySelectorAll('.subtab-pane');
+  
+  subtabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const subtabId = btn.getAttribute('data-subtab');
+      
+      subtabBtns.forEach(b => b.classList.remove('active'));
+      subtabPanes.forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+      });
+      
+      btn.classList.add('active');
+      const targetPane = document.getElementById(subtabId);
+      targetPane.classList.add('active');
+      targetPane.style.display = 'block';
+    });
+  });
+}
+
+async function loadCmsData() {
+  await Promise.all([
+    fetchCmsLayout(),
+    fetchCmsPromotions(),
+    fetchCmsSpecials(),
+    fetchCmsExperts(),
+    fetchCmsReviews()
+  ]);
+  renderCmsLayout();
+  renderCmsPromotions();
+  renderCmsSpecials();
+  renderCmsExperts();
+  renderCmsReviews();
+  populateExpertShopsDropdown();
+}
+
+async function fetchCmsLayout() {
+  try {
+    const res = await fetch(`${API_URL}/admin/homepage/layout`);
+    cmsLayout = await res.json();
+  } catch (e) {
+    console.error('Error fetching CMS layout:', e);
+  }
+}
+
+async function fetchCmsPromotions() {
+  try {
+    const res = await fetch(`${API_URL}/admin/promotions`);
+    cmsPromotions = await res.json();
+  } catch (e) {
+    console.error('Error fetching promotions:', e);
+  }
+}
+
+async function fetchCmsSpecials() {
+  try {
+    const res = await fetch(`${API_URL}/admin/special-cards`);
+    cmsSpecials = await res.json();
+  } catch (e) {
+    console.error('Error fetching special cards:', e);
+  }
+}
+
+async function fetchCmsExperts() {
+  try {
+    const res = await fetch(`${API_URL}/admin/professionals`);
+    cmsExperts = await res.json();
+  } catch (e) {
+    console.error('Error fetching featured experts:', e);
+  }
+}
+
+async function fetchCmsReviews() {
+  try {
+    const res = await fetch(`${API_URL}/admin/reviews`);
+    cmsReviews = await res.json();
+  } catch (e) {
+    console.error('Error fetching reviews:', e);
+  }
+}
+
+function renderCmsLayout() {
+  const tbody = document.getElementById('cms-layout-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (cmsLayout.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No layout sections defined.</td></tr>';
+    return;
+  }
+  
+  cmsLayout.forEach((sec, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <input type="number" class="layout-priority-input form-group" style="width:70px; margin-bottom:0;" data-id="${sec.id}" value="${sec.priority !== undefined ? sec.priority : idx}">
+      </td>
+      <td><code>${sec.id}</code></td>
+      <td><strong>${sec.title}</strong></td>
+      <td><span class="badge badge-accepted">${sec.type}</span></td>
+      <td>
+        <label class="switch">
+          <input type="checkbox" class="layout-active-checkbox" data-id="${sec.id}" ${sec.isActive ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="moveLayoutRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button>
+        <button class="btn btn-secondary btn-sm" onclick="moveLayoutRow(${idx}, 1)" ${idx === cmsLayout.length - 1 ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function moveLayoutRow(idx, direction) {
+  const targetIdx = idx + direction;
+  if (targetIdx < 0 || targetIdx >= cmsLayout.length) return;
+  
+  const temp = cmsLayout[idx];
+  cmsLayout[idx] = cmsLayout[targetIdx];
+  cmsLayout[targetIdx] = temp;
+  
+  // Re-index priority
+  cmsLayout.forEach((sec, i) => {
+    sec.priority = i;
+  });
+  
+  renderCmsLayout();
+}
+
+async function saveCmsLayoutOrder() {
+  const tbody = document.getElementById('cms-layout-tbody');
+  const orderList = [];
+  const promises = [];
+  
+  cmsLayout.forEach(sec => {
+    const rowInput = tbody.querySelector(`.layout-priority-input[data-id="${sec.id}"]`);
+    const rowActive = tbody.querySelector(`.layout-active-checkbox[data-id="${sec.id}"]`);
+    
+    const priority = rowInput ? parseInt(rowInput.value) : sec.priority;
+    const isActive = rowActive ? rowActive.checked : sec.isActive;
+    
+    orderList.push({ id: sec.id, priority });
+    
+    promises.push(
+      fetch(`${API_URL}/homepage/layout/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sec.id, isActive, priority })
+      })
+    );
+  });
+  
+  try {
+    await Promise.all(promises);
+    showToast('CMS Homepage layout order saved successfully!', 'success');
+    await logAdminActivity('Save CMS Layout Order', 'Homepage Layout', `Reordered layout configuration`);
+    loadCmsData();
+  } catch (e) {
+    console.error('Failed to save layout order:', e);
+    showToast('Failed to save layout order changes', 'error');
+  }
+}
+
+function renderCmsPromotions() {
+  const tbody = document.getElementById('cms-promotions-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (cmsPromotions.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No promotions active.</td></tr>';
+    return;
+  }
+  
+  cmsPromotions.forEach(promo => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${promo.bannerImage ? `<img src="${promo.bannerImage}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">` : `<i class="fa-solid fa-gifts" style="font-size:24px; color:var(--text-muted);"></i>`}
+          <div>
+            <strong>${promo.title}</strong>
+            <div style="font-size:11px; color:var(--text-secondary);">${promo.subtitle}</div>
+          </div>
+        </div>
+      </td>
+      <td><code>${promo.couponCode || 'N/A'}</code></td>
+      <td><strong>${promo.offerPercentage || 'N/A'}</strong></td>
+      <td><span class="badge badge-accepted">${promo.ctaButtonAction}</span> <code style="font-size:11px;">${promo.ctaButtonActionValue || ''}</code></td>
+      <td>
+        <span class="color-preview" style="background-color: ${promo.backgroundColor || '#FFF1F0'};"></span>
+        <span class="color-preview" style="background-color: ${promo.textColor || '#000000'};"></span>
+      </td>
+      <td>
+        <label class="switch">
+          <input type="checkbox" onchange="togglePromoActive('${promo.id}', this.checked)" ${promo.isActive ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editPromo('${promo.id}')"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deletePromo('${promo.id}')"><i class="fa-solid fa-trash-can"></i></button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function editPromo(id) {
+  const promo = cmsPromotions.find(p => p.id === id);
+  if (!promo) return;
+  
+  document.getElementById('promo-modal-title').textContent = "Edit Promo Ribbon";
+  document.getElementById('edit-promo-id').value = promo.id;
+  document.getElementById('promo-title').value = promo.title;
+  document.getElementById('promo-subtitle').value = promo.subtitle;
+  document.getElementById('promo-desc').value = promo.description || '';
+  document.getElementById('promo-pct').value = promo.offerPercentage || '';
+  document.getElementById('promo-code').value = promo.couponCode || '';
+  document.getElementById('promo-cta').value = promo.ctaButtonAction || 'No Action';
+  document.getElementById('promo-cta-val').value = promo.ctaButtonActionValue || '';
+  document.getElementById('promo-image').value = promo.bannerImage || '';
+  document.getElementById('promo-color-bg').value = promo.backgroundColor || '#FFF1F0';
+  document.getElementById('promo-color-txt').value = promo.textColor || '#000000';
+  document.getElementById('promo-color-btn').value = promo.buttonColor || '#FF4D4F';
+  document.getElementById('promo-color-btn-txt').value = promo.buttonTextColor || '#FFFFFF';
+  document.getElementById('promo-priority').value = promo.priority || 0;
+  document.getElementById('promo-active').value = promo.isActive ? "true" : "false";
+  document.getElementById('promo-start').value = promo.startDate ? promo.startDate.substring(0, 16) : '';
+  document.getElementById('promo-end').value = promo.endDate ? promo.endDate.substring(0, 16) : '';
+  
+  document.getElementById('promo-modal').classList.add('active');
+}
+
+async function togglePromoActive(id, isActive) {
+  const promo = cmsPromotions.find(p => p.id === id);
+  if (!promo) return;
+  try {
+    const updated = { ...promo, isActive };
+    const res = await fetch(`${API_URL}/promotions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Promotion active state toggled', 'success');
+      fetchCmsPromotions().then(renderCmsPromotions);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function deletePromo(id) {
+  if (confirm('Delete this promotional ribbon permanently?')) {
+    try {
+      const res = await fetch(`${API_URL}/promotions/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Promotion deleted', 'success');
+        await logAdminActivity('Delete Promotion', id, 'Deleted promotional homepage ribbon');
+        loadCmsData();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+function renderCmsSpecials() {
+  const tbody = document.getElementById('cms-specials-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (cmsSpecials.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No special cards defined.</td></tr>';
+    return;
+  }
+  
+  cmsSpecials.forEach((card, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <input type="number" class="special-priority-input form-group" style="width:70px; margin-bottom:0;" data-id="${card.id}" value="${card.priority !== undefined ? card.priority : idx}">
+      </td>
+      <td><i class="fa-solid fa-star" style="font-size:18px; color:var(--primary-solid);"></i> <code style="font-size:11px;">${card.icon}</code></td>
+      <td>
+        <strong>${card.title}</strong>
+        <div style="font-size:11px; color:var(--text-secondary);">${card.subtitle || card.description}</div>
+      </td>
+      <td><span class="badge badge-on_the_way">${card.ctaAction}</span> <code style="font-size:11px;">${card.ctaActionValue || ''}</code></td>
+      <td>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleSpecialActive('${card.id}', this.checked)" ${card.isActive ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editSpecial('${card.id}')"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSpecial('${card.id}')"><i class="fa-solid fa-trash-can"></i></button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function editSpecial(id) {
+  const card = cmsSpecials.find(c => c.id === id);
+  if (!card) return;
+  
+  document.getElementById('special-modal-title').textContent = "Edit Special Card";
+  document.getElementById('edit-special-id').value = card.id;
+  document.getElementById('special-title').value = card.title;
+  document.getElementById('special-subtitle').value = card.subtitle || '';
+  document.getElementById('special-desc').value = card.description || '';
+  document.getElementById('special-icon').value = card.icon || 'star';
+  document.getElementById('special-bg-color').value = card.backgroundColor || '#EEF2FF';
+  document.getElementById('special-cta').value = card.ctaAction || 'No Action';
+  document.getElementById('special-cta-val').value = card.ctaActionValue || '';
+  document.getElementById('special-priority').value = card.priority || 0;
+  document.getElementById('special-active').value = card.isActive ? "true" : "false";
+  
+  document.getElementById('special-card-modal').classList.add('active');
+}
+
+async function toggleSpecialActive(id, isActive) {
+  const card = cmsSpecials.find(c => c.id === id);
+  if (!card) return;
+  try {
+    const updated = { ...card, isActive };
+    const res = await fetch(`${API_URL}/special-cards`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Special card active state toggled', 'success');
+      fetchCmsSpecials().then(renderCmsSpecials);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function deleteSpecial(id) {
+  if (confirm('Delete this Special For You card permanently?')) {
+    try {
+      const res = await fetch(`${API_URL}/special-cards/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Special card deleted', 'success');
+        await logAdminActivity('Delete Special Card', id, 'Deleted Special For You promotional card');
+        loadCmsData();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+function renderCmsExperts() {
+  const tbody = document.getElementById('cms-experts-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (cmsExperts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);">No experts registered.</td></tr>';
+    return;
+  }
+  
+  cmsExperts.forEach((exp, idx) => {
+    const tr = document.createElement('tr');
+    const isLinked = !!exp.shopId;
+    const linkedShopName = isLinked ? (shops.find(s => s.id === exp.shopId)?.name || `Shop ID: ${exp.shopId}`) : '<span style="color:var(--text-muted);">None (Standalone)</span>';
+    
+    tr.innerHTML = `
+      <td>
+        <input type="number" class="expert-priority-input form-group" style="width:70px; margin-bottom:0;" data-id="${exp.id}" value="${exp.priority !== undefined ? exp.priority : idx}">
+      </td>
+      <td>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <img src="${exp.imageUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border: 1.5px solid var(--primary-solid);">
+          <div>
+            <strong>${exp.name}</strong>
+            ${exp.verifiedBadge ? '<span style="font-size:10px; color:var(--success); margin-left:4px;"><i class="fa-solid fa-circle-check"></i></span>' : ''}
+            <div style="font-size:10px; color:var(--text-muted);">${exp.experience || 'N/A exp'} • ${exp.completedJobs || 0} jobs</div>
+          </div>
+        </div>
+      </td>
+      <td><strong>${exp.specialty}</strong></td>
+      <td>${linkedShopName}</td>
+      <td>⭐ ${exp.rating ? exp.rating.toFixed(1) : '5.0'}</td>
+      <td>
+        <span class="badge ${exp.availability ? 'badge-active' : 'badge-inactive'}">${exp.availability ? 'Available' : 'Busy/Offline'}</span>
+      </td>
+      <td>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleExpertActive('${exp.id}', this.checked)" ${exp.isActive !== false ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editExpert('${exp.id}')"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteExpert('${exp.id}')"><i class="fa-solid fa-trash-can"></i></button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function populateExpertShopsDropdown() {
+  const select = document.getElementById('expert-shop');
+  if (!select) return;
+  
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">-- No Linked Shop (Stand-alone profile) --</option>';
+  
+  shops.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = `${s.name} (Owner: ${s.ownerName})`;
+    select.appendChild(opt);
+  });
+  select.value = currentVal;
+}
+
+function editExpert(id) {
+  const exp = cmsExperts.find(e => e.id === id);
+  if (!exp) return;
+  
+  document.getElementById('expert-modal-title').textContent = "Edit Featured Expert";
+  document.getElementById('edit-expert-id').value = exp.id;
+  document.getElementById('expert-name').value = exp.name;
+  document.getElementById('expert-shop').value = exp.shopId || '';
+  document.getElementById('expert-specialty').value = exp.specialty || '';
+  document.getElementById('expert-exp').value = exp.experience || '';
+  document.getElementById('expert-rating').value = exp.rating || 5.0;
+  document.getElementById('expert-jobs').value = exp.completedJobs || 0;
+  document.getElementById('expert-image').value = exp.imageUrl || '';
+  document.getElementById('expert-location').value = exp.location || '';
+  document.getElementById('expert-priority').value = exp.priority || 0;
+  document.getElementById('expert-active').value = exp.isActive !== false ? "true" : "false";
+  
+  document.getElementById('expert-modal').classList.add('active');
+}
+
+async function toggleExpertActive(id, isActive) {
+  const exp = cmsExperts.find(e => e.id === id);
+  if (!exp) return;
+  try {
+    const updated = { ...exp, isActive };
+    const res = await fetch(`${API_URL}/professionals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Expert active state toggled', 'success');
+      fetchCmsExperts().then(renderCmsExperts);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function deleteExpert(id) {
+  if (confirm('Delete this expert profile permanently?')) {
+    try {
+      const res = await fetch(`${API_URL}/professionals/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Expert profile deleted', 'success');
+        await logAdminActivity('Delete Professional Expert', id, 'Deleted featured expert card');
+        loadCmsData();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+function renderCmsReviews() {
+  const tbody = document.getElementById('cms-reviews-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (cmsReviews.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No reviews submitted.</td></tr>';
+    return;
+  }
+  
+  cmsReviews.forEach(rev => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <img src="${rev.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
+          <div>
+            <strong>${rev.userName}</strong>
+            <div style="font-size:10px; color:var(--text-muted);">${rev.locationName || 'Kanpur'}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <strong>${rev.serviceName || 'General'}</strong>
+        ${rev.providerName ? `<div style="font-size:10px; color:var(--text-secondary);">Expert: ${rev.providerName}</div>` : ''}
+      </td>
+      <td>
+        <div style="max-width:300px; white-space:normal; font-size:12px;">"${rev.comment}"</div>
+        ${rev.reply ? `<div style="font-size:11px; color:var(--primary-solid); margin-top:4px;"><strong>Reply:</strong> ${rev.reply}</div>` : ''}
+      </td>
+      <td>⭐ ${rev.rating ? rev.rating.toFixed(1) : '5.0'}</td>
+      <td>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleReviewFeatured('${rev.id}', this.checked)" ${rev.isFeatured ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </td>
+      <td>
+        <select class="table-action-select" onchange="changeReviewStatus('${rev.id}', this.value)" style="background-color: var(--surface-solid);">
+          <option value="approved" ${rev.status === 'approved' ? 'selected' : ''}>Approved</option>
+          <option value="pending" ${rev.status === 'pending' ? 'selected' : ''}>Pending</option>
+          <option value="rejected" ${rev.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+        </select>
+      </td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="promptReviewReply('${rev.id}')" title="Reply to Review"><i class="fa-solid fa-reply"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteReview('${rev.id}')"><i class="fa-solid fa-trash-can"></i></button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function changeReviewStatus(id, status) {
+  try {
+    const res = await fetch(`${API_URL}/reviews/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Review status updated to: ${status}`, 'success');
+      await logAdminActivity('Update Review Status', id, `Updated review state to ${status}`);
+      fetchCmsReviews().then(renderCmsReviews);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function toggleReviewFeatured(id, isFeatured) {
+  const review = cmsReviews.find(r => r.id === id);
+  if (!review) return;
+  try {
+    const updated = { ...review, isFeatured };
+    const res = await fetch(`${API_URL}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Review featured status toggled', 'success');
+      fetchCmsReviews().then(renderCmsReviews);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function promptReviewReply(id) {
+  const review = cmsReviews.find(r => r.id === id);
+  if (!review) return;
+  const reply = prompt('Enter your response reply to this customer testimonial review:', review.reply || '');
+  if (reply === null) return;
+  
+  try {
+    const updated = { ...review, reply };
+    const res = await fetch(`${API_URL}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Testimonial response reply saved!', 'success');
+      await logAdminActivity('Reply Review Testimonial', id, `Saved admin reply: ${reply}`);
+      fetchCmsReviews().then(renderCmsReviews);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function deleteReview(id) {
+  if (confirm('Delete this customer review permanently?')) {
+    try {
+      const res = await fetch(`${API_URL}/reviews/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Review deleted successfully', 'success');
+        await logAdminActivity('Delete Customer Review', id, 'Deleted testimonial review entry');
+        loadCmsData();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+function setupCmsEvents() {
+  const saveLayoutBtn = document.getElementById('btn-save-layout-order');
+  if (saveLayoutBtn) {
+    saveLayoutBtn.addEventListener('click', saveCmsLayoutOrder);
+  }
+
+  const addPromoBtn = document.getElementById('btn-add-promo-modal');
+  if (addPromoBtn) {
+    addPromoBtn.addEventListener('click', () => {
+      document.getElementById('promo-modal-title').textContent = "Add Promo Ribbon";
+      document.getElementById('edit-promo-id').value = "";
+      document.getElementById('promo-form').reset();
+      document.getElementById('promo-modal').classList.add('active');
+    });
+  }
+
+  const addSpecialBtn = document.getElementById('btn-add-special-modal');
+  if (addSpecialBtn) {
+    addSpecialBtn.addEventListener('click', () => {
+      document.getElementById('special-modal-title').textContent = "Add Special Card";
+      document.getElementById('edit-special-id').value = "";
+      document.getElementById('special-form').reset();
+      document.getElementById('special-card-modal').classList.add('active');
+    });
+  }
+
+  const addExpertBtn = document.getElementById('btn-add-expert-modal');
+  if (addExpertBtn) {
+    addExpertBtn.addEventListener('click', () => {
+      document.getElementById('expert-modal-title').textContent = "Add Featured Expert";
+      document.getElementById('edit-expert-id').value = "";
+      document.getElementById('expert-shop').value = "";
+      document.getElementById('expert-form').reset();
+      populateExpertShopsDropdown();
+      document.getElementById('expert-modal').classList.add('active');
+    });
+  }
+}
+
+function setupCmsForms() {
+  const promoForm = document.getElementById('promo-form');
+  if (promoForm) {
+    promoForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-promo-id').value;
+      const title = document.getElementById('promo-title').value;
+      const subtitle = document.getElementById('promo-subtitle').value;
+      const description = document.getElementById('promo-desc').value;
+      const offerPercentage = document.getElementById('promo-pct').value;
+      const couponCode = document.getElementById('promo-code').value;
+      const ctaButtonText = 'Grab Now';
+      const ctaButtonAction = document.getElementById('promo-cta').value;
+      const ctaButtonActionValue = document.getElementById('promo-cta-val').value;
+      const bannerImage = document.getElementById('promo-image').value;
+      const backgroundColor = document.getElementById('promo-color-bg').value;
+      const textColor = document.getElementById('promo-color-txt').value;
+      const buttonColor = document.getElementById('promo-color-btn').value;
+      const buttonTextColor = document.getElementById('promo-color-btn-txt').value;
+      const priority = document.getElementById('promo-priority').value;
+      const isActive = document.getElementById('promo-active').value === "true";
+      const startDate = document.getElementById('promo-start').value;
+      const endDate = document.getElementById('promo-end').value;
+      
+      const body = { id, title, subtitle, description, offerPercentage, couponCode, ctaButtonText, ctaButtonAction, ctaButtonActionValue, bannerImage, backgroundColor, textColor, buttonColor, buttonTextColor, priority, isActive, startDate, endDate };
+      
+      try {
+        const res = await fetch(`${API_URL}/promotions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Promotion saved successfully', 'success');
+          await logAdminActivity(id ? 'Edit Promotion' : 'Create Promotion', data.promotion.id, `Saved homepage promotion ribbon: ${title}`);
+          document.getElementById('promo-modal').classList.remove('active');
+          loadCmsData();
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to save promotion ribbon', 'error');
+      }
+    });
+  }
+
+  const specialForm = document.getElementById('special-form');
+  if (specialForm) {
+    specialForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-special-id').value;
+      const title = document.getElementById('special-title').value;
+      const subtitle = document.getElementById('special-subtitle').value;
+      const description = document.getElementById('special-desc').value;
+      const icon = document.getElementById('special-icon').value;
+      const backgroundColor = document.getElementById('special-bg-color').value;
+      const ctaAction = document.getElementById('special-cta').value;
+      const ctaActionValue = document.getElementById('special-cta-val').value;
+      const priority = document.getElementById('special-priority').value;
+      const isActive = document.getElementById('special-active').value === "true";
+      
+      const body = { id, title, subtitle, description, icon, backgroundColor, ctaAction, ctaActionValue, priority, isActive };
+      
+      try {
+        const res = await fetch(`${API_URL}/special-cards`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Special card saved successfully', 'success');
+          await logAdminActivity(id ? 'Edit Special Card' : 'Create Special Card', data.card.id, `Saved special for you card: ${title}`);
+          document.getElementById('special-card-modal').classList.remove('active');
+          loadCmsData();
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to save special card', 'error');
+      }
+    });
+  }
+
+  const expertForm = document.getElementById('expert-form');
+  if (expertForm) {
+    expertForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-expert-id').value;
+      const name = document.getElementById('expert-name').value;
+      const shopId = document.getElementById('expert-shop').value;
+      const specialty = document.getElementById('expert-specialty').value;
+      const experience = document.getElementById('expert-exp').value;
+      const rating = document.getElementById('expert-rating').value;
+      const completedJobs = document.getElementById('expert-jobs').value;
+      const imageUrl = document.getElementById('expert-image').value;
+      const location = document.getElementById('expert-location').value;
+      const priority = document.getElementById('expert-priority').value;
+      const isActive = document.getElementById('expert-active').value === "true";
+      
+      const body = { id, name, shopId, specialty, experience, rating, completedJobs, imageUrl, location, priority, isActive };
+      
+      try {
+        const res = await fetch(`${API_URL}/professionals`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Expert profile saved successfully', 'success');
+          await logAdminActivity(id ? 'Edit Expert' : 'Create Expert', data.professional.id, `Saved featured expert: ${name}`);
+          document.getElementById('expert-modal').classList.remove('active');
+          loadCmsData();
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to save expert profile', 'error');
+      }
+    });
+  }
+}
+
 // Bind handlers globally for dynamic HTML events
 window.openServicesModal = openServicesModal;
 window.deleteShop = deleteShop;
@@ -1857,4 +2649,23 @@ window.loadDemands = loadDemands;
 window.triggerWalletAdjustment = triggerWalletAdjustment;
 window.toggleUserBlock = toggleUserBlock;
 window.loadAuditLogs = loadAuditLogs;
+window.exportReportsCSV = exportReportsCSV;
+
+// CMS Bindings
+window.moveLayoutRow = moveLayoutRow;
+window.togglePromoActive = togglePromoActive;
+window.editPromo = editPromo;
+window.deletePromo = deletePromo;
+window.toggleSpecialActive = toggleSpecialActive;
+window.editSpecial = editSpecial;
+window.deleteSpecial = deleteSpecial;
+window.toggleExpertActive = toggleExpertActive;
+window.editExpert = editExpert;
+window.deleteExpert = deleteExpert;
+window.changeReviewStatus = changeReviewStatus;
+window.toggleReviewFeatured = toggleReviewFeatured;
+window.promptReviewReply = promptReviewReply;
+window.deleteReview = deleteReview;
+window.loadCmsData = loadCmsData;
+window.saveCmsLayoutOrder = saveCmsLayoutOrder;
 window.exportReportsCSV = exportReportsCSV;

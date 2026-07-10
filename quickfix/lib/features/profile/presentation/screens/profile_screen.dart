@@ -108,13 +108,13 @@ class ProfileScreen extends ConsumerWidget {
                                       color: Colors.white.withOpacity(0.2),
                                     ),
                                     child: ClipOval(
-                                      child: avatarUrl.isNotEmpty
-                                          ? Image.network(
-                                              avatarUrl,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => _avatarPlaceholder(name),
-                                            )
-                                          : _avatarPlaceholder(name),
+                                      child: Image.network(
+                                        avatarUrl.isNotEmpty
+                                            ? avatarUrl
+                                            : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => _avatarPlaceholder(name),
+                                      ),
                                     ),
                                   ),
                                   Container(

@@ -9,6 +9,7 @@ import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/home/presentation/screens/search_screen.dart';
 import '../../features/home/presentation/screens/shops_list_screen.dart';
 import '../../features/home/presentation/screens/category_screen.dart';
+import '../../features/home/presentation/screens/all_services_screen.dart';
 import '../../features/booking/presentation/screens/service_details_screen.dart';
 import '../../features/booking/presentation/screens/booking_checkout_screen.dart';
 import '../../features/booking/presentation/screens/booking_confirmation_screen.dart';
@@ -105,6 +106,11 @@ final GoRouter appRouter = GoRouter(
       path: '/shops',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const ShopsListScreen(),
+    ),
+    GoRoute(
+      path: '/category/all',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AllServicesScreen(),
     ),
     GoRoute(
       path: '/category/:id',

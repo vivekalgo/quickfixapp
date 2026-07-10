@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
@@ -58,6 +59,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isDark = ref.watch(isDarkModeProvider);
     final currentAddress = ref.watch(currentAddressProvider).address;
     final bannersAsync = ref.watch(bannersProvider);
+    final layoutAsync = ref.watch(homepageLayoutProvider);
     
     return Scaffold(
       body: SafeArea(
@@ -70,6 +72,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ref.invalidate(topProfessionalsProvider);
                 ref.invalidate(customerReviewsProvider);
                 ref.invalidate(bannersProvider);
+                ref.invalidate(promotionsProvider);
+                ref.invalidate(specialCardsProvider);
+                ref.invalidate(homepageLayoutProvider);
               },
               color: AppColors.primary,
               child: CustomScrollView(
@@ -93,84 +98,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
 
-                  // 2. Banner Carousel
-                  SliverToBoxAdapter(
-                    child: bannersAsync.when(
-                      data: (banners) => _buildBannerCarousel(banners, isDark),
-                      loading: () => const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: CircularProgressIndicator(),
+                  ...layoutAsync.when(
+                    data: (sections) => sections.map((sec) => _buildDynamicSection(sec, isDark)).toList(),
+                    loading: () => [
+                      const SliverToBoxAdapter(
+                        child: Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 40),
+                            child: CircularProgressIndicator(),
+                          ),
                         ),
                       ),
-                      error: (e, s) => const SizedBox.shrink(),
-                    ),
+                    ],
+                    error: (err, stack) => [
+                      // Fallback static layout (equivalent to current layout)
+                      SliverToBoxAdapter(
+                        child: bannersAsync.when(
+                          data: (banners) => _buildBannerCarousel(banners, isDark),
+                          loading: () => const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                          error: (e, s) => const SizedBox.shrink(),
+                        ),
+                      ),
+                      SliverToBoxAdapter(child: _buildCategoriesSection(isDark)),
+                      SliverToBoxAdapter(child: _buildFestiveOfferBanner(isDark)),
+                      SliverToBoxAdapter(child: _buildNearbyShopsSection(isDark)),
+                      SliverToBoxAdapter(child: _buildQuickFixPlusBanner(isDark)),
+                      SliverToBoxAdapter(child: _buildTrustBadges(isDark)),
+                      SliverToBoxAdapter(child: _buildOfferPromoSection(isDark)),
+                      SliverToBoxAdapter(child: _buildHowItWorksSection(isDark)),
+                      SliverToBoxAdapter(child: _buildSpecialForYou(isDark)),
+                      SliverToBoxAdapter(child: _buildTopProfessionalsBanner(isDark)),
+                      SliverToBoxAdapter(child: _buildCustomerReviews(isDark)),
+                      SliverToBoxAdapter(child: _buildBrandLogos(isDark)),
+                      SliverToBoxAdapter(child: _buildNeedHelpCard(isDark)),
+                    ],
                   ),
 
-              // 3. All Services Categories
-              SliverToBoxAdapter(
-                child: _buildCategoriesSection(isDark),
-              ),
-
-              // 4. Festive Offer Ribbon
-              SliverToBoxAdapter(
-                child: _buildFestiveOfferBanner(isDark),
-              ),
-
-              // 5. Nearby Top Shops Section (With Pills)
-              SliverToBoxAdapter(
-                child: _buildNearbyShopsSection(isDark),
-              ),
-
-              // 6. QuickFix Plus Banner
-              SliverToBoxAdapter(
-                child: _buildQuickFixPlusBanner(isDark),
-              ),
-
-              // 7. Trust Badges
-              SliverToBoxAdapter(
-                child: _buildTrustBadges(isDark),
-              ),
-
-              // 8. Referral & Offer Cards
-              SliverToBoxAdapter(
-                child: _buildOfferPromoSection(isDark),
-              ),
-
-              // 9. How QuickFix Works
-              SliverToBoxAdapter(
-                child: _buildHowItWorksSection(isDark),
-              ),
-
-              // 10. Special For You
-              SliverToBoxAdapter(
-                child: _buildSpecialForYou(isDark),
-              ),
-
-              // 11. Top Rated Professionals Showcase
-              SliverToBoxAdapter(
-                child: _buildTopProfessionalsBanner(isDark),
-              ),
-
-              // 12. Customer Reviews Testimonial Slider
-              SliverToBoxAdapter(
-                child: _buildCustomerReviews(isDark),
-              ),
-
-              // 13. Brand Marquee Logos
-              SliverToBoxAdapter(
-                child: _buildBrandLogos(isDark),
-              ),
-
-              // 14. Need Help Support Card
-              SliverToBoxAdapter(
-                child: _buildNeedHelpCard(isDark),
-              ),
-              
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 24),
-              ),
-            ],
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 24),
+                  ),
+                ],
           ),
         ),
         // 2. Animated Pinned Compact Header Row
@@ -610,80 +582,252 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildFestiveOfferBanner(bool isDark) {
+    final promosAsync = ref.watch(promotionsProvider);
+    return promosAsync.when(
+      data: (promos) {
+        if (promos.isEmpty) return const SizedBox.shrink();
+        
+        return Column(
+          children: promos.map((promo) {
+            Color bgColor = const Color(0xFFFFF1F0);
+            Color txtColor = AppColors.primary;
+            Color btnColor = AppColors.primary;
+            Color btnTxtColor = Colors.white;
+
+            try {
+              if (promo.backgroundColor.isNotEmpty) {
+                bgColor = Color(int.parse(promo.backgroundColor.replaceAll('#', '0xFF')));
+              }
+              if (promo.textColor.isNotEmpty) {
+                txtColor = Color(int.parse(promo.textColor.replaceAll('#', '0xFF')));
+              }
+              if (promo.buttonColor.isNotEmpty) {
+                btnColor = Color(int.parse(promo.buttonColor.replaceAll('#', '0xFF')));
+              }
+              if (promo.buttonTextColor.isNotEmpty) {
+                btnTxtColor = Color(int.parse(promo.buttonTextColor.replaceAll('#', '0xFF')));
+              }
+            } catch (e) {
+              // Safe fallback
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: txtColor.withOpacity(0.15)),
+                ),
+                child: Row(
+                  children: [
+                    if (promo.bannerImage.isNotEmpty) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          promo.bannerImage,
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, o, s) => Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.card_giftcard, color: txtColor, size: 24),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.card_giftcard,
+                          color: txtColor,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            promo.title,
+                            style: AppTextStyles.bodySmall(false).copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: txtColor,
+                            ),
+                          ),
+                          Text(
+                            promo.subtitle,
+                            style: AppTextStyles.headingSmall(false).copyWith(
+                              color: isDark ? Colors.white : AppColors.secondary,
+                            ),
+                          ),
+                          if (promo.description.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              promo.description,
+                              style: AppTextStyles.bodySmall(false).copyWith(
+                                color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () {
+                        AppHaptics.heavyTap();
+                        handleCtaAction(context, promo.ctaButtonAction, promo.ctaButtonActionValue);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: btnColor,
+                        foregroundColor: btnTxtColor,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            promo.ctaButtonText.isNotEmpty ? promo.ctaButtonText : 'Grab Now',
+                            style: AppTextStyles.badgeText.copyWith(fontSize: 12, color: btnTxtColor),
+                          ),
+                          Icon(Icons.chevron_right, size: 14, color: btnTxtColor),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (e, s) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildDynamicSection(CmsSection sec, bool isDark) {
+    switch (sec.type) {
+      case 'banner_carousel':
+        final bannersAsync = ref.watch(bannersProvider);
+        return SliverToBoxAdapter(
+          child: bannersAsync.when(
+            data: (banners) => _buildBannerCarousel(banners, isDark),
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+            error: (e, s) => const SizedBox.shrink(),
+          ),
+        );
+      case 'grid_categories':
+        return SliverToBoxAdapter(child: _buildCategoriesSection(isDark));
+      case 'home_promotions':
+        return SliverToBoxAdapter(child: _buildFestiveOfferBanner(isDark));
+      case 'nearby_shops':
+        return SliverToBoxAdapter(child: _buildNearbyShopsSection(isDark));
+      case 'quickfix_plus':
+        return SliverToBoxAdapter(child: _buildQuickFixPlusBanner(isDark));
+      case 'trust_badges':
+        return SliverToBoxAdapter(child: _buildTrustBadges(isDark));
+      case 'referral_offers':
+        return SliverToBoxAdapter(child: _buildOfferPromoSection(isDark));
+      case 'how_it_works':
+        return SliverToBoxAdapter(child: _buildHowItWorksSection(isDark));
+      case 'special_for_you':
+        return SliverToBoxAdapter(child: _buildSpecialForYou(isDark));
+      case 'top_experts':
+        return SliverToBoxAdapter(child: _buildTopProfessionalsBanner(isDark));
+      case 'customer_reviews':
+        return SliverToBoxAdapter(child: _buildCustomerReviews(isDark, sec.settings));
+      case 'brand_logos':
+        return SliverToBoxAdapter(child: _buildBrandLogos(isDark));
+      case 'support_card':
+        return SliverToBoxAdapter(child: _buildNeedHelpCard(isDark));
+      default:
+        return SliverToBoxAdapter(child: _buildGenericCmsSection(sec, isDark));
+    }
+  }
+
+  Widget _buildGenericCmsSection(CmsSection sec, bool isDark) {
+    // Elegant fallback card for future unknown sections
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF1F0),
+          color: isDark ? AppColors.surfaceDark : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.card_giftcard,
-                color: AppColors.primary,
-                size: 24,
-              ),
+            Text(
+              sec.title,
+              style: AppTextStyles.headingMedium(isDark),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Festive Offer',
-                    style: AppTextStyles.bodySmall(false).copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  Text(
-                    'Upto 50% OFF on Top Services',
-                    style: AppTextStyles.headingSmall(false).copyWith(
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                  Text(
-                    'Limited time offer!',
-                    style: AppTextStyles.bodySmall(false).copyWith(
-                      color: AppColors.textSecondaryLight,
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 8),
+            Text(
+              sec.settings['description']?.toString() ?? 'Dynamic content section.',
+              style: AppTextStyles.bodySmall(isDark),
             ),
-            ElevatedButton(
-              onPressed: () {
-                AppHaptics.heavyTap();
-                context.push('/category/offers');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Text('Grab Now', style: AppTextStyles.badgeText.copyWith(fontSize: 12)),
-                  const Icon(Icons.chevron_right, size: 14),
-                ],
-              ),
-            ),
+            if (sec.settings['buttonText'] != null) ...[
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () {
+                  handleCtaAction(
+                    context, 
+                    sec.settings['ctaAction']?.toString() ?? 'No Action', 
+                    sec.settings['ctaActionValue']?.toString() ?? ''
+                  );
+                },
+                child: Text(sec.settings['buttonText'].toString()),
+              )
+            ]
           ],
         ),
       ),
     );
+  }
+
+  void handleCtaAction(BuildContext context, String action, String value) {
+    if (action == 'Open Category') {
+      context.push('/category/$value');
+    } else if (action == 'Open Specific Service') {
+      context.push('/service/$value');
+    } else if (action == 'Open Shop') {
+      context.push('/shop/$value');
+    } else if (action == 'Open Internal Screen') {
+      final String path = value.startsWith('/') ? value : '/$value';
+      context.push(path);
+    } else if (action == 'Open External URL') {
+      try {
+        final Uri uri = Uri.parse(value);
+        launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        // Safe fail
+      }
+    }
   }
 
   Widget _buildNearbyShopsSection(bool isDark) {
@@ -1304,80 +1448,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildSpecialForYou(bool isDark) {
-    final List<Map<String, dynamic>> specials = [
-      {
-        'title': 'Mega Monsoon Sale',
-        'subtitle': 'Up to 40% OFF on Plumbing & Electrical',
-        'icon': Icons.water_drop_outlined,
-        'color': AppColors.info,
-      },
-      {
-        'title': 'Same Day Service',
-        'subtitle': 'Book now & get service today',
-        'icon': Icons.flash_on_outlined,
-        'color': AppColors.accent,
-      },
-      {
-        'title': 'Combo Offers',
-        'subtitle': 'More services, bigger savings',
-        'icon': Icons.discount_outlined,
-        'color': AppColors.primary,
-      },
-    ];
+    final cardsAsync = ref.watch(specialCardsProvider);
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Special For You 🔥',
-            style: AppTextStyles.headingMedium(isDark),
-          ),
-          const SizedBox(height: 12),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: specials.length,
-            itemBuilder: (context, index) {
-              final item = specials[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                  ),
-                ),
-                child: ListTile(
-                  onTap: () {
-                    AppHaptics.lightTap();
-                    context.push('/category/offers');
-                  },
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
+    return cardsAsync.when(
+      data: (cards) {
+        if (cards.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Special For You 🔥',
+                style: AppTextStyles.headingMedium(isDark),
+              ),
+              const SizedBox(height: 12),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: cards.length,
+                itemBuilder: (context, index) {
+                  final item = cards[index];
+                  
+                  Color bgColor = isDark ? AppColors.surfaceDark : Colors.white;
+                  try {
+                    if (item.backgroundColor.isNotEmpty && !isDark) {
+                      bgColor = Color(int.parse(item.backgroundColor.replaceAll('#', '0xFF')));
+                    }
+                  } catch (e) {
+                    // Fallback
+                  }
+
+                  IconData iconData = Icons.star_outline;
+                  if (item.icon == 'water_drop_outlined') iconData = Icons.water_drop_outlined;
+                  else if (item.icon == 'flash_on_outlined') iconData = Icons.flash_on_outlined;
+                  else if (item.icon == 'discount_outlined') iconData = Icons.discount_outlined;
+                  else if (item.icon == 'cleaning_services_outlined') iconData = Icons.cleaning_services_outlined;
+                  else if (item.icon == 'plumbing_outlined') iconData = Icons.plumbing_outlined;
+                  else if (item.icon == 'bolt_outlined') iconData = Icons.bolt_outlined;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
-                      color: item['color'].withOpacity(0.08),
-                      shape: BoxShape.circle,
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
-                    child: Icon(item['icon'], color: item['color']),
-                  ),
-                  title: Text(
-                    item['title'],
-                    style: AppTextStyles.headingSmall(isDark),
-                  ),
-                  subtitle: Text(
-                    item['subtitle'],
-                    style: AppTextStyles.bodySmall(isDark),
-                  ),
-                  trailing: const Icon(Icons.chevron_right, size: 20),
-                ),
-              );
-            },
+                    child: ListTile(
+                      onTap: () {
+                        AppHaptics.lightTap();
+                        handleCtaAction(context, item.ctaAction, item.ctaActionValue);
+                      },
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(iconData, color: AppColors.primary),
+                      ),
+                      title: Text(
+                        item.title,
+                        style: AppTextStyles.headingSmall(isDark),
+                      ),
+                      subtitle: Text(
+                        item.subtitle.isNotEmpty ? item.subtitle : item.description,
+                        style: AppTextStyles.bodySmall(isDark),
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 20),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (e, s) => const SizedBox.shrink(),
     );
   }
 
@@ -1418,124 +1569,167 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         SizedBox(
           height: 180,
           child: professionalsAsync.when(
-            data: (professionals) => ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: professionals.length,
-              itemBuilder: (context, index) {
-                final prof = professionals[index];
-                final isFav = wishlist.contains(prof.id);
-                
-                return Container(
-                  width: 220,
-                  margin: const EdgeInsets.only(right: 16, bottom: 8),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                    border: isDark 
-                        ? Border.all(color: AppColors.borderDark)
-                        : Border.all(color: AppColors.borderLight.withOpacity(0.6)),
+            data: (professionals) {
+              if (professionals.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Text(
+                      'No experts active currently.',
+                      style: TextStyle(color: Colors.grey.shade500),
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundImage: NetworkImage(prof.avatarUrl),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                );
+              }
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: professionals.length,
+                itemBuilder: (context, index) {
+                  final prof = professionals[index];
+                  final isFav = wishlist.contains(prof.id);
+                  
+                  return Container(
+                    width: 220,
+                    margin: const EdgeInsets.only(right: 16, bottom: 8),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceDark : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: isDark 
+                          ? Border.all(color: AppColors.borderDark)
+                          : Border.all(color: AppColors.borderLight.withOpacity(0.6)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundImage: NetworkImage(prof.avatarUrl.isNotEmpty ? prof.avatarUrl : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          prof.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14),
+                                        ),
+                                      ),
+                                      if (prof.verifiedBadge) ...[
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.verified, color: Colors.blue, size: 14),
+                                      ],
+                                    ],
+                                  ),
+                                  Text(
+                                    '${prof.specialty}${prof.experience.isNotEmpty ? " • ${prof.experience}" : ""}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
                               children: [
+                                const Icon(Icons.star, color: Colors.amber, size: 14),
+                                const SizedBox(width: 4),
                                 Text(
-                                  prof.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14),
-                                ),
-                                Text(
-                                  prof.specialty,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 11),
+                                  '${prof.rating} (${prof.reviewsCount} reviews)',
+                                  style: AppTextStyles.bodySmall(isDark).copyWith(fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 14),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${prof.rating} (${prof.reviewsCount} reviews)',
-                            style: AppTextStyles.bodySmall(isDark).copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              isFav ? Icons.favorite : Icons.favorite_border,
-                              color: Colors.redAccent,
-                              size: 20,
-                            ),
-                            onPressed: () {
-                              AppHaptics.mediumTap();
-                              ref.read(wishlistProvider.notifier).toggleFavourite(prof.id);
-                              final isNowFav = ref.read(wishlistProvider.notifier).isFavourite(prof.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isNowFav
-                                        ? 'Added ${prof.name} to Wishlist'
-                                        : 'Removed ${prof.name} from Wishlist',
-                                  ),
-                                  duration: const Duration(seconds: 1),
-                                  behavior: SnackBarBehavior.floating,
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: prof.availability ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                prof.availability ? 'Online' : 'Offline',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: prof.availability ? Colors.green : Colors.red,
                                 ),
-                              );
-                            },
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              AppHaptics.heavyTap();
-                              final String categoryId = prof.specialty.toLowerCase().contains('electrician')
-                                  ? 'electrician'
-                                  : 'plumbing';
-                              context.push('/category/$categoryId');
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              elevation: 0,
+                              ),
                             ),
-                            child: const Text('Book', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                isFav ? Icons.favorite : Icons.favorite_border,
+                                color: Colors.redAccent,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                AppHaptics.mediumTap();
+                                ref.read(wishlistProvider.notifier).toggleFavourite(prof.id);
+                                final isNowFav = ref.read(wishlistProvider.notifier).isFavourite(prof.id);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isNowFav
+                                          ? 'Added ${prof.name} to Wishlist'
+                                          : 'Removed ${prof.name} from Wishlist',
+                                    ),
+                                    duration: const Duration(seconds: 1),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                AppHaptics.heavyTap();
+                                final String categoryId = prof.specialty.toLowerCase().contains('electrician')
+                                    ? 'electrician'
+                                    : 'plumbing';
+                                context.push('/category/$categoryId');
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                elevation: 0,
+                              ),
+                              child: const Text('Book', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
             loading: () => ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1552,8 +1746,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildCustomerReviews(bool isDark) {
+  Widget _buildCustomerReviews(bool isDark, [Map<String, dynamic>? settings]) {
     final reviewsAsync = ref.watch(customerReviewsProvider);
+    final String layout = settings?['layout']?.toString() ?? 'slider';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1567,7 +1762,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 'What Our Customers Say',
                 style: AppTextStyles.headingMedium(isDark),
               ),
-              Text(
+              const Text(
                 'View All',
                 style: TextStyle(
                   color: AppColors.primary,
@@ -1578,110 +1773,168 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ],
           ),
         ),
-        SizedBox(
-          height: 160,
-          child: reviewsAsync.when(
-            data: (reviews) => ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: reviews.length,
-              itemBuilder: (context, index) {
-                final r = reviews[index];
-                return Container(
-                  width: 280,
-                  margin: const EdgeInsets.only(right: 16, bottom: 8),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                    border: isDark 
-                        ? Border.all(color: AppColors.borderDark)
-                        : Border.all(color: AppColors.borderLight),
-                  ),
+        reviewsAsync.when(
+          data: (reviews) {
+            if (reviews.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundImage: NetworkImage(r.userAvatar),
-                              ),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    r.userName,
-                                    style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 13),
-                                  ),
-                                  Text(
-                                    '${r.serviceName} • ${r.locationName}',
-                                    style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 10),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  r.rating.toString(),
-                                  style: const TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold),
-                                ),
-                                const Icon(Icons.star, color: Colors.green, size: 10),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      Icon(Icons.rate_review_outlined, color: Colors.grey.shade400, size: 44),
                       const SizedBox(height: 8),
-                      Expanded(
-                        child: Text(
-                          '"${r.comment}"',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodyMedium(isDark).copyWith(
-                            fontStyle: FontStyle.italic,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
+                      Text('No reviews yet. Be the first to review!', style: TextStyle(color: Colors.grey.shade500)),
                     ],
                   ),
-                );
-              },
+                ),
+              );
+            }
+
+            if (layout == 'grid') {
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 1.4,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                itemCount: reviews.length,
+                itemBuilder: (context, index) => _buildReviewCard(reviews[index], isDark),
+              );
+            } else if (layout == 'list') {
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: reviews.length,
+                itemBuilder: (context, index) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildReviewCard(reviews[index], isDark),
+                ),
+              );
+            } else {
+              return SizedBox(
+                height: 160,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: reviews.length,
+                  itemBuilder: (context, index) {
+                    return SizedBox(
+                      width: 280,
+                      child: _buildReviewCard(reviews[index], isDark),
+                    );
+                  },
+                ),
+              );
+            }
+          },
+          loading: () => ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 2,
+            itemBuilder: (context, index) => const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: ShimmerLoading(width: 280, height: 140, borderRadius: 16),
             ),
-            loading: () => ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: 2,
-              itemBuilder: (context, index) => const Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: ShimmerLoading(width: 280, height: 140, borderRadius: 16),
-              ),
-            ),
-            error: (e, s) => Center(child: Text('Error: $e')),
           ),
+          error: (e, s) => Center(child: Text('Error: $e')),
         ),
       ],
+    );
+  }
+
+  Widget _buildReviewCard(Review r, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(right: 16, bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+        border: isDark 
+            ? Border.all(color: AppColors.borderDark)
+            : Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundImage: NetworkImage(r.userAvatar.isNotEmpty ? r.userAvatar : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        r.userName,
+                        style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 13),
+                      ),
+                      Text(
+                        '${r.serviceName}${r.providerName.isNotEmpty ? " • ${r.providerName}" : ""}',
+                        style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 9),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      r.rating.toString(),
+                      style: const TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold),
+                    ),
+                    const Icon(Icons.star, color: Colors.green, size: 10),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Text(
+              r.comment,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 11, fontStyle: FontStyle.italic),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                r.date.isNotEmpty ? r.date : 'Verified Booking',
+                style: TextStyle(fontSize: 9, color: Colors.green.shade700, fontWeight: FontWeight.bold),
+              ),
+              if (r.verifiedBadge)
+                const Icon(Icons.verified_user, color: Colors.green, size: 12),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

@@ -25,7 +25,10 @@ const {
   Offer, 
   Notification,
   Settings,
-  AuditLog
+  AuditLog,
+  Promotion,
+  SpecialCard,
+  CmsSection
 } = require('./models');
 
 const app = express();
@@ -1074,19 +1077,729 @@ app.get('/api/categories', async (req, res) => {
 
 app.get('/api/reviews', async (req, res) => {
   try {
-    const list = await Review.find({});
+    let list = await Review.find({ status: 'approved', isActive: { $ne: false } });
+    if (list.length === 0) {
+      const defaultReviews = [
+        {
+          id: 'rev-default-1',
+          userName: 'Aman Verma',
+          userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          rating: 5.0,
+          comment: 'Very quick service! Professional was extremely skilled and resolved our issue within minutes.',
+          serviceName: 'Deep Home Cleaning',
+          locationName: 'Kalyanpur',
+          shopId: 'shop-cleaning-expert',
+          providerName: 'Rohan Sharma',
+          date: new Date().toISOString().split('T')[0],
+          verifiedBadge: true,
+          priority: 0,
+          status: 'approved',
+          isActive: true,
+          isFeatured: true
+        },
+        {
+          id: 'rev-default-2',
+          userName: 'Neha Singh',
+          userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+          rating: 5.0,
+          comment: 'Outstanding quality and very reasonable prices. Will book again!',
+          serviceName: 'Leak Repair & Pipeline Fixing',
+          locationName: 'Swaroop Nagar',
+          shopId: 'shop-plumbing-expert',
+          providerName: 'Suresh Kumar',
+          date: new Date().toISOString().split('T')[0],
+          verifiedBadge: true,
+          priority: 1,
+          status: 'approved',
+          isActive: true,
+          isFeatured: true
+        }
+      ];
+      await Review.insertMany(defaultReviews);
+      list = await Review.find({ status: 'approved', isActive: { $ne: false } });
+    }
+    list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
     res.json(list);
   } catch (e) {
     res.status(500).json({ error: 'Failed to load reviews feed' });
   }
 });
 
-app.get('/api/professionals', async (req, res) => {
+app.get('/api/admin/reviews', async (req, res) => {
   try {
-    const list = await Professional.find({});
+    const list = await Review.find({});
+    list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
     res.json(list);
   } catch (e) {
+    res.status(500).json({ error: 'Failed to load admin reviews' });
+  }
+});
+
+app.post('/api/reviews/approve', async (req, res) => {
+  const { id, status } = req.body;
+  try {
+    const review = await Review.findOneAndUpdate({ id }, { status }, { new: true });
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+    res.json({ success: true, review });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update review approval status' });
+  }
+});
+
+app.post('/api/reviews', async (req, res) => {
+  const { id, userName, userAvatar, rating, comment, serviceName, locationName, shopId, reply, providerName, date, verifiedBadge, priority, status, isActive, isFeatured } = req.body;
+  try {
+    let review;
+    if (id) {
+      review = await Review.findOneAndUpdate(
+        { id },
+        { 
+          userName, 
+          userAvatar, 
+          rating: parseFloat(rating) || 5.0, 
+          comment, 
+          serviceName, 
+          locationName, 
+          shopId, 
+          reply, 
+          providerName, 
+          date, 
+          verifiedBadge: verifiedBadge !== false, 
+          priority: parseInt(priority) || 0, 
+          status: status || 'approved', 
+          isActive: isActive !== false, 
+          isFeatured: isFeatured === true 
+        },
+        { new: true }
+      );
+      if (!review) return res.status(404).json({ error: 'Review not found' });
+    } else {
+      review = new Review({
+        id: `rev-${Date.now()}`,
+        userName,
+        userAvatar: userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        rating: parseFloat(rating) || 5.0,
+        comment,
+        serviceName: serviceName || 'General Service',
+        locationName: locationName || 'Kanpur',
+        shopId: shopId || '',
+        reply: reply || '',
+        providerName: providerName || '',
+        date: date || new Date().toISOString().split('T')[0],
+        verifiedBadge: verifiedBadge !== false,
+        priority: parseInt(priority) || 0,
+        status: status || 'approved',
+        isActive: isActive !== false,
+        isFeatured: isFeatured === true
+      });
+      await review.save();
+    }
+    res.json({ success: true, review });
+  } catch (e) {
+    console.error('Error saving review:', e);
+    res.status(500).json({ error: 'Failed to save review details' });
+  }
+});
+
+app.delete('/api/reviews/:id', async (req, res) => {
+  try {
+    const deleted = await Review.findOneAndDelete({ id: req.params.id });
+    if (deleted) {
+      res.json({ success: true, review: deleted });
+    } else {
+      res.status(404).json({ error: 'Review not found' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete review' });
+  }
+});
+
+app.get('/api/professionals', async (req, res) => {
+  const { sort, lat, lng } = req.query;
+  try {
+    let list = await Professional.find({ isActive: { $ne: false } });
+    if (list.length === 0) {
+      let shopsList = await Shop.find({});
+      if (shopsList.length === 0) {
+        const defaultShops = [
+          {
+            id: 'shop-cleaning-expert',
+            shopDisplayId: 'QF100201',
+            name: 'Sparkle Home Solutions',
+            ownerName: 'Rohan Sharma',
+            password: 'hashedpassword',
+            phone: '9876543210',
+            email: 'rohan@sparkle.com',
+            latitude: 26.4912,
+            longitude: 80.3156,
+            address: '12, Kalyanpur, Kanpur',
+            categories: ['Cleaning'],
+            imagePath: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300',
+            rating: 4.9,
+            isOpen: true,
+            isOnline: true,
+            verificationStatus: 'approved',
+            visitingCharges: 150.0,
+            services: [
+              { id: 'clean-1', title: 'Deep Home Cleaning', price: 999, originalPrice: 1499, rating: 4.9, reviewsCount: 150, durationText: '3 hrs', bulletPoints: ['Complete sanitization', 'Eco-friendly chemicals', '4 experts team'], imageUrl: '' }
+            ]
+          },
+          {
+            id: 'shop-plumbing-expert',
+            shopDisplayId: 'QF100202',
+            name: 'FlowGuard Plumbers',
+            ownerName: 'Suresh Kumar',
+            password: 'hashedpassword',
+            phone: '9876543211',
+            email: 'suresh@flowguard.com',
+            latitude: 26.4850,
+            longitude: 80.3200,
+            address: '45, Swaroop Nagar, Kanpur',
+            categories: ['Plumbing'],
+            imagePath: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+            rating: 4.8,
+            isOpen: true,
+            isOnline: true,
+            verificationStatus: 'approved',
+            visitingCharges: 120.0,
+            services: [
+              { id: 'plumb-1', title: 'Leak Repair & Pipeline Fixing', price: 299, originalPrice: 499, rating: 4.8, reviewsCount: 95, durationText: '1 hr', bulletPoints: ['High-quality threads', '6 months warranty', 'No mess leftover'], imageUrl: '' }
+            ]
+          }
+        ];
+        await Shop.insertMany(defaultShops);
+      }
+      
+      const defaultProfs = [
+        {
+          id: 'expert-rohan',
+          name: 'Rohan Sharma',
+          specialty: 'Expert Cleaner',
+          rating: 4.9,
+          reviewsCount: 150,
+          imageUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          shopId: 'shop-cleaning-expert',
+          experience: '5 Years',
+          completedJobs: 420,
+          location: 'Kalyanpur, Kanpur',
+          verifiedBadge: true,
+          availability: true,
+          featuredStatus: 'Featured Experts',
+          priority: 0,
+          isActive: true
+        },
+        {
+          id: 'expert-suresh',
+          name: 'Suresh Kumar',
+          specialty: 'Master Plumber',
+          rating: 4.8,
+          reviewsCount: 95,
+          imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+          shopId: 'shop-plumbing-expert',
+          experience: '8 Years',
+          completedJobs: 650,
+          location: 'Swaroop Nagar, Kanpur',
+          verifiedBadge: true,
+          availability: true,
+          featuredStatus: 'Highest Rated',
+          priority: 1,
+          isActive: true
+        }
+      ];
+      await Professional.insertMany(defaultProfs);
+      list = await Professional.find({ isActive: { $ne: false } });
+    }
+
+    const syncedList = await Promise.all(list.map(async (prof) => {
+      const p = prof.toObject ? prof.toObject() : { ...prof };
+      if (p.shopId) {
+        const shop = await Shop.findOne({ id: p.shopId });
+        if (shop) {
+          p.name = shop.ownerName || shop.name || p.name;
+          p.imageUrl = shop.ownerPhotoUrl || shop.imagePath || p.imageUrl;
+          p.specialty = (shop.categories && shop.categories.length > 0) ? shop.categories[0] : p.specialty;
+          p.rating = shop.rating !== undefined ? shop.rating : p.rating;
+          p.availability = shop.isOnline !== undefined ? shop.isOnline : p.availability;
+          p.verifiedBadge = shop.verificationStatus === 'approved';
+          p.lat = shop.latitude;
+          p.lng = shop.longitude;
+          p.reviewsCount = shop.services ? shop.services.reduce((acc, s) => acc + (s.reviewsCount || 0), 0) : p.reviewsCount;
+        }
+      }
+      return p;
+    }));
+
+    if (sort === 'rating') {
+      syncedList.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    } else if (sort === 'bookings') {
+      syncedList.sort((a, b) => (b.completedJobs || b.reviewsCount || 0) - (a.completedJobs || a.reviewsCount || 0));
+    } else if (sort === 'nearest' && lat && lng) {
+      const userLat = parseFloat(lat);
+      const userLng = parseFloat(lng);
+      syncedList.sort((a, b) => {
+        const distA = (a.lat !== undefined && a.lng !== undefined) ? calculateDistance(userLat, userLng, a.lat, a.lng) : 99999;
+        const distB = (b.lat !== undefined && b.lng !== undefined) ? calculateDistance(userLat, userLng, b.lat, b.lng) : 99999;
+        return distA - distB;
+      });
+    } else if (sort === 'recently_added') {
+      syncedList.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    } else {
+      syncedList.sort((a, b) => {
+        const prioDiff = (a.priority || 0) - (b.priority || 0);
+        if (prioDiff !== 0) return prioDiff;
+        return (b.rating || 0) - (a.rating || 0);
+      });
+    }
+
+    res.json(syncedList);
+  } catch (e) {
+    console.error('Error loading professionals:', e);
     res.status(500).json({ error: 'Failed to load professionals' });
+  }
+});
+
+app.get('/api/admin/professionals', async (req, res) => {
+  try {
+    const list = await Professional.find({});
+    list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load admin professionals list' });
+  }
+});
+
+app.post('/api/professionals', async (req, res) => {
+  const { id, name, specialty, rating, reviewsCount, imageUrl, shopId, experience, completedJobs, location, verifiedBadge, availability, featuredStatus, priority, isActive } = req.body;
+  try {
+    let expert;
+    if (id) {
+      expert = await Professional.findOneAndUpdate(
+        { id },
+        { 
+          name, 
+          specialty, 
+          rating: parseFloat(rating) || 5.0, 
+          reviewsCount: parseInt(reviewsCount) || 0, 
+          imageUrl, 
+          shopId, 
+          experience, 
+          completedJobs: parseInt(completedJobs) || 0, 
+          location, 
+          verifiedBadge: verifiedBadge === true, 
+          availability: availability === true, 
+          featuredStatus: featuredStatus || 'Featured', 
+          priority: parseInt(priority) || 0, 
+          isActive: isActive !== false 
+        },
+        { new: true }
+      );
+      if (!expert) return res.status(404).json({ error: 'Expert not found' });
+    } else {
+      expert = new Professional({
+        id: `expert-${Date.now()}`,
+        name,
+        specialty,
+        rating: parseFloat(rating) || 5.0,
+        reviewsCount: parseInt(reviewsCount) || 0,
+        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        shopId: shopId || '',
+        experience: experience || '',
+        completedJobs: parseInt(completedJobs) || 0,
+        location: location || '',
+        verifiedBadge: verifiedBadge === true,
+        availability: availability === true,
+        featuredStatus: featuredStatus || 'Featured',
+        priority: parseInt(priority) || 0,
+        isActive: isActive !== false
+      });
+      await expert.save();
+    }
+    res.json({ success: true, professional: expert });
+  } catch (e) {
+    console.error('Error saving expert:', e);
+    res.status(500).json({ error: 'Failed to save expert details' });
+  }
+});
+
+app.delete('/api/professionals/:id', async (req, res) => {
+  try {
+    const deleted = await Professional.findOneAndDelete({ id: req.params.id });
+    if (deleted) {
+      res.json({ success: true, professional: deleted });
+    } else {
+      res.status(404).json({ error: 'Expert not found' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete expert' });
+  }
+});
+
+// Dynamic Home Promotions API
+app.get('/api/promotions', async (req, res) => {
+  try {
+    const nowStr = new Date().toISOString();
+    let list = await Promotion.find({ isActive: true });
+    
+    if (list.length === 0) {
+      const defaultPromos = [
+        {
+          id: 'promo-default-1',
+          title: 'Festive Offer',
+          subtitle: 'Upto 50% OFF on Top Services',
+          description: 'Limited time offer! Grab premium discounts now.',
+          offerPercentage: '50% OFF',
+          couponCode: 'FESTIVE50',
+          ctaButtonText: 'Grab Now',
+          ctaButtonAction: 'Open Category',
+          ctaButtonActionValue: 'cleaning',
+          bannerImage: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500',
+          backgroundColor: '#FFF1F0',
+          textColor: '#A8071A',
+          buttonColor: '#FF4D4F',
+          buttonTextColor: '#FFFFFF',
+          priority: 0,
+          isActive: true
+        }
+      ];
+      await Promotion.insertMany(defaultPromos);
+      list = await Promotion.find({ isActive: true });
+    }
+
+    const validPromotions = list.filter(promo => {
+      if (promo.startDate && promo.startDate > nowStr) return false;
+      if (promo.endDate && promo.endDate < nowStr) return false;
+      return true;
+    });
+
+    validPromotions.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    res.json(validPromotions);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load promotions' });
+  }
+});
+
+app.get('/api/admin/promotions', async (req, res) => {
+  try {
+    const list = await Promotion.find({});
+    list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load all promotions' });
+  }
+});
+
+app.post('/api/promotions', async (req, res) => {
+  const { id, title, subtitle, description, offerPercentage, couponCode, ctaButtonText, ctaButtonAction, ctaButtonActionValue, bannerImage, backgroundColor, textColor, buttonColor, buttonTextColor, priority, startDate, endDate, isActive } = req.body;
+  try {
+    let promo;
+    if (id) {
+      promo = await Promotion.findOneAndUpdate(
+        { id },
+        { 
+          title, 
+          subtitle, 
+          description, 
+          offerPercentage, 
+          couponCode, 
+          ctaButtonText, 
+          ctaButtonAction: ctaButtonAction || 'No Action', 
+          ctaButtonActionValue, 
+          bannerImage, 
+          backgroundColor: backgroundColor || '#FFF1F0', 
+          textColor: textColor || '#000000', 
+          buttonColor: buttonColor || '#FF4D4F', 
+          buttonTextColor: buttonTextColor || '#FFFFFF', 
+          priority: parseInt(priority) || 0, 
+          startDate: startDate || '', 
+          endDate: endDate || '', 
+          isActive: isActive !== false 
+        },
+        { new: true }
+      );
+      if (!promo) return res.status(404).json({ error: 'Promotion not found' });
+    } else {
+      promo = new Promotion({
+        id: `promo-${Date.now()}`,
+        title,
+        subtitle,
+        description,
+        offerPercentage,
+        couponCode,
+        ctaButtonText,
+        ctaButtonAction: ctaButtonAction || 'No Action',
+        ctaButtonActionValue,
+        bannerImage,
+        backgroundColor: backgroundColor || '#FFF1F0',
+        textColor: textColor || '#000000',
+        buttonColor: buttonColor || '#FF4D4F',
+        buttonTextColor: buttonTextColor || '#FFFFFF',
+        priority: parseInt(priority) || 0,
+        startDate: startDate || '',
+        endDate: endDate || '',
+        isActive: isActive !== false
+      });
+      await promo.save();
+    }
+    res.json({ success: true, promotion: promo });
+  } catch (e) {
+    console.error('Error saving promotion:', e);
+    res.status(500).json({ error: 'Failed to save promotion details' });
+  }
+});
+
+app.delete('/api/promotions/:id', async (req, res) => {
+  try {
+    const deleted = await Promotion.findOneAndDelete({ id: req.params.id });
+    if (deleted) {
+      res.json({ success: true, promotion: deleted });
+    } else {
+      res.status(404).json({ error: 'Promotion not found' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Delete promotion failed' });
+  }
+});
+
+// Special For You Section Cards API
+app.get('/api/special-cards', async (req, res) => {
+  try {
+    const nowStr = new Date().toISOString();
+    let list = await SpecialCard.find({ isActive: true });
+    
+    if (list.length === 0) {
+      const defaultCards = [
+        {
+          id: 'special-default-1',
+          icon: 'water_drop_outlined',
+          title: 'Mega Monsoon Sale',
+          subtitle: 'Up to 40% OFF on Plumbing & Electrical',
+          description: 'Stay safe and dry this monsoon with professional checkups.',
+          backgroundColor: '#EEF2FF',
+          buttonText: 'Book Now',
+          ctaAction: 'Open Category',
+          ctaActionValue: 'plumbing',
+          priority: 0,
+          isActive: true
+        },
+        {
+          id: 'special-default-2',
+          icon: 'flash_on_outlined',
+          title: 'Same Day Service',
+          subtitle: 'Book now & get service today',
+          description: 'No more waiting. Super-fast dispatch for urgent repairs.',
+          backgroundColor: '#ECFDF5',
+          buttonText: 'Book Now',
+          ctaAction: 'Open Category',
+          ctaActionValue: 'electrician',
+          priority: 1,
+          isActive: true
+        },
+        {
+          id: 'special-default-3',
+          icon: 'discount_outlined',
+          title: 'Combo Offers',
+          subtitle: 'More services, bigger savings',
+          description: 'Bundle cleaning and repair to save flat 25% on total bill.',
+          backgroundColor: '#FFFBEB',
+          buttonText: 'View Combos',
+          ctaAction: 'Open Category',
+          ctaActionValue: 'cleaning',
+          priority: 2,
+          isActive: true
+        }
+      ];
+      await SpecialCard.insertMany(defaultCards);
+      list = await SpecialCard.find({ isActive: true });
+    }
+
+    const validCards = list.filter(card => {
+      if (card.startDate && card.startDate > nowStr) return false;
+      if (card.endDate && card.endDate < nowStr) return false;
+      return true;
+    });
+
+    validCards.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    res.json(validCards);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load special cards' });
+  }
+});
+
+app.get('/api/admin/special-cards', async (req, res) => {
+  try {
+    const list = await SpecialCard.find({});
+    list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load all special cards' });
+  }
+});
+
+app.post('/api/special-cards', async (req, res) => {
+  const { id, icon, imageUrl, title, subtitle, description, backgroundColor, buttonText, ctaAction, ctaActionValue, priority, isActive, startDate, endDate } = req.body;
+  try {
+    let card;
+    if (id) {
+      card = await SpecialCard.findOneAndUpdate(
+        { id },
+        { 
+          icon: icon || 'star', 
+          imageUrl, 
+          title, 
+          subtitle, 
+          description, 
+          backgroundColor: backgroundColor || '#FFFFFF', 
+          buttonText: buttonText || 'View', 
+          ctaAction: ctaAction || 'No Action', 
+          ctaActionValue, 
+          priority: parseInt(priority) || 0, 
+          isActive: isActive !== false, 
+          startDate: startDate || '', 
+          endDate: endDate || '' 
+        },
+        { new: true }
+      );
+      if (!card) return res.status(404).json({ error: 'Special card not found' });
+    } else {
+      card = new SpecialCard({
+        id: `special-${Date.now()}`,
+        icon: icon || 'star',
+        imageUrl,
+        title,
+        subtitle,
+        description,
+        backgroundColor: backgroundColor || '#FFFFFF',
+        buttonText: buttonText || 'View',
+        ctaAction: ctaAction || 'No Action',
+        ctaActionValue: ctaActionValue || '',
+        priority: parseInt(priority) || 0,
+        isActive: isActive !== false,
+        startDate: startDate || '',
+        endDate: endDate || ''
+      });
+      await card.save();
+    }
+    res.json({ success: true, card });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save special card details' });
+  }
+});
+
+app.post('/api/special-cards/reorder', async (req, res) => {
+  const { orderList } = req.body;
+  try {
+    const promises = orderList.map(item => {
+      return SpecialCard.findOneAndUpdate({ id: item.id }, { priority: item.priority });
+    });
+    await Promise.all(promises);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to reorder special cards' });
+  }
+});
+
+app.delete('/api/special-cards/:id', async (req, res) => {
+  try {
+    const deleted = await SpecialCard.findOneAndDelete({ id: req.params.id });
+    if (deleted) {
+      res.json({ success: true, card: deleted });
+    } else {
+      res.status(404).json({ error: 'Special card not found' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Delete special card failed' });
+  }
+});
+
+// Dynamic CMS Layout Sections
+app.get('/api/homepage/layout', async (req, res) => {
+  try {
+    let list = await CmsSection.find({ isActive: true });
+    
+    if (list.length === 0) {
+      const defaultSections = [
+        { id: 'banner_carousel', title: 'Limited Time Offers', type: 'banner_carousel', priority: 0, isActive: true },
+        { id: 'grid_categories', title: 'All Services', type: 'grid_categories', priority: 1, isActive: true },
+        { id: 'home_promotions', title: 'Festive Offer Ribbon', type: 'home_promotions', priority: 2, isActive: true },
+        { id: 'nearby_shops', title: 'Nearby Top Shops', type: 'nearby_shops', priority: 3, isActive: true },
+        { id: 'quickfix_plus', title: 'QuickFix Plus Banner', type: 'quickfix_plus', priority: 4, isActive: true },
+        { id: 'trust_badges', title: 'Trust Badges', type: 'trust_badges', priority: 5, isActive: true },
+        { id: 'referral_offers', title: 'Referrals & Promos', type: 'referral_offers', priority: 6, isActive: true },
+        { id: 'how_it_works', title: 'How QuickFix Works', type: 'how_it_works', priority: 7, isActive: true },
+        { id: 'special_for_you', title: 'Special For You 🔥', type: 'special_for_you', priority: 8, isActive: true },
+        { id: 'top_experts', title: 'Top Rated Experts', type: 'top_experts', priority: 9, isActive: true },
+        { id: 'customer_reviews', title: 'What Our Customers Say', type: 'customer_reviews', priority: 10, isActive: true },
+        { id: 'brand_logos', title: 'Brand Marquee Logos', type: 'brand_logos', priority: 11, isActive: true },
+        { id: 'support_card', title: 'Need Help Support Card', type: 'support_card', priority: 12, isActive: true }
+      ];
+      await CmsSection.insertMany(defaultSections);
+      list = await CmsSection.find({ isActive: true });
+    }
+    
+    list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    res.json(list);
+  } catch (e) {
+    console.error('CMS Fetch Error:', e);
+    res.status(500).json({ error: 'Failed to load homepage layout' });
+  }
+});
+
+app.get('/api/admin/homepage/layout', async (req, res) => {
+  try {
+    let list = await CmsSection.find({});
+    if (list.length === 0) {
+      const defaultSections = [
+        { id: 'banner_carousel', title: 'Limited Time Offers', type: 'banner_carousel', priority: 0, isActive: true },
+        { id: 'grid_categories', title: 'All Services', type: 'grid_categories', priority: 1, isActive: true },
+        { id: 'home_promotions', title: 'Festive Offer Ribbon', type: 'home_promotions', priority: 2, isActive: true },
+        { id: 'nearby_shops', title: 'Nearby Top Shops', type: 'nearby_shops', priority: 3, isActive: true },
+        { id: 'quickfix_plus', title: 'QuickFix Plus Banner', type: 'quickfix_plus', priority: 4, isActive: true },
+        { id: 'trust_badges', title: 'Trust Badges', type: 'trust_badges', priority: 5, isActive: true },
+        { id: 'referral_offers', title: 'Referrals & Promos', type: 'referral_offers', priority: 6, isActive: true },
+        { id: 'how_it_works', title: 'How QuickFix Works', type: 'how_it_works', priority: 7, isActive: true },
+        { id: 'special_for_you', title: 'Special For You 🔥', type: 'special_for_you', priority: 8, isActive: true },
+        { id: 'top_experts', title: 'Top Rated Experts', type: 'top_experts', priority: 9, isActive: true },
+        { id: 'customer_reviews', title: 'What Our Customers Say', type: 'customer_reviews', priority: 10, isActive: true },
+        { id: 'brand_logos', title: 'Brand Marquee Logos', type: 'brand_logos', priority: 11, isActive: true },
+        { id: 'support_card', title: 'Need Help Support Card', type: 'support_card', priority: 12, isActive: true }
+      ];
+      await CmsSection.insertMany(defaultSections);
+      list = await CmsSection.find({});
+    }
+    list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load layout admin view' });
+  }
+});
+
+app.post('/api/homepage/layout/update', async (req, res) => {
+  const { id, title, isActive, priority, settings } = req.body;
+  try {
+    const updateFields = {};
+    if (title !== undefined) updateFields.title = title;
+    if (isActive !== undefined) updateFields.isActive = isActive;
+    if (priority !== undefined) updateFields.priority = parseInt(priority);
+    if (settings !== undefined) updateFields.settings = settings;
+
+    const section = await CmsSection.findOneAndUpdate({ id }, updateFields, { new: true });
+    if (!section) return res.status(404).json({ error: 'Layout section not found' });
+    res.json({ success: true, section });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update layout section' });
+  }
+});
+
+app.post('/api/homepage/layout/reorder', async (req, res) => {
+  const { orderList } = req.body;
+  try {
+    const promises = orderList.map(item => {
+      return CmsSection.findOneAndUpdate({ id: item.id }, { priority: item.priority });
+    });
+    await Promise.all(promises);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to reorder layout' });
   }
 });
 

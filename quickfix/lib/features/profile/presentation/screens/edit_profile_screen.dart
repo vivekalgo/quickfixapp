@@ -238,9 +238,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         child: ClipOval(
                           child: _pickedImage != null
                               ? Image.file(_pickedImage!, fit: BoxFit.cover)
-                              : avatarUrl.isNotEmpty
-                                  ? Image.network(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder(user?['name']?.toString() ?? ''))
-                                  : _placeholder(user?['name']?.toString() ?? ''),
+                              : Image.network(
+                                  avatarUrl.isNotEmpty
+                                      ? avatarUrl
+                                      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _placeholder(user?['name']?.toString() ?? ''),
+                                ),
                         ),
                       ),
                       Container(

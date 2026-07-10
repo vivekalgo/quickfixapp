@@ -920,3 +920,43 @@ input:checked + .slider:before {
   background: var(--primary-grad);
   color: white;
 }
+
+/* Subtabs & CMS Styles */
+.secondary-tabs {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.subtab-btn {
+  background-color: transparent !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid transparent !important;
+  transition: var(--transition);
+}
+
+.subtab-btn:hover {
+  color: var(--text-primary) !important;
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+.subtab-btn.active {
+  background: var(--primary-grad) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.color-preview {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.subtab-pane {
+  animation: fadeIn 0.3s ease-out;
+}

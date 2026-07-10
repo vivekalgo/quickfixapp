@@ -61,4 +61,31 @@ class HomeRepositoryImpl implements HomeRepository {
       return const [];
     }
   }
+
+  @override
+  Future<List<Promotion>> getPromotions() async {
+    try {
+      return await _remoteDataSource.getPromotions();
+    } catch (e) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<List<SpecialCard>> getSpecialCards() async {
+    try {
+      return await _remoteDataSource.getSpecialCards();
+    } catch (e) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<List<CmsSection>> getHomepageLayout() async {
+    try {
+      return await _remoteDataSource.getHomepageLayout();
+    } catch (e) {
+      return const [];
+    }
+  }
 }

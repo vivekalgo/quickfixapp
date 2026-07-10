@@ -7,4 +7,7 @@ abstract class HomeRepository {
   Future<List<Review>> getCustomerReviews();
   Future<List<Shop>> searchShops({required String query, double? lat, double? lng});
   Future<List<PromoBanner>> getBanners();
+  Future<List<Promotion>> getPromotions();
+  Future<List<SpecialCard>> getSpecialCards();
+  Future<List<CmsSection>> getHomepageLayout();
 }

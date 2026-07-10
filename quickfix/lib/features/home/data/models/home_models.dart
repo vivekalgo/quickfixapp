@@ -6,6 +6,7 @@ class ServiceCategory {
   final IconData icon;
   final Color backgroundColor;
   final Color iconColor;
+  final String? iconUrl;
 
   const ServiceCategory({
     required this.id,
@@ -13,6 +14,7 @@ class ServiceCategory {
     required this.icon,
     required this.backgroundColor,
     required this.iconColor,
+    this.iconUrl,
   });
 }
 
@@ -126,6 +128,14 @@ class Professional {
   final double rating;
   final int reviewsCount;
   final String avatarUrl;
+  final String shopId;
+  final String experience;
+  final int completedJobs;
+  final String location;
+  final bool verifiedBadge;
+  final bool availability;
+  final String featuredStatus;
+  final int priority;
 
   const Professional({
     required this.id,
@@ -134,7 +144,34 @@ class Professional {
     required this.rating,
     required this.reviewsCount,
     required this.avatarUrl,
+    required this.shopId,
+    required this.experience,
+    required this.completedJobs,
+    required this.location,
+    required this.verifiedBadge,
+    required this.availability,
+    required this.featuredStatus,
+    required this.priority,
   });
+
+  factory Professional.fromJson(Map<String, dynamic> json) {
+    return Professional(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      specialty: json['specialty']?.toString() ?? '',
+      rating: double.tryParse(json['rating']?.toString() ?? '5.0') ?? 5.0,
+      reviewsCount: int.tryParse(json['reviewsCount']?.toString() ?? '0') ?? 0,
+      avatarUrl: json['imageUrl']?.toString() ?? json['avatarUrl']?.toString() ?? '',
+      shopId: json['shopId']?.toString() ?? '',
+      experience: json['experience']?.toString() ?? '',
+      completedJobs: int.tryParse(json['completedJobs']?.toString() ?? '0') ?? 0,
+      location: json['location']?.toString() ?? '',
+      verifiedBadge: json['verifiedBadge'] == true,
+      availability: json['availability'] != false,
+      featuredStatus: json['featuredStatus']?.toString() ?? 'Featured',
+      priority: int.tryParse(json['priority']?.toString() ?? '0') ?? 0,
+    );
+  }
 }
 
 class Review {
@@ -145,6 +182,13 @@ class Review {
   final String comment;
   final String serviceName;
   final String locationName;
+  final String providerName;
+  final String date;
+  final bool verifiedBadge;
+  final int priority;
+  final String status;
+  final bool isActive;
+  final bool isFeatured;
 
   const Review({
     required this.id,
@@ -154,7 +198,33 @@ class Review {
     required this.comment,
     required this.serviceName,
     required this.locationName,
+    required this.providerName,
+    required this.date,
+    required this.verifiedBadge,
+    required this.priority,
+    required this.status,
+    required this.isActive,
+    required this.isFeatured,
   });
+
+  factory Review.fromJson(Map<String, dynamic> json) {
+    return Review(
+      id: json['id']?.toString() ?? '',
+      userName: json['userName']?.toString() ?? '',
+      userAvatar: json['userAvatar']?.toString() ?? '',
+      rating: double.tryParse(json['rating']?.toString() ?? '5.0') ?? 5.0,
+      comment: json['comment']?.toString() ?? '',
+      serviceName: json['serviceName']?.toString() ?? '',
+      locationName: json['locationName']?.toString() ?? '',
+      providerName: json['providerName']?.toString() ?? '',
+      date: json['date']?.toString() ?? '',
+      verifiedBadge: json['verifiedBadge'] != false,
+      priority: int.tryParse(json['priority']?.toString() ?? '0') ?? 0,
+      status: json['status']?.toString() ?? 'approved',
+      isActive: json['isActive'] != false,
+      isFeatured: json['isFeatured'] == true,
+    );
+  }
 }
 
 class UserLocation {
@@ -206,4 +276,153 @@ class PromoBanner {
     );
   }
 }
+
+class Promotion {
+  final String id;
+  final String title;
+  final String subtitle;
+  final String description;
+  final String offerPercentage;
+  final String couponCode;
+  final String ctaButtonText;
+  final String ctaButtonAction;
+  final String ctaButtonActionValue;
+  final String bannerImage;
+  final String backgroundColor;
+  final String textColor;
+  final String buttonColor;
+  final String buttonTextColor;
+  final int priority;
+  final String startDate;
+  final String endDate;
+  final bool isActive;
+
+  const Promotion({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.description,
+    required this.offerPercentage,
+    required this.couponCode,
+    required this.ctaButtonText,
+    required this.ctaButtonAction,
+    required this.ctaButtonActionValue,
+    required this.bannerImage,
+    required this.backgroundColor,
+    required this.textColor,
+    required this.buttonColor,
+    required this.buttonTextColor,
+    required this.priority,
+    required this.startDate,
+    required this.endDate,
+    required this.isActive,
+  });
+
+  factory Promotion.fromJson(Map<String, dynamic> json) {
+    return Promotion(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      subtitle: json['subtitle']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      offerPercentage: json['offerPercentage']?.toString() ?? '',
+      couponCode: json['couponCode']?.toString() ?? '',
+      ctaButtonText: json['ctaButtonText']?.toString() ?? 'Grab Now',
+      ctaButtonAction: json['ctaButtonAction']?.toString() ?? 'No Action',
+      ctaButtonActionValue: json['ctaButtonActionValue']?.toString() ?? '',
+      bannerImage: json['bannerImage']?.toString() ?? '',
+      backgroundColor: json['backgroundColor']?.toString() ?? '#FFF1F0',
+      textColor: json['textColor']?.toString() ?? '#000000',
+      buttonColor: json['buttonColor']?.toString() ?? '#FF4D4F',
+      buttonTextColor: json['buttonTextColor']?.toString() ?? '#FFFFFF',
+      priority: int.tryParse(json['priority']?.toString() ?? '0') ?? 0,
+      startDate: json['startDate']?.toString() ?? '',
+      endDate: json['endDate']?.toString() ?? '',
+      isActive: json['isActive'] != false,
+    );
+  }
+}
+
+class SpecialCard {
+  final String id;
+  final String icon;
+  final String imageUrl;
+  final String title;
+  final String subtitle;
+  final String description;
+  final String backgroundColor;
+  final String buttonText;
+  final String ctaAction;
+  final String ctaActionValue;
+  final int priority;
+  final bool isActive;
+  final String startDate;
+  final String endDate;
+
+  const SpecialCard({
+    required this.id,
+    required this.icon,
+    required this.imageUrl,
+    required this.title,
+    required this.subtitle,
+    required this.description,
+    required this.backgroundColor,
+    required this.buttonText,
+    required this.ctaAction,
+    required this.ctaActionValue,
+    required this.priority,
+    required this.isActive,
+    required this.startDate,
+    required this.endDate,
+  });
+
+  factory SpecialCard.fromJson(Map<String, dynamic> json) {
+    return SpecialCard(
+      id: json['id']?.toString() ?? '',
+      icon: json['icon']?.toString() ?? 'star',
+      imageUrl: json['imageUrl']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      subtitle: json['subtitle']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      backgroundColor: json['backgroundColor']?.toString() ?? '#FFFFFF',
+      buttonText: json['buttonText']?.toString() ?? 'View',
+      ctaAction: json['ctaAction']?.toString() ?? 'No Action',
+      ctaActionValue: json['ctaActionValue']?.toString() ?? '',
+      priority: int.tryParse(json['priority']?.toString() ?? '0') ?? 0,
+      isActive: json['isActive'] != false,
+      startDate: json['startDate']?.toString() ?? '',
+      endDate: json['endDate']?.toString() ?? '',
+    );
+  }
+}
+
+class CmsSection {
+  final String id;
+  final String title;
+  final String type;
+  final int priority;
+  final bool isActive;
+  final Map<String, dynamic> settings;
+
+  const CmsSection({
+    required this.id,
+    required this.title,
+    required this.type,
+    required this.priority,
+    required this.isActive,
+    required this.settings,
+  });
+
+  factory CmsSection.fromJson(Map<String, dynamic> json) {
+    return CmsSection(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      type: json['type']?.toString() ?? '',
+      priority: int.tryParse(json['priority']?.toString() ?? '0') ?? 0,
+      isActive: json['isActive'] != false,
+      settings: json['settings'] is Map ? Map<String, dynamic>.from(json['settings'] as Map) : {},
+    );
+  }
+}
+
+
 

@@ -16,7 +16,7 @@ function readDb() {
       fs.writeFileSync(dbPath, JSON.stringify({}));
     }
     const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands'];
+    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands', 'promotions', 'specialcards', 'cmssections'];
     let changed = false;
     for (const col of collections) {
       if (!data[col]) {
@@ -43,11 +43,34 @@ function writeDb(data) {
   }
 }
 
-// Matches query against local object fields
+// Matches query against local object fields (supporting basic MongoDB operators)
 function matchesQuery(doc, query) {
   if (!query || Object.keys(query).length === 0) return true;
   for (const [key, val] of Object.entries(query)) {
-    if (doc[key] !== val) return false;
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      const operators = Object.keys(val);
+      for (const op of operators) {
+        if (op === '$ne') {
+          if (doc[key] === val['$ne']) return false;
+        } else if (op === '$in') {
+          if (!Array.isArray(val['$in']) || !val['$in'].includes(doc[key])) return false;
+        } else if (op === '$nin') {
+          if (Array.isArray(val['$nin']) && val['$nin'].includes(doc[key])) return false;
+        } else if (op === '$gt') {
+          if (!(doc[key] > val['$gt'])) return false;
+        } else if (op === '$gte') {
+          if (!(doc[key] >= val['$gte'])) return false;
+        } else if (op === '$lt') {
+          if (!(doc[key] < val['$lt'])) return false;
+        } else if (op === '$lte') {
+          if (!(doc[key] <= val['$lte'])) return false;
+        } else {
+          if (JSON.stringify(doc[key]) !== JSON.stringify(val)) return false;
+        }
+      }
+    } else {
+      if (doc[key] !== val) return false;
+    }
   }
   return true;
 }
@@ -108,7 +131,7 @@ function makeResultArray(arr, collectionName) {
   result.sort = function(sortObj) {
     const key = Object.keys(sortObj)[0];
     const dir = sortObj[key];
-    return result.sort((a, b) => {
+    return Array.prototype.sort.call(result, (a, b) => {
       let valA = a[key];
       let valB = b[key];
       if (valA instanceof Date) valA = valA.getTime();
@@ -421,7 +444,14 @@ const ReviewSchema = new mongoose.Schema({
   serviceName: { type: String },
   locationName: { type: String },
   shopId: { type: String, default: '' },
-  reply: { type: String, default: '' }
+  reply: { type: String, default: '' },
+  providerName: { type: String, default: '' },
+  date: { type: String, default: '' },
+  verifiedBadge: { type: Boolean, default: true },
+  priority: { type: Number, default: 0 },
+  status: { type: String, enum: ['approved', 'pending', 'rejected'], default: 'approved' },
+  isActive: { type: Boolean, default: true },
+  isFeatured: { type: Boolean, default: false }
 });
 
 // 7. Professional Schema (Top service experts cards)
@@ -431,10 +461,19 @@ const ProfessionalSchema = new mongoose.Schema({
   specialty: { type: String, required: true },
   rating: { type: Number, default: 5.0 },
   reviewsCount: { type: Number, default: 0 },
-  imageUrl: { type: String }
+  imageUrl: { type: String },
+  shopId: { type: String, default: '' },
+  experience: { type: String, default: '' },
+  completedJobs: { type: Number, default: 0 },
+  location: { type: String, default: '' },
+  verifiedBadge: { type: Boolean, default: false },
+  availability: { type: Boolean, default: true },
+  featuredStatus: { type: String, default: 'Featured' },
+  priority: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true }
 });
 
-// 8. Promo Banner Schema
+// 8. Promo Banner Schema (Carousel Banners)
 const BannerSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   title: { type: String, required: true },
@@ -495,6 +534,56 @@ const AuditLogSchema = new mongoose.Schema({
   ip: { type: String, default: '127.0.0.1' }
 }, { timestamps: true });
 
+// 14. Promotion Schema (Home Promotions / Festive Ribbon)
+const PromotionSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  subtitle: { type: String, default: '' },
+  description: { type: String, default: '' },
+  offerPercentage: { type: String, default: '' },
+  couponCode: { type: String, default: '' },
+  ctaButtonText: { type: String, default: 'Grab Now' },
+  ctaButtonAction: { type: String, default: 'No Action' },
+  ctaButtonActionValue: { type: String, default: '' },
+  bannerImage: { type: String, default: '' },
+  backgroundColor: { type: String, default: '#FFF1F0' },
+  textColor: { type: String, default: '#000000' },
+  buttonColor: { type: String, default: '#FF4D4F' },
+  buttonTextColor: { type: String, default: '#FFFFFF' },
+  priority: { type: Number, default: 0 },
+  startDate: { type: String, default: '' },
+  endDate: { type: String, default: '' },
+  isActive: { type: Boolean, default: true }
+}, { timestamps: true });
+
+// 15. Special For You Card Schema
+const SpecialCardSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  icon: { type: String, default: 'star' },
+  imageUrl: { type: String, default: '' },
+  title: { type: String, required: true },
+  subtitle: { type: String, default: '' },
+  description: { type: String, default: '' },
+  backgroundColor: { type: String, default: '#FFFFFF' },
+  buttonText: { type: String, default: 'View' },
+  ctaAction: { type: String, default: 'No Action' },
+  ctaActionValue: { type: String, default: '' },
+  priority: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true },
+  startDate: { type: String, default: '' },
+  endDate: { type: String, default: '' }
+}, { timestamps: true });
+
+// 16. CMS Dynamic Layout Section Schema
+const CmsSectionSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  type: { type: String, required: true },
+  priority: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true },
+  settings: { type: mongoose.Schema.Types.Mixed, default: {} }
+}, { timestamps: true });
+
 const MongooseModels = {
   User: mongoose.model('User', UserSchema),
   Shop: mongoose.model('Shop', ShopSchema),
@@ -507,7 +596,10 @@ const MongooseModels = {
   Notification: mongoose.model('Notification', NotificationSchema),
   Demand: mongoose.model('Demand', DemandSchema),
   Settings: mongoose.model('Settings', SettingsSchema),
-  AuditLog: mongoose.model('AuditLog', AuditLogSchema)
+  AuditLog: mongoose.model('AuditLog', AuditLogSchema),
+  Promotion: mongoose.model('Promotion', PromotionSchema),
+  SpecialCard: mongoose.model('SpecialCard', SpecialCardSchema),
+  CmsSection: mongoose.model('CmsSection', CmsSectionSchema)
 };
 
 const LocalModels = {
@@ -522,7 +614,10 @@ const LocalModels = {
   Notification: createMockModel('Notification', 'notifications'),
   Demand: createMockModel('Demand', 'demands'),
   Settings: createMockModel('Settings', 'settings'),
-  AuditLog: createMockModel('AuditLog', 'auditlogs')
+  AuditLog: createMockModel('AuditLog', 'auditlogs'),
+  Promotion: createMockModel('Promotion', 'promotions'),
+  SpecialCard: createMockModel('SpecialCard', 'specialcards'),
+  CmsSection: createMockModel('CmsSection', 'cmssections')
 };
 
 function makeModelProxy(modelName) {
@@ -565,5 +660,8 @@ module.exports = {
   Notification: makeModelProxy('Notification'),
   Demand: makeModelProxy('Demand'),
   Settings: makeModelProxy('Settings'),
-  AuditLog: makeModelProxy('AuditLog')
+  AuditLog: makeModelProxy('AuditLog'),
+  Promotion: makeModelProxy('Promotion'),
+  SpecialCard: makeModelProxy('SpecialCard'),
+  CmsSection: makeModelProxy('CmsSection')
 };
