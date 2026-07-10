@@ -43,7 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   // Initial loading sequence
-  refreshAllData();
+  refreshAllData().then(() => {
+    renderShopCategoriesCheckbox();
+  });
   
   // Refresh loop every 10 seconds to keep stats and live stream up to date
   setInterval(refreshAllData, 10000);
@@ -185,7 +187,6 @@ async function refreshAllData() {
   renderBannersGrid();
   renderOffersGrid();
   renderAlertsHistory();
-  renderShopCategoriesCheckbox();
 }
 
 // Fetch helper functions
@@ -254,7 +255,7 @@ function renderShopCategoriesCheckbox() {
   }
   categories.forEach(c => {
     const label = document.createElement('label');
-    label.innerHTML = `<input type="checkbox" name="categories" value="${c.name}"> ${c.name}`;
+    label.innerHTML = `<input type="checkbox" name="categories" value="${c.id}"> ${c.name}`;
     container.appendChild(label);
   });
 }
@@ -760,7 +761,9 @@ function setupForms() {
           await logAdminActivity('Create Category', bodyData.id, `Created category: ${bodyData.name}`);
           categoryForm.reset();
           loadCategories();
-          refreshAllData();
+          refreshAllData().then(() => {
+            renderShopCategoriesCheckbox();
+          });
         } else {
           showToast(data.error || 'Failed to create category', 'error');
         }
@@ -1459,7 +1462,9 @@ async function deleteCategory(id) {
         showToast('Category deleted successfully', 'success');
         await logAdminActivity('Delete Category', id, 'Removed service category tag');
         loadCategories();
-        refreshAllData();
+        refreshAllData().then(() => {
+          renderShopCategoriesCheckbox();
+        });
       }
     } catch (e) {
       console.error(e);
