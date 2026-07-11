@@ -17,6 +17,39 @@ final selectedSlotProvider = StateProvider<String>((ref) => '09:00 AM - 11:00 AM
 final selectedAddressIndexProvider = StateProvider<int>((ref) => 0);
 final appliedCouponProvider = StateProvider<String?>((ref) => null);
 final appliedCouponDiscountProvider = StateProvider<double>((ref) => 0.0);
+
+final checkoutCalculationProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final cart = ref.watch(cartProvider);
+  final couponCode = ref.watch(appliedCouponProvider);
+  final shopId = ref.watch(cartShopIdProvider);
+
+  if (shopId == null || cart.isEmpty) {
+    return null;
+  }
+
+  final itemsList = cart.values.map((item) => {
+    'id': item.id,
+    'quantity': item.quantity,
+  }).toList();
+
+  try {
+    final res = await DioClient().post('/checkout/calculate', data: {
+      'shopId': shopId,
+      'items': itemsList,
+      'couponCode': couponCode,
+    });
+    if (res.statusCode == 200 && res.data != null && res.data['success'] == true) {
+      final double discount = (res.data['couponDiscount'] as num?)?.toDouble() ?? 0.0;
+      Future.microtask(() {
+        ref.read(appliedCouponDiscountProvider.notifier).state = discount;
+      });
+      return Map<String, dynamic>.from(res.data as Map);
+    }
+  } catch (e) {
+    debugPrint('Error calculating checkout price: $e');
+  }
+  return null;
+});
 final selectedPaymentMethodProvider = StateProvider<String>((ref) => 'Razorpay');
 
 /// Fetches active offers from backend
@@ -188,24 +221,17 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
     final user = authState.user;
     final currentAddress = ref.watch(currentAddressProvider).address;
 
-    // Dynamic calculations
-    final bool hasInspectionService = cart.values.any((item) => item.pricingType == 'inspection');
-    final double inspectionVisitingCharges = cart.values
-        .where((item) => item.pricingType == 'inspection')
-        .fold(0.0, (maxVal, item) => item.visitingCharges > maxVal ? item.visitingCharges : maxVal);
-    final bool isFreeInspection = cart.values
-        .where((item) => item.pricingType == 'inspection')
-        .every((item) => item.isFreeInspection);
+    // Dynamic calculations using backend pricing engine
+    final calcAsync = ref.watch(checkoutCalculationProvider);
+    final calcData = calcAsync.value;
 
-    double discount = 0.0;
-    if (!hasInspectionService) {
-      discount = ref.watch(appliedCouponDiscountProvider);
-    }
+    final double finalAmount = calcData != null ? (calcData['grandTotal'] as num).toDouble() : 0.0;
+    final double discount = calcData != null ? (calcData['couponDiscount'] as num).toDouble() : 0.0;
 
-    final double convenienceFee = (baseAmount > 0 && !hasInspectionService) ? 49.0 : 0.0;
-    final double finalAmount = hasInspectionService
-        ? (isFreeInspection ? 0.0 : inspectionVisitingCharges)
-        : (baseAmount - discount + convenienceFee);
+    final bool hasInspectionService = calcData != null ? (calcData['pricingType'] != 'fixed') : false;
+    final bool isFreeInspection = calcData != null ? (calcData['isFreeInspection'] == true) : false;
+    final double inspectionVisitingCharges = calcData != null ? (calcData['visitingCharge'] as num).toDouble() : 0.0;
+    final double convenienceFee = calcData != null ? (calcData['convenienceFee'] as num).toDouble() : 0.0;
 
     final List<String> slots = [
       '09:00 AM - 11:00 AM',
@@ -617,27 +643,128 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
               decoration: _buildBoxDecoration(isDark),
               child: Column(
                 children: [
-                  if (hasInspectionService) ...[
-                    _buildBillRow('Inspection Service', 'Price after inspection', isDark),
-                    const SizedBox(height: 8),
-                    _buildBillRow('Visiting Charges', isFreeInspection ? 'FREE' : '₹${inspectionVisitingCharges.toInt()}', isDark, isGreen: isFreeInspection),
-                  ] else ...[
-                    _buildBillRow('Items Total', '₹${baseAmount.toInt()}', isDark),
-                    if (discount > 0) ...[
+                  if (calcData == null) ...[
+                    if (hasInspectionService) ...[
+                      _buildBillRow('Inspection Service', 'Price after inspection', isDark),
                       const SizedBox(height: 8),
-                      _buildBillRow('Coupon Discount', '- ₹${discount.toInt()}', isDark, isGreen: true),
+                      _buildBillRow('Visiting Charges', isFreeInspection ? 'FREE' : '₹${inspectionVisitingCharges.toInt()}', isDark, isGreen: isFreeInspection),
+                    ] else ...[
+                      _buildBillRow('Items Total', '₹${baseAmount.toInt()}', isDark),
+                      if (discount > 0) ...[
+                        const SizedBox(height: 8),
+                        _buildBillRow('Coupon Discount', '- ₹${discount.toInt()}', isDark, isGreen: true),
+                      ],
+                      const SizedBox(height: 8),
+                      _buildBillRow('Convenience & Safety Fee', '₹${convenienceFee.toInt()}', isDark),
                     ],
-                    const SizedBox(height: 8),
-                    _buildBillRow('Convenience & Safety Fee', '₹${convenienceFee.toInt()}', isDark),
-                  ],
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12.0),
-                    child: Divider(),
-                  ),
-                  _buildBillRow('Grand Total', '₹${finalAmount.toInt()}', isDark, isBold: true),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12.0),
+                      child: Divider(),
+                    ),
+                    _buildBillRow('Grand Total', '₹${finalAmount.toInt()}', isDark, isBold: true),
+                  ] else ...[
+                    ... (calcData['billDetails'] as List<dynamic>).map((row) {
+                      final label = row['label']?.toString() ?? '';
+                      final val = row['value']?.toString() ?? '';
+                      final isGreen = row['isGreen'] == true;
+                      
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: _buildBillRow(label, val, isDark, isGreen: isGreen),
+                      );
+                    }).toList(),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12.0),
+                      child: Divider(),
+                    ),
+                    _buildBillRow('Grand Total', '₹${(calcData['grandTotal'] as num).toInt()}', isDark, isBold: true),
+                  ]
                 ],
               ),
             ),
+            if (calcData != null && calcData['redBannerText'] != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        calcData['redBannerText'].toString(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.red.shade300 : Colors.red.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (calcData != null && calcData['pricingType'] != 'fixed') ...[
+              const SizedBox(height: 20),
+              _buildSectionHeader(isDark, 'Pricing Details'),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: _buildBoxDecoration(isDark),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (calcData['pricingType'] == 'starting') ...[
+                      Text('Estimated Service Price', style: AppTextStyles.bodySmall(isDark)),
+                      const SizedBox(height: 4),
+                      Text(
+                        calcData['estimatedPriceText'] ?? 'Starts From ₹0',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Final amount will be decided after inspection.',
+                        style: AppTextStyles.bodySmall(isDark).copyWith(fontStyle: FontStyle.italic),
+                      ),
+                    ] else if (calcData['pricingType'] == 'range') ...[
+                      Text('Estimated Price Range', style: AppTextStyles.bodySmall(isDark)),
+                      const SizedBox(height: 4),
+                      Text(
+                        calcData['estimatedPriceText'] ?? '₹0 - ₹0',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Final repair cost will depend on the inspection.',
+                        style: AppTextStyles.bodySmall(isDark).copyWith(fontStyle: FontStyle.italic),
+                      ),
+                    ] else if (calcData['pricingType'] == 'inspection') ...[
+                      Text(
+                        'Price will be shared after inspection.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -823,6 +950,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
       'paymentMethod': methodParam,
       'pricingType': hasInspectionService ? 'inspection' : (cart.values.any((item) => item.pricingType == 'starting') ? 'starting' : (cart.values.any((item) => item.pricingType == 'range') ? 'range' : 'fixed')),
       'isFreeInspection': isFreeInspection,
+      'items': cart.values.map((item) => {
+        'id': item.id,
+        'quantity': item.quantity,
+      }).toList(),
+      'couponCode': ref.read(appliedCouponProvider),
     };
 
     if (methodParam == 'Razorpay' && amount > 0.0) {
@@ -1132,12 +1264,20 @@ class _OffersBottomSheetState extends ConsumerState<_OffersBottomSheet> {
     AppHaptics.heavyTap();
 
     try {
-      final res = await DioClient().post('/coupons/validate', data: {
-        'code': code,
-        'amount': widget.baseAmount,
+      final cart = ref.read(cartProvider);
+      final shopId = ref.read(cartShopIdProvider);
+      final itemsList = cart.values.map((item) => {
+        'id': item.id,
+        'quantity': item.quantity,
+      }).toList();
+
+      final res = await DioClient().post('/checkout/calculate', data: {
+        'shopId': shopId,
+        'items': itemsList,
+        'couponCode': code,
       });
       if (res.statusCode == 200 && res.data['success'] == true) {
-        final discountAmt = double.tryParse(res.data['discount'].toString()) ?? 0.0;
+        final discountAmt = (res.data['couponDiscount'] as num?)?.toDouble() ?? 0.0;
         widget.onApply(code, discountAmt);
       } else {
         setState(() => _errorCode = code);

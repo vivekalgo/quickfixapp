@@ -8,6 +8,8 @@ class CartItem {
   final String pricingType;
   final bool isFreeInspection;
   final double visitingCharges;
+  final double minPrice;
+  final double maxPrice;
 
   const CartItem({
     required this.id,
@@ -17,6 +19,8 @@ class CartItem {
     this.pricingType = 'fixed',
     this.isFreeInspection = false,
     this.visitingCharges = 0.0,
+    this.minPrice = 0.0,
+    this.maxPrice = 0.0,
   });
 
   CartItem copyWith({int? quantity}) {
@@ -28,6 +32,8 @@ class CartItem {
       pricingType: pricingType,
       isFreeInspection: isFreeInspection,
       visitingCharges: visitingCharges,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
     );
   }
 }
@@ -35,7 +41,16 @@ class CartItem {
 class CartNotifier extends StateNotifier<Map<String, CartItem>> {
   CartNotifier() : super({});
 
-  void addItem(String id, String title, double price, {String pricingType = 'fixed', bool isFreeInspection = false, double visitingCharges = 0.0}) {
+  void addItem(
+    String id,
+    String title,
+    double price, {
+    String pricingType = 'fixed',
+    bool isFreeInspection = false,
+    double visitingCharges = 0.0,
+    double minPrice = 0.0,
+    double maxPrice = 0.0,
+  }) {
     if (state.containsKey(id)) {
       state = {
         ...state,
@@ -52,6 +67,8 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
           pricingType: pricingType,
           isFreeInspection: isFreeInspection,
           visitingCharges: visitingCharges,
+          minPrice: minPrice,
+          maxPrice: maxPrice,
         ),
       };
     }

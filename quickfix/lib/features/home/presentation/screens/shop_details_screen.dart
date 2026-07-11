@@ -103,6 +103,8 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                       pricingType: service.pricingType,
                       isFreeInspection: service.isFreeInspection,
                       visitingCharges: service.visitingCharges,
+                      minPrice: service.minPrice,
+                      maxPrice: service.maxPrice,
                     );
                 Navigator.pop(ctx);
               },
@@ -121,6 +123,8 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
             pricingType: service.pricingType,
             isFreeInspection: service.isFreeInspection,
             visitingCharges: service.visitingCharges,
+            minPrice: service.minPrice,
+            maxPrice: service.maxPrice,
           );
     }
   }
@@ -468,6 +472,21 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                                                 style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
                                               ),
                                             ),
+                                           if (service.isFreeInspection) ...[
+                                             const SizedBox(width: 6),
+                                             Container(
+                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                               decoration: BoxDecoration(
+                                                 color: Colors.green.withOpacity(0.15),
+                                                 borderRadius: BorderRadius.circular(6),
+                                                 border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                               ),
+                                               child: const Text(
+                                                 'FREE INSPECTION',
+                                                 style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                                               ),
+                                             ),
+                                           ],
                                         ],
                                       ),
                                       const SizedBox(height: 6),
@@ -475,9 +494,9 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                                         children: [
                                           Text(
                                             service.pricingType == 'inspection'
-                                                ? 'Price after inspection'
+                                                ? 'Quote Required'
                                                 : service.pricingType == 'starting'
-                                                    ? 'Starting from ₹${service.price.toInt()}'
+                                                    ? 'Starts from ₹${service.price.toInt()}'
                                                     : service.pricingType == 'range'
                                                         ? '₹${service.minPrice.toInt()} - ₹${service.maxPrice.toInt()}'
                                                         : '₹${service.price.toInt()}',

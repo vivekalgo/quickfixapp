@@ -224,6 +224,8 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
   void _showAddServiceDialog() {
     String pricingType = 'fixed';
     bool isFreeInspection = false;
+    String? imageUrl;
+    bool isUploading = false;
 
     showDialog(
       context: context,
@@ -236,20 +238,96 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Service Image / Icon Selector
+                  GestureDetector(
+                    onTap: isUploading
+                        ? null
+                        : () async {
+                            final picker = ImagePicker();
+                            final picked = await picker.pickImage(
+                                source: ImageSource.gallery, imageQuality: 75);
+                            if (picked == null) return;
+
+                            setDialogState(() {
+                              isUploading = true;
+                            });
+
+                            try {
+                              final bytes = await picked.readAsBytes();
+                              final base64Image = base64Encode(bytes);
+                              final mimeType = picked.mimeType ?? 'image/jpeg';
+
+                              final uploadedUrl = await ref
+                                  .read(shopManagementProvider.notifier)
+                                  .uploadServiceImage(base64Image, mimeType);
+                              if (uploadedUrl != null) {
+                                setDialogState(() {
+                                  imageUrl = uploadedUrl;
+                                });
+                              }
+                            } finally {
+                              setDialogState(() {
+                                isUploading = false;
+                              });
+                            }
+                          },
+                    child: Container(
+                      height: 100,
+                      width: 100,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: AppColors.primary.withOpacity(0.5)),
+                      ),
+                      child: isUploading
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                  color: AppColors.primary))
+                          : imageUrl != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(imageUrl!,
+                                      fit: BoxFit.cover),
+                                )
+                              : const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add_photo_alternate_outlined,
+                                        color: AppColors.primary, size: 32),
+                                    SizedBox(height: 4),
+                                    Text('Service Icon',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.white54)),
+                                  ],
+                                ),
+                    ),
+                  ),
                   TextFormField(
                     controller: _customTitleController,
-                    decoration: const InputDecoration(labelText: 'Service Name'),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                    decoration:
+                        const InputDecoration(labelText: 'Service Name'),
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Required'
+                        : null,
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: pricingType,
-                    decoration: const InputDecoration(labelText: 'Pricing Model'),
+                    decoration:
+                        const InputDecoration(labelText: 'Pricing Model'),
                     items: const [
-                      DropdownMenuItem(value: 'fixed', child: Text('🟢 Fixed Price')),
-                      DropdownMenuItem(value: 'starting', child: Text('🟡 Starts From')),
-                      DropdownMenuItem(value: 'range', child: Text('🔵 Price Range')),
-                      DropdownMenuItem(value: 'inspection', child: Text('🟠 Quote Required')),
+                      DropdownMenuItem(
+                          value: 'fixed', child: Text('🟢 Fixed Price')),
+                      DropdownMenuItem(
+                          value: 'starting', child: Text('🟡 Starts From')),
+                      DropdownMenuItem(
+                          value: 'range', child: Text('🔵 Price Range')),
+                      DropdownMenuItem(
+                          value: 'inspection',
+                          child: Text('🟠 Quote Required')),
                     ],
                     onChanged: (val) {
                       if (val != null) {
@@ -264,41 +342,59 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                     TextFormField(
                       controller: _customPriceController,
                       decoration: InputDecoration(
-                        labelText: pricingType == 'fixed' ? 'Price (₹)' : 'Starting Price (₹)',
+                        labelText: pricingType == 'fixed'
+                            ? 'Price (₹)'
+                            : 'Starting Price (₹)',
                       ),
                       keyboardType: TextInputType.number,
-                      validator: (val) => val == null || double.tryParse(val) == null ? 'Enter valid price' : null,
+                      validator: (val) =>
+                          val == null || double.tryParse(val) == null
+                              ? 'Enter valid price'
+                              : null,
                     ),
                   if (pricingType == 'range') ...[
                     TextFormField(
                       controller: _customMinPriceController,
-                      decoration: const InputDecoration(labelText: 'Min Price (₹)'),
+                      decoration:
+                          const InputDecoration(labelText: 'Min Price (₹)'),
                       keyboardType: TextInputType.number,
-                      validator: (val) => val == null || double.tryParse(val) == null ? 'Enter min price' : null,
+                      validator: (val) =>
+                          val == null || double.tryParse(val) == null
+                              ? 'Enter min price'
+                              : null,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _customMaxPriceController,
-                      decoration: const InputDecoration(labelText: 'Max Price (₹)'),
+                      decoration:
+                          const InputDecoration(labelText: 'Max Price (₹)'),
                       keyboardType: TextInputType.number,
-                      validator: (val) => val == null || double.tryParse(val) == null ? 'Enter max price' : null,
+                      validator: (val) =>
+                          val == null || double.tryParse(val) == null
+                              ? 'Enter max price'
+                              : null,
                     ),
                   ],
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _customDurationController,
-                    decoration: const InputDecoration(labelText: 'Duration (e.g. 2 hrs)'),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                    decoration: const InputDecoration(
+                        labelText: 'Duration (e.g. 2 hrs)'),
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Required'
+                        : null,
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _customVisitingController,
-                    decoration: const InputDecoration(labelText: 'Visiting Charges (₹)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Visiting Charges (₹)'),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 8),
                   CheckboxListTile(
-                    title: const Text('Free Inspection', style: TextStyle(fontSize: 14)),
+                    title: const Text('Free Inspection',
+                        style: TextStyle(fontSize: 14)),
                     value: isFreeInspection,
                     contentPadding: EdgeInsets.zero,
                     onChanged: (val) {
@@ -310,24 +406,28 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _customGstController,
-                    decoration: const InputDecoration(labelText: 'GST (%) (Optional)'),
+                    decoration:
+                        const InputDecoration(labelText: 'GST (%) (Optional)'),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _customExtraChargesController,
-                    decoration: const InputDecoration(labelText: 'Extra Charges (₹) (Optional)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Extra Charges (₹) (Optional)'),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _customExtraLabelController,
-                    decoration: const InputDecoration(labelText: 'Extra Charges Label (Optional)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Extra Charges Label (Optional)'),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _customBulletsController,
-                    decoration: const InputDecoration(labelText: 'Features (comma separated)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Features (comma separated)'),
                     maxLines: 2,
                   ),
                 ],
@@ -342,26 +442,39 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
             ElevatedButton(
               onPressed: () async {
                 if (!_formKeyCustomSrv.currentState!.validate()) return;
-                
+
                 final bullets = _customBulletsController.text
                     .split(',')
                     .map((e) => e.trim())
                     .where((e) => e.isNotEmpty)
                     .toList();
 
-                final success = await ref.read(shopManagementProvider.notifier).addCustomService(
+                final success = await ref
+                    .read(shopManagementProvider.notifier)
+                    .addCustomService(
                       title: _customTitleController.text.trim(),
-                      price: double.tryParse(_customPriceController.text) ?? 0.0,
+                      price:
+                          double.tryParse(_customPriceController.text) ?? 0.0,
                       durationText: _customDurationController.text.trim(),
                       bulletPoints: bullets,
                       pricingType: pricingType,
-                      minPrice: double.tryParse(_customMinPriceController.text) ?? 0.0,
-                      maxPrice: double.tryParse(_customMaxPriceController.text) ?? 0.0,
-                      visitingCharges: double.tryParse(_customVisitingController.text) ?? 0.0,
+                      minPrice:
+                          double.tryParse(_customMinPriceController.text) ??
+                              0.0,
+                      maxPrice:
+                          double.tryParse(_customMaxPriceController.text) ??
+                              0.0,
+                      visitingCharges:
+                          double.tryParse(_customVisitingController.text) ??
+                              0.0,
                       isFreeInspection: isFreeInspection,
                       gst: double.tryParse(_customGstController.text) ?? 0.0,
-                      extraCharges: double.tryParse(_customExtraChargesController.text) ?? 0.0,
-                      extraChargesLabel: _customExtraLabelController.text.trim(),
+                      extraCharges:
+                          double.tryParse(_customExtraChargesController.text) ??
+                              0.0,
+                      extraChargesLabel:
+                          _customExtraLabelController.text.trim(),
+                      imageUrl: imageUrl,
                     );
 
                 if (success && mounted) {
@@ -377,7 +490,9 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                   _customBulletsController.clear();
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Custom service added successfully!'), backgroundColor: AppColors.success),
+                    const SnackBar(
+                        content: Text('Custom service added successfully!'),
+                        backgroundColor: AppColors.success),
                   );
                 }
               },
@@ -402,6 +517,8 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
     final extraChargesController = TextEditingController(text: ((service['extraCharges'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
     final extraLabelController = TextEditingController(text: service['extraChargesLabel']?.toString() ?? '');
     bool isFreeInspection = service['isFreeInspection'] as bool? ?? false;
+    String? imageUrl = service['imageUrl']?.toString();
+    bool isUploading = false;
 
     showDialog(
       context: context,
@@ -412,6 +529,73 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Service Image / Icon Selector
+                GestureDetector(
+                  onTap: isUploading
+                      ? null
+                      : () async {
+                          final picker = ImagePicker();
+                          final picked = await picker.pickImage(
+                              source: ImageSource.gallery, imageQuality: 75);
+                          if (picked == null) return;
+
+                          setDialogState(() {
+                            isUploading = true;
+                          });
+
+                          try {
+                            final bytes = await picked.readAsBytes();
+                            final base64Image = base64Encode(bytes);
+                            final mimeType = picked.mimeType ?? 'image/jpeg';
+
+                            final uploadedUrl = await ref
+                                .read(shopManagementProvider.notifier)
+                                .uploadServiceImage(base64Image, mimeType);
+                            if (uploadedUrl != null) {
+                              setDialogState(() {
+                                imageUrl = uploadedUrl;
+                              });
+                            }
+                          } finally {
+                            setDialogState(() {
+                              isUploading = false;
+                            });
+                          }
+                        },
+                  child: Container(
+                    height: 100,
+                    width: 100,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white10,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: AppColors.primary.withOpacity(0.5)),
+                    ),
+                    child: isUploading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                                color: AppColors.primary))
+                        : imageUrl != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(imageUrl!,
+                                    fit: BoxFit.cover),
+                              )
+                            : const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_photo_alternate_outlined,
+                                      color: AppColors.primary, size: 32),
+                                  SizedBox(height: 4),
+                                  Text('Service Icon',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white54)),
+                                ],
+                              ),
+                  ),
+                ),
                 DropdownButtonFormField<String>(
                   value: pricingType,
                   decoration: const InputDecoration(labelText: 'Pricing Model'),
@@ -507,6 +691,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                     'gst': double.tryParse(gstController.text) ?? 0.0,
                     'extraCharges': double.tryParse(extraChargesController.text) ?? 0.0,
                     'extraChargesLabel': extraLabelController.text.trim(),
+                    'imageUrl': imageUrl,
                   },
                 );
 
@@ -1002,8 +1187,8 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                                 height: 50,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(10),
-                                  image: const DecorationImage(
-                                    image: NetworkImage('https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=100'),
+                                  image: DecorationImage(
+                                    image: NetworkImage(service['imageUrl']?.toString() ?? 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=100'),
                                     fit: BoxFit.cover,
                                   ),
                                 ),

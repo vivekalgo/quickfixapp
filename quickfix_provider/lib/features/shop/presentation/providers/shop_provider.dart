@@ -120,6 +120,7 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
     double gst = 0,
     double extraCharges = 0,
     String extraChargesLabel = '',
+    String? imageUrl,
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null, isSuccess: false);
     try {
@@ -140,6 +141,7 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
             'gst': gst,
             'extraCharges': extraCharges,
             'extraChargesLabel': extraChargesLabel,
+            if (imageUrl != null) 'imageUrl': imageUrl,
           }
         },
       );
@@ -185,6 +187,30 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
+    }
+  }
+
+  Future<String?> uploadServiceImage(String base64Image, String mimeType) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final response = await dio.post(
+        ApiEndpoints.uploadServiceImage,
+        data: {
+          'base64Image': base64Image,
+          'mimeType': mimeType,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        state = ShopManagementState(isSuccess: true);
+        return response.data['imageUrl']?.toString();
+      }
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to upload service image.');
+      return null;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return null;
     }
   }
 }

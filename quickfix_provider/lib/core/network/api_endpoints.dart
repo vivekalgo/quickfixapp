@@ -22,6 +22,7 @@ class ApiEndpoints {
   static const String updateHours = '/provider/update-hours';
   static const String updateServices = '/provider/update-services';
   static const String updateLocation = '/provider/update-location';
+  static const String uploadServiceImage = '/provider/upload-service-image';
 
   // Earnings
   static String earnings(String shopId) => '/provider/earnings/$shopId';

@@ -31,6 +31,7 @@ const {
   CmsSection,
   CustomSection
 } = require('./models');
+const { calculateCheckoutPriceInternal } = require('./pricingCalculator');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1040,6 +1041,28 @@ app.post('/api/provider/delete-portfolio', requireAuth, async (req, res) => {
   }
 });
 
+// 10f. Service image upload — stores in Cloudinary and returns imageUrl
+app.post('/api/provider/upload-service-image', requireAuth, async (req, res) => {
+  try {
+    const { base64Image, mimeType } = req.body;
+    if (!base64Image) {
+      return res.status(400).json({ error: 'base64Image is required' });
+    }
+    const dataUri = `data:${mimeType || 'image/jpeg'};base64,${base64Image}`;
+    
+    const uploadResponse = await cloudinary.uploader.upload(dataUri, {
+      folder: 'quickfix_services',
+      resource_type: 'image',
+    });
+
+    const imageUrl = uploadResponse.secure_url;
+    res.json({ success: true, imageUrl });
+  } catch (e) {
+    console.error('Cloudinary service image upload error:', e.message || e);
+    res.status(500).json({ error: `Failed to upload service image: ${e.message || e}` });
+  }
+});
+
 // 11. Booking details (sanitized for privacy before accepted)
 app.get('/api/bookings/details/:bookingId', async (req, res) => {
   const { bookingId } = req.params;
@@ -1948,6 +1971,24 @@ app.post('/api/coupons/validate', async (req, res) => {
   }
 });
 
+app.post('/api/checkout/calculate', async (req, res) => {
+  const { shopId, items, couponCode } = req.body;
+  if (!shopId || !items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'shopId and items are required' });
+  }
+  try {
+    const shop = await Shop.findOne({ id: shopId });
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+    const result = await calculateCheckoutPriceInternal(shop, items, couponCode);
+    res.json({ success: true, ...result });
+  } catch (e) {
+    console.error('Calculate pricing failed:', e);
+    res.status(500).json({ error: 'Failed to calculate pricing' });
+  }
+});
+
 // 5. Booking Transactions
 app.get('/api/bookings', async (req, res) => {
   const { shopId, customerId } = req.query;
@@ -1992,19 +2033,36 @@ const placeBooking = async (req, res) => {
       }
     }
 
+    const shop = await Shop.findOne({ id: shopId });
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+
+    // Recalculate amount using backend pricing engine
+    let parsedAmount = parseFloat(amount);
+    let visitingCharges = shop.visitingCharges || 150.0;
+    let bookingPricingType = req.body.pricingType || 'fixed';
+
+    if (req.body.items && Array.isArray(req.body.items) && req.body.items.length > 0) {
+      const calc = await calculateCheckoutPriceInternal(shop, req.body.items, req.body.couponCode);
+      parsedAmount = calc.grandTotal;
+      visitingCharges = calc.visitingCharge;
+      bookingPricingType = calc.pricingType;
+    }
+
     if (paymentMethod === 'Wallet') {
       if (!user) {
         return res.status(401).json({ error: 'Unauthorized: Authentication required for wallet payment' });
       }
-      if ((user.walletBalance || 0) < parseFloat(amount)) {
+      if ((user.walletBalance || 0) < parsedAmount) {
         return res.status(400).json({ error: 'Insufficient wallet balance' });
       }
-      user.walletBalance = (user.walletBalance || 0) - parseFloat(amount);
+      user.walletBalance = (user.walletBalance || 0) - parsedAmount;
       user.walletTransactions = user.walletTransactions || [];
       user.walletTransactions.push({
         id: `TX-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
         title: `Paid for ${title}`,
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         type: 'debit',
         date: new Date()
       });
@@ -2012,18 +2070,11 @@ const placeBooking = async (req, res) => {
     }
 
     const bookingId = `QF-${Math.floor(100000 + Math.random() * 900000)}`;
-    
-    // Look up shop to get current visiting charges and commission rate
-    const shop = await Shop.findOne({ id: shopId });
-    const visitingCharges = shop ? (shop.visitingCharges || 150.0) : 150.0;
-    const commissionRate = shop ? (shop.commissionRate || 15.0) : 15.0;
-    const providerName = shop ? shop.ownerName : 'Assigning Expert...';
-    
-    const parsedAmount = parseFloat(amount);
+    const commissionRate = shop.commissionRate || 15.0;
+    const providerName = shop.ownerName || 'Assigning Expert...';
     const estEarnings = parseFloat((parsedAmount * (1 - commissionRate / 100)).toFixed(2));
     
     const addr = customerAddress || (user && user.savedAddresses && user.savedAddresses[0]) || '113, Swaroop Nagar, Kanpur';
-    // Simple approx address logic: take last 2 parts of comma separated address
     const addrParts = addr.split(',');
     const approxAddress = addrParts.length > 1 
       ? `${addrParts[addrParts.length - 2].trim()}, ${addrParts[addrParts.length - 1].trim()}`
@@ -2048,7 +2099,8 @@ const placeBooking = async (req, res) => {
       estDuration: req.body.durationText || '1.5 hrs',
       specialInstructions: req.body.specialInstructions || '',
       status: 'pending',
-      providerName: providerName
+      providerName: providerName,
+      pricingType: bookingPricingType
     });
 
     await newBooking.save();
