@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/currency_formatter.dart';
@@ -24,11 +26,23 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
   late List<String> _holidays;
   late Map<String, dynamic> _workingHours;
 
+  // Shop card display fields
+  String _estimatedServiceTime = '20 mins';
+  String _priceRange = '₹₹';
+  bool _bannerUploading = false;
+  bool _portfolioUploading = false;
+
   // Custom service fields
   final _customTitleController = TextEditingController();
   final _customPriceController = TextEditingController();
   final _customDurationController = TextEditingController();
   final _customBulletsController = TextEditingController();
+  final _customMinPriceController = TextEditingController();
+  final _customMaxPriceController = TextEditingController();
+  final _customVisitingController = TextEditingController(text: '150');
+  final _customGstController = TextEditingController(text: '0');
+  final _customExtraChargesController = TextEditingController(text: '0');
+  final _customExtraLabelController = TextEditingController();
 
   bool _initialized = false;
 
@@ -38,6 +52,12 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
     _customPriceController.dispose();
     _customDurationController.dispose();
     _customBulletsController.dispose();
+    _customMinPriceController.dispose();
+    _customMaxPriceController.dispose();
+    _customVisitingController.dispose();
+    _customGstController.dispose();
+    _customExtraChargesController.dispose();
+    _customExtraLabelController.dispose();
     super.dispose();
   }
 
@@ -50,7 +70,103 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
       _emergencyAvailable = shop.emergencyAvailable;
       _holidays = List<String>.from(shop.holidays);
       _workingHours = Map<String, dynamic>.from(shop.workingHours);
+      _estimatedServiceTime = shop.estimatedServiceTime;
+      _priceRange = shop.priceRange;
       _initialized = true;
+    }
+  }
+
+  Future<void> _pickAndUploadBanner() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+    if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+    final base64Image = base64Encode(bytes);
+    final mimeType = picked.mimeType ?? 'image/jpeg';
+
+    setState(() => _bannerUploading = true);
+    final success = await ref.read(authProvider.notifier).uploadShopBanner(base64Image, mimeType);
+    setState(() => _bannerUploading = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Shop banner updated!' : 'Failed to upload banner.'),
+          backgroundColor: success ? AppColors.success : AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickAndUploadPortfolio() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+    if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+    final base64Image = base64Encode(bytes);
+    final mimeType = picked.mimeType ?? 'image/jpeg';
+
+    setState(() => _portfolioUploading = true);
+    final success = await ref.read(authProvider.notifier).uploadPortfolioImage(base64Image, mimeType);
+    setState(() => _portfolioUploading = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Gallery image added!' : 'Failed to upload image.'),
+          backgroundColor: success ? AppColors.success : AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deletePortfolioImage(String imageUrl) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Image'),
+        content: const Text('Are you sure you want to delete this image from your gallery?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _portfolioUploading = true);
+    final success = await ref.read(authProvider.notifier).deletePortfolioImage(imageUrl);
+    setState(() => _portfolioUploading = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Image deleted from gallery!' : 'Failed to delete image.'),
+          backgroundColor: success ? AppColors.success : AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveShopCardFields() async {
+    final success = await ref.read(authProvider.notifier).updateShopDetails(
+      estimatedServiceTime: _estimatedServiceTime,
+      priceRange: _priceRange,
+    );
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Shop card details updated!'), backgroundColor: AppColors.success),
+      );
     }
   }
 
@@ -106,119 +222,305 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
   }
 
   void _showAddServiceDialog() {
+    String pricingType = 'fixed';
+    bool isFreeInspection = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Custom Service'),
-        content: Form(
-          key: _formKeyCustomSrv,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _customTitleController,
-                  decoration: const InputDecoration(labelText: 'Service Name'),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _customPriceController,
-                  decoration: const InputDecoration(labelText: 'Price (₹)'),
-                  keyboardType: TextInputType.number,
-                  validator: (val) => val == null || double.tryParse(val) == null ? 'Enter valid price' : null,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _customDurationController,
-                  decoration: const InputDecoration(labelText: 'Duration (e.g. 2 hrs)'),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _customBulletsController,
-                  decoration: const InputDecoration(labelText: 'Features (comma separated)'),
-                  maxLines: 2,
-                ),
-              ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Custom Service'),
+          content: Form(
+            key: _formKeyCustomSrv,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _customTitleController,
+                    decoration: const InputDecoration(labelText: 'Service Name'),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: pricingType,
+                    decoration: const InputDecoration(labelText: 'Pricing Model'),
+                    items: const [
+                      DropdownMenuItem(value: 'fixed', child: Text('🟢 Fixed Price')),
+                      DropdownMenuItem(value: 'starting', child: Text('🟡 Starts From')),
+                      DropdownMenuItem(value: 'range', child: Text('🔵 Price Range')),
+                      DropdownMenuItem(value: 'inspection', child: Text('🟠 Quote Required')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          pricingType = val;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  if (pricingType == 'fixed' || pricingType == 'starting')
+                    TextFormField(
+                      controller: _customPriceController,
+                      decoration: InputDecoration(
+                        labelText: pricingType == 'fixed' ? 'Price (₹)' : 'Starting Price (₹)',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (val) => val == null || double.tryParse(val) == null ? 'Enter valid price' : null,
+                    ),
+                  if (pricingType == 'range') ...[
+                    TextFormField(
+                      controller: _customMinPriceController,
+                      decoration: const InputDecoration(labelText: 'Min Price (₹)'),
+                      keyboardType: TextInputType.number,
+                      validator: (val) => val == null || double.tryParse(val) == null ? 'Enter min price' : null,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _customMaxPriceController,
+                      decoration: const InputDecoration(labelText: 'Max Price (₹)'),
+                      keyboardType: TextInputType.number,
+                      validator: (val) => val == null || double.tryParse(val) == null ? 'Enter max price' : null,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _customDurationController,
+                    decoration: const InputDecoration(labelText: 'Duration (e.g. 2 hrs)'),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _customVisitingController,
+                    decoration: const InputDecoration(labelText: 'Visiting Charges (₹)'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    title: const Text('Free Inspection', style: TextStyle(fontSize: 14)),
+                    value: isFreeInspection,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (val) {
+                      setDialogState(() {
+                        isFreeInspection = val ?? false;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _customGstController,
+                    decoration: const InputDecoration(labelText: 'GST (%) (Optional)'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _customExtraChargesController,
+                    decoration: const InputDecoration(labelText: 'Extra Charges (₹) (Optional)'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _customExtraLabelController,
+                    decoration: const InputDecoration(labelText: 'Extra Charges Label (Optional)'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _customBulletsController,
+                    decoration: const InputDecoration(labelText: 'Features (comma separated)'),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (!_formKeyCustomSrv.currentState!.validate()) return;
-              
-              final bullets = _customBulletsController.text
-                  .split(',')
-                  .map((e) => e.trim())
-                  .where((e) => e.isNotEmpty)
-                  .toList();
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (!_formKeyCustomSrv.currentState!.validate()) return;
+                
+                final bullets = _customBulletsController.text
+                    .split(',')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
 
-              final success = await ref.read(shopManagementProvider.notifier).addCustomService(
-                    title: _customTitleController.text.trim(),
-                    price: double.parse(_customPriceController.text),
-                    durationText: _customDurationController.text.trim(),
-                    bulletPoints: bullets,
+                final success = await ref.read(shopManagementProvider.notifier).addCustomService(
+                      title: _customTitleController.text.trim(),
+                      price: double.tryParse(_customPriceController.text) ?? 0.0,
+                      durationText: _customDurationController.text.trim(),
+                      bulletPoints: bullets,
+                      pricingType: pricingType,
+                      minPrice: double.tryParse(_customMinPriceController.text) ?? 0.0,
+                      maxPrice: double.tryParse(_customMaxPriceController.text) ?? 0.0,
+                      visitingCharges: double.tryParse(_customVisitingController.text) ?? 0.0,
+                      isFreeInspection: isFreeInspection,
+                      gst: double.tryParse(_customGstController.text) ?? 0.0,
+                      extraCharges: double.tryParse(_customExtraChargesController.text) ?? 0.0,
+                      extraChargesLabel: _customExtraLabelController.text.trim(),
+                    );
+
+                if (success && mounted) {
+                  _customTitleController.clear();
+                  _customPriceController.clear();
+                  _customMinPriceController.clear();
+                  _customMaxPriceController.clear();
+                  _customDurationController.clear();
+                  _customVisitingController.clear();
+                  _customGstController.clear();
+                  _customExtraChargesController.clear();
+                  _customExtraLabelController.clear();
+                  _customBulletsController.clear();
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Custom service added successfully!'), backgroundColor: AppColors.success),
                   );
-
-              if (success && mounted) {
-                _customTitleController.clear();
-                _customPriceController.clear();
-                _customDurationController.clear();
-                _customBulletsController.clear();
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Custom service added successfully!'), backgroundColor: AppColors.success),
-                );
-              }
-            },
-            child: const Text('Add Service'),
-          ),
-        ],
+                }
+              },
+              child: const Text('Add Service'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _showEditPriceDialog(String serviceId, String title, double currentPrice) {
-    final controller = TextEditingController(text: currentPrice.toStringAsFixed(0));
+  void _showEditServiceDetailsDialog(Map<String, dynamic> service) {
+    final serviceId = service['id']?.toString() ?? '';
+    final title = service['title']?.toString() ?? '';
+    String pricingType = service['pricingType']?.toString() ?? 'fixed';
+    
+    final priceController = TextEditingController(text: ((service['price'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
+    final minPriceController = TextEditingController(text: ((service['minPrice'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
+    final maxPriceController = TextEditingController(text: ((service['maxPrice'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
+    final visitingController = TextEditingController(text: ((service['visitingCharges'] as num?)?.toDouble() ?? 150.0).toStringAsFixed(0));
+    final gstController = TextEditingController(text: ((service['gst'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
+    final extraChargesController = TextEditingController(text: ((service['extraCharges'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
+    final extraLabelController = TextEditingController(text: service['extraChargesLabel']?.toString() ?? '');
+    bool isFreeInspection = service['isFreeInspection'] as bool? ?? false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit Price: $title'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            prefixText: '₹ ',
-            filled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Edit Service: $title'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: pricingType,
+                  decoration: const InputDecoration(labelText: 'Pricing Model'),
+                  items: const [
+                    DropdownMenuItem(value: 'fixed', child: Text('🟢 Fixed Price')),
+                    DropdownMenuItem(value: 'starting', child: Text('🟡 Starts From')),
+                    DropdownMenuItem(value: 'range', child: Text('🔵 Price Range')),
+                    DropdownMenuItem(value: 'inspection', child: Text('🟠 Quote Required')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() {
+                        pricingType = val;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                if (pricingType == 'fixed' || pricingType == 'starting')
+                  TextField(
+                    controller: priceController,
+                    decoration: InputDecoration(
+                      labelText: pricingType == 'fixed' ? 'Price (₹)' : 'Starting Price (₹)',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                if (pricingType == 'range') ...[
+                  TextField(
+                    controller: minPriceController,
+                    decoration: const InputDecoration(labelText: 'Min Price (₹)'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: maxPriceController,
+                    decoration: const InputDecoration(labelText: 'Max Price (₹)'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
+                const SizedBox(height: 8),
+                TextField(
+                  controller: visitingController,
+                  decoration: const InputDecoration(labelText: 'Visiting Charges (₹)'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  title: const Text('Free Inspection', style: TextStyle(fontSize: 14)),
+                  value: isFreeInspection,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (val) {
+                    setDialogState(() {
+                      isFreeInspection = val ?? false;
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: gstController,
+                  decoration: const InputDecoration(labelText: 'GST (%) (Optional)'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: extraChargesController,
+                  decoration: const InputDecoration(labelText: 'Extra Charges (₹) (Optional)'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: extraLabelController,
+                  decoration: const InputDecoration(labelText: 'Extra Charges Label (Optional)'),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newPrice = double.tryParse(controller.text);
-              if (newPrice != null) {
-                final success = await ref.read(shopManagementProvider.notifier).updateServicePrice(serviceId, newPrice);
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final success = await ref.read(shopManagementProvider.notifier).updateServiceDetails(
+                  serviceId,
+                  {
+                    'pricingType': pricingType,
+                    'price': double.tryParse(priceController.text) ?? 0.0,
+                    'minPrice': double.tryParse(minPriceController.text) ?? 0.0,
+                    'maxPrice': double.tryParse(maxPriceController.text) ?? 0.0,
+                    'visitingCharges': double.tryParse(visitingController.text) ?? 0.0,
+                    'isFreeInspection': isFreeInspection,
+                    'gst': double.tryParse(gstController.text) ?? 0.0,
+                    'extraCharges': double.tryParse(extraChargesController.text) ?? 0.0,
+                    'extraChargesLabel': extraLabelController.text.trim(),
+                  },
+                );
+
                 if (success && mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Service price updated successfully!'), backgroundColor: AppColors.success),
+                    const SnackBar(content: Text('Service details updated successfully!'), backgroundColor: AppColors.success),
                   );
                 }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -267,12 +569,156 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // ── Shop Card Appearance ──────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceDark : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('SHOP CARD APPEARANCE', style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 11, color: AppColors.primary)),
+                        const SizedBox(height: 16),
+
+                        // Cover Banner
+                        GestureDetector(
+                          onTap: _bannerUploading ? null : _pickAndUploadBanner,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                SizedBox(
+                                  height: 130,
+                                  width: double.infinity,
+                                  child: shop.imagePath.startsWith('data:')
+                                      ? Image.memory(
+                                          base64Decode(shop.imagePath.split(',').last),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.network(
+                                          shop.imagePath,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Container(
+                                            color: AppColors.primary.withOpacity(0.15),
+                                            child: const Icon(Icons.store, color: AppColors.primary, size: 40),
+                                          ),
+                                        ),
+                                ),
+                                Container(
+                                  height: 130,
+                                  width: double.infinity,
+                                  color: Colors.black45,
+                                  child: _bannerUploading
+                                      ? const CircularProgressIndicator(color: Colors.white)
+                                      : const Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.camera_alt, color: Colors.white, size: 28),
+                                            SizedBox(height: 4),
+                                            Text('Tap to change shop banner', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                          ],
+                                        ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Estimated Service Time dropdown
+                        DropdownButtonFormField<String>(
+                          value: _estimatedServiceTime,
+                          decoration: const InputDecoration(
+                            labelText: 'Estimated Service Time',
+                            prefixIcon: Icon(Icons.timer_outlined),
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: '15 mins', child: Text('15 mins')),
+                            DropdownMenuItem(value: '20 mins', child: Text('20 mins')),
+                            DropdownMenuItem(value: '30 mins', child: Text('30 mins')),
+                            DropdownMenuItem(value: '45 mins', child: Text('45 mins')),
+                            DropdownMenuItem(value: '1 Hour', child: Text('1 Hour')),
+                            DropdownMenuItem(value: '1.5 Hours', child: Text('1.5 Hours')),
+                            DropdownMenuItem(value: '2 Hours', child: Text('2 Hours')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => _estimatedServiceTime = val);
+                          },
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Price Level dropdown
+                        DropdownButtonFormField<String>(
+                          value: _priceRange,
+                          decoration: const InputDecoration(
+                            labelText: 'Price Level',
+                            prefixIcon: Icon(Icons.currency_rupee),
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: '₹', child: Text('₹  — Budget')),
+                            DropdownMenuItem(value: '₹₹', child: Text('₹₹ — Moderate')),
+                            DropdownMenuItem(value: '₹₹₹', child: Text('₹₹₹ — Premium')),
+                            DropdownMenuItem(value: '₹₹₹₹', child: Text('₹₹₹₹ — Luxury')),
+                            DropdownMenuItem(value: 'Starting ₹199', child: Text('Starting ₹199')),
+                            DropdownMenuItem(value: 'From ₹299', child: Text('From ₹299')),
+                            DropdownMenuItem(value: 'Affordable', child: Text('Affordable')),
+                            DropdownMenuItem(value: 'Premium', child: Text('Premium')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => _priceRange = val);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _saveShopCardFields,
+                            icon: const Icon(Icons.save_outlined, size: 16),
+                            label: const Text('Save Card Details'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   // Visiting Charges and Radius Slider Card
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(12),
+                      color: isDark ? AppColors.surfaceDark : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                       border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                     ),
                     child: Column(
@@ -283,7 +729,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Service Radius', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text('Service Radius', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.secondary)),
                             Text('${_serviceRadius.toStringAsFixed(0)} KM', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
                           ],
                         ),
@@ -300,19 +746,20 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                           },
                           onChangeEnd: (_) => _saveOperationalHours(),
                         ),
-                        const Divider(height: 32, color: Colors.white10),
+                        Divider(height: 32, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                         
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Visiting / Consult Charges', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text('Visiting / Consult Charges', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.secondary)),
                             SizedBox(
                               width: 80,
                               height: 36,
                               child: TextFormField(
+                                key: ValueKey('visiting_charges_$_visitingCharges'),
                                 initialValue: _visitingCharges.toStringAsFixed(0),
                                 keyboardType: TextInputType.number,
-                                style: const TextStyle(color: Colors.white, fontSize: 14),
+                                style: TextStyle(color: isDark ? Colors.white : AppColors.secondary, fontSize: 14),
                                 textAlign: TextAlign.end,
                                 decoration: const InputDecoration(
                                   prefixText: '₹',
@@ -332,17 +779,19 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                             ),
                           ],
                         ),
-                        const Divider(height: 32, color: Colors.white10),
+                        Divider(height: 32, color: isDark ? AppColors.borderDark : AppColors.borderLight),
 
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Emergency Availability', style: TextStyle(fontWeight: FontWeight.bold)),
-                                Text('Show active for immediate booking requests', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                              ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Emergency Availability', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.secondary)),
+                                  Text('Show active for immediate booking requests', style: TextStyle(fontSize: 10, color: isDark ? Colors.white54 : AppColors.textSecondaryLight)),
+                                ],
+                              ),
                             ),
                             Switch(
                               value: _emergencyAvailable,
@@ -365,8 +814,15 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(12),
+                      color: isDark ? AppColors.surfaceDark : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                       border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                     ),
                     child: Column(
@@ -383,14 +839,14 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(day, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                Text(day, style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? Colors.white : AppColors.secondary)),
                                 Row(
                                   children: [
                                     Text(
                                       isClosed ? 'CLOSED' : '${dayData['openTime']} - ${dayData['closeTime']}',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: isClosed ? AppColors.danger : Colors.white,
+                                        color: isClosed ? AppColors.danger : (isDark ? Colors.white : AppColors.secondary),
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -420,8 +876,15 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(12),
+                      color: isDark ? AppColors.surfaceDark : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                       border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                     ),
                     child: Column(
@@ -439,7 +902,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                         ),
                         const SizedBox(height: 12),
                         if (_holidays.isEmpty)
-                          const Text('No holidays scheduled. The shop is active daily.', style: TextStyle(color: Colors.white54, fontSize: 12))
+                          Text('No holidays scheduled. The shop is active daily.', style: TextStyle(color: isDark ? Colors.white54 : AppColors.textSecondaryLight, fontSize: 12))
                         else
                           Wrap(
                             spacing: 8,
@@ -521,8 +984,15 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                         return Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                            borderRadius: BorderRadius.circular(12),
+                            color: isDark ? AppColors.surfaceDark : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                                blurRadius: 16,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
                             border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                           ),
                           child: Row(
@@ -531,7 +1001,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                                 width: 50,
                                 height: 50,
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(10),
                                   image: const DecorationImage(
                                     image: NetworkImage('https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=100'),
                                     fit: BoxFit.cover,
@@ -543,9 +1013,22 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                    Text(
+                                      title,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: isDark ? Colors.white : AppColors.secondary,
+                                      ),
+                                    ),
                                     const SizedBox(height: 4),
-                                    Text(duration, style: const TextStyle(fontSize: 11, color: Colors.white54)),
+                                    Text(
+                                      duration,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+                                      ),
+                                    ),
                                     const SizedBox(height: 4),
                                     Row(
                                       children: [
@@ -555,7 +1038,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                                         ),
                                         const SizedBox(width: 8),
                                         InkWell(
-                                          onTap: () => _showEditPriceDialog(serviceId, title, price),
+                                          onTap: () => _showEditServiceDetailsDialog(service),
                                           child: const Icon(Icons.edit, size: 14, color: AppColors.primary),
                                         ),
                                       ],
@@ -570,6 +1053,36 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                                   ref.read(shopManagementProvider.notifier).toggleService(serviceId, val);
                                 },
                               ),
+                              if (serviceId.contains('custom'))
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+                                  tooltip: 'Delete service',
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Delete Service'),
+                                        content: Text('Delete "$title"? This cannot be undone.'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+                                            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true && mounted) {
+                                      final ok = await ref.read(shopManagementProvider.notifier).deleteService(serviceId);
+                                      if (ok && mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Service deleted.'), backgroundColor: AppColors.danger),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
                             ],
                           ),
                         );
@@ -595,23 +1108,53 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                       border: Border.all(color: Colors.white12, style: BorderStyle.values[1]),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Simulated picking image and uploading to Cloudinary...'), backgroundColor: AppColors.info),
-                        );
-                      },
-                      icon: const Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary),
-                    ),
+                    child: _portfolioUploading
+                        ? const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                            ),
+                          )
+                        : IconButton(
+                            onPressed: _pickAndUploadPortfolio,
+                            icon: const Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary),
+                          ),
                   );
                 }
 
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    shop.portfolioImages[index],
-                    fit: BoxFit.cover,
-                  ),
+                final imageUrl = shop.portfolioImages[index];
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: Colors.white10,
+                            child: const Icon(Icons.image_not_supported, color: Colors.white30),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () => _deletePortfolioImage(imageUrl),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.delete_outline, size: 16, color: AppColors.danger),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

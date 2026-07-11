@@ -207,9 +207,18 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,17 +328,51 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
     late Color bg, textColor;
     late String label;
     switch (status) {
-      case 'pending':    bg = Colors.orange.shade50;  textColor = Colors.orange.shade800;  label = 'PENDING';     break;
-      case 'accepted':   bg = Colors.blue.shade50;    textColor = Colors.blue.shade800;    label = 'ACCEPTED';    break;
-      case 'on_the_way': bg = Colors.purple.shade50;  textColor = Colors.purple.shade800;  label = 'ON THE WAY';  break;
-      case 'completed':  bg = Colors.green.shade50;   textColor = Colors.green.shade800;   label = 'COMPLETED';   break;
-      case 'rejected':   bg = Colors.red.shade50;     textColor = Colors.red.shade800;     label = 'REJECTED';    break;
-      default:           bg = Colors.grey.shade100;   textColor = Colors.grey.shade700;    label = 'CANCELLED';
+      case 'pending':
+        bg = Colors.orange.withOpacity(0.12);
+        textColor = Colors.orange.shade800;
+        label = 'PENDING';
+        break;
+      case 'accepted':
+        bg = Colors.blue.withOpacity(0.12);
+        textColor = Colors.blue.shade800;
+        label = 'ACCEPTED';
+        break;
+      case 'on_the_way':
+        bg = Colors.purple.withOpacity(0.12);
+        textColor = Colors.purple.shade800;
+        label = 'ON THE WAY';
+        break;
+      case 'completed':
+        bg = Colors.green.withOpacity(0.12);
+        textColor = Colors.green.shade800;
+        label = 'COMPLETED';
+        break;
+      case 'rejected':
+        bg = Colors.red.withOpacity(0.12);
+        textColor = Colors.red.shade800;
+        label = 'REJECTED';
+        break;
+      default:
+        bg = Colors.grey.withOpacity(0.12);
+        textColor = Colors.grey.shade700;
+        label = 'CANCELLED';
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-      child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: textColor, letterSpacing: 0.5)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          color: textColor,
+          letterSpacing: 0.6,
+        ),
+      ),
     );
   }
 

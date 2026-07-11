@@ -37,7 +37,8 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'quickfix_super_secure_session_key_987654_change_me';
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // --- FIREBASE ADMIN INITIALIZATION ---
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_JSON ? process.env.FIREBASE_SERVICE_ACCOUNT_JSON.trim() : null;
@@ -420,13 +421,15 @@ app.post('/api/wallet/add-money', requireAuth, async (req, res) => {
 
 // 2. Shop Partners (Registration, Login, Update, Delete)
 app.post('/api/shops/register', async (req, res) => {
-  const { name, ownerName, password, phone, latitude, longitude, categories, imagePath, email, gst, pan, aadhaar, verificationDocs, visitingCharges, serviceRadius, timings, verificationStatus } = req.body;
+  const { name, ownerName, password, phone, latitude, longitude, categories, imagePath, email, gst, pan, aadhaar, verificationDocs, visitingCharges, serviceRadius, timings, verificationStatus, estimatedServiceTime, priceRange } = req.body;
   if (!name || !ownerName || !phone) {
     return res.status(400).json({ error: 'Shop name, Owner name, and Phone number are required' });
   }
 
+  const phoneStr = String(phone).trim();
+
   try {
-    const existing = await Shop.findOne({ phone });
+    const existing = await Shop.findOne({ phone: phoneStr });
     if (existing) {
       return res.status(400).json({ error: 'Shop with this phone number already registered' });
     }
@@ -458,7 +461,7 @@ app.post('/api/shops/register', async (req, res) => {
       ownerName,
       password: hashedPassword,
       tempPassword,
-      phone,
+      phone: phoneStr,
       email: email || '',
       latitude: parseFloat(latitude) || 26.4912,
       longitude: parseFloat(longitude) || 80.3156,
@@ -466,7 +469,8 @@ app.post('/api/shops/register', async (req, res) => {
       imagePath: imagePath || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300',
       rating: 5.0,
       deliveryTimeMins: 20,
-      priceRange: "₹₹",
+      estimatedServiceTime: estimatedServiceTime || '20 mins',
+      priceRange: priceRange || '₹₹',
       isOnline: true,
       timings: timings || "09:00 AM - 09:00 PM",
       portfolioImages: [],
@@ -810,9 +814,8 @@ app.post('/api/provider/update-services', requireAuth, async (req, res) => {
   }
 });
 
-// 6. Update Shop Details (Hours, holidays, radius, charges)
 app.post('/api/provider/update-hours', requireAuth, async (req, res) => {
-  const { workingHours, holidays, serviceRadius, visitingCharges, emergencyAvailable } = req.body;
+  const { workingHours, holidays, serviceRadius, visitingCharges, emergencyAvailable, estimatedServiceTime, priceRange } = req.body;
   try {
     const shop = await Shop.findById(req.user.id);
     if (!shop) {
@@ -824,6 +827,8 @@ app.post('/api/provider/update-hours', requireAuth, async (req, res) => {
     if (serviceRadius !== undefined) shop.serviceRadius = parseFloat(serviceRadius);
     if (visitingCharges !== undefined) shop.visitingCharges = parseFloat(visitingCharges);
     if (emergencyAvailable !== undefined) shop.emergencyAvailable = emergencyAvailable;
+    if (estimatedServiceTime !== undefined) shop.estimatedServiceTime = estimatedServiceTime;
+    if (priceRange !== undefined) shop.priceRange = priceRange;
 
     await shop.save();
     res.json({ success: true, shop });
@@ -921,6 +926,107 @@ app.post('/api/provider/update-location', requireAuth, async (req, res) => {
   } catch (e) {
     console.error('Update provider location error:', e);
     res.status(500).json({ error: 'Failed to update location' });
+  }
+});
+
+// 10b. Fetch provider profile directly (single source of truth)
+app.get('/api/provider/profile', requireAuth, async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Provider account not found' });
+    }
+    res.json({ success: true, shop });
+  } catch (e) {
+    console.error('Fetch provider profile error:', e);
+    res.status(500).json({ error: 'Failed to fetch provider profile' });
+  }
+});
+
+// 10c. Shop banner image upload — stores in Cloudinary
+app.post('/api/provider/upload-banner', requireAuth, async (req, res) => {
+  try {
+    const { base64Image, mimeType } = req.body;
+    if (!base64Image) {
+      return res.status(400).json({ error: 'base64Image is required' });
+    }
+    const dataUri = `data:${mimeType || 'image/jpeg'};base64,${base64Image}`;
+    
+    const uploadResponse = await cloudinary.uploader.upload(dataUri, {
+      folder: 'quickfix_banners',
+      resource_type: 'image',
+    });
+
+    const imageUrl = uploadResponse.secure_url;
+    const shop = await Shop.findByIdAndUpdate(
+      req.user.id,
+      { imagePath: imageUrl },
+      { new: true }
+    );
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+    res.json({ success: true, imagePath: shop.imagePath });
+  } catch (e) {
+    console.error('Cloudinary upload error:', e.message || e);
+    res.status(500).json({ error: `Failed to upload banner: ${e.message || e}` });
+  }
+});
+
+// 10d. Shop portfolio image upload — stores in Cloudinary and appends to portfolioImages
+app.post('/api/provider/upload-portfolio', requireAuth, async (req, res) => {
+  try {
+    const { base64Image, mimeType } = req.body;
+    if (!base64Image) {
+      return res.status(400).json({ error: 'base64Image is required' });
+    }
+    const dataUri = `data:${mimeType || 'image/jpeg'};base64,${base64Image}`;
+    
+    const uploadResponse = await cloudinary.uploader.upload(dataUri, {
+      folder: 'quickfix_portfolios',
+      resource_type: 'image',
+    });
+
+    const imageUrl = uploadResponse.secure_url;
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+    
+    if (!shop.portfolioImages) {
+      shop.portfolioImages = [];
+    }
+    shop.portfolioImages.push(imageUrl);
+    await shop.save();
+    
+    res.json({ success: true, portfolioImages: shop.portfolioImages });
+  } catch (e) {
+    console.error('Cloudinary portfolio upload error:', e.message || e);
+    res.status(500).json({ error: `Failed to upload portfolio image: ${e.message || e}` });
+  }
+});
+
+// 10e. Shop portfolio image delete
+app.post('/api/provider/delete-portfolio', requireAuth, async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'imageUrl is required' });
+    }
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+    
+    if (shop.portfolioImages) {
+      shop.portfolioImages = shop.portfolioImages.filter(img => img !== imageUrl);
+      await shop.save();
+    }
+    
+    res.json({ success: true, portfolioImages: shop.portfolioImages });
+  } catch (e) {
+    console.error('Portfolio delete error:', e.message || e);
+    res.status(500).json({ error: `Failed to delete portfolio image: ${e.message || e}` });
   }
 });
 

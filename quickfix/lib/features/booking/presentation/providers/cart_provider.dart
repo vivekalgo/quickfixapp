@@ -5,12 +5,18 @@ class CartItem {
   final String title;
   final double price;
   final int quantity;
+  final String pricingType;
+  final bool isFreeInspection;
+  final double visitingCharges;
 
   const CartItem({
     required this.id,
     required this.title,
     required this.price,
     required this.quantity,
+    this.pricingType = 'fixed',
+    this.isFreeInspection = false,
+    this.visitingCharges = 0.0,
   });
 
   CartItem copyWith({int? quantity}) {
@@ -19,6 +25,9 @@ class CartItem {
       title: title,
       price: price,
       quantity: quantity ?? this.quantity,
+      pricingType: pricingType,
+      isFreeInspection: isFreeInspection,
+      visitingCharges: visitingCharges,
     );
   }
 }
@@ -26,7 +35,7 @@ class CartItem {
 class CartNotifier extends StateNotifier<Map<String, CartItem>> {
   CartNotifier() : super({});
 
-  void addItem(String id, String title, double price) {
+  void addItem(String id, String title, double price, {String pricingType = 'fixed', bool isFreeInspection = false, double visitingCharges = 0.0}) {
     if (state.containsKey(id)) {
       state = {
         ...state,
@@ -35,7 +44,15 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
     } else {
       state = {
         ...state,
-        id: CartItem(id: id, title: title, price: price, quantity: 1),
+        id: CartItem(
+          id: id,
+          title: title,
+          price: price,
+          quantity: 1,
+          pricingType: pricingType,
+          isFreeInspection: isFreeInspection,
+          visitingCharges: visitingCharges,
+        ),
       };
     }
   }

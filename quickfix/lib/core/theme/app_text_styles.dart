@@ -6,57 +6,72 @@ class AppTextStyles {
   // Headings (using Outfit)
   static TextStyle headingXLarge(bool isDark) => GoogleFonts.outfit(
         fontSize: 28,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.6,
+        height: 1.2,
         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
       );
 
   static TextStyle headingLarge(bool isDark) => GoogleFonts.outfit(
         fontSize: 22,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.4,
+        height: 1.25,
         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
       );
 
   static TextStyle headingMedium(bool isDark) => GoogleFonts.outfit(
         fontSize: 18,
         fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+        height: 1.3,
         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
       );
 
   static TextStyle headingSmall(bool isDark) => GoogleFonts.outfit(
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: FontWeight.w600,
+        letterSpacing: -0.1,
+        height: 1.3,
         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
       );
 
   // Body Text (using Inter)
   static TextStyle bodyLarge(bool isDark) => GoogleFonts.inter(
-        fontSize: 16,
-        fontWeight: FontWeight.normal,
+        fontSize: 15,
+        fontWeight: FontWeight.w400,
+        height: 1.45,
+        letterSpacing: 0.1,
         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
       );
 
   static TextStyle bodyMedium(bool isDark) => GoogleFonts.inter(
-        fontSize: 14,
-        fontWeight: FontWeight.normal,
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
+        height: 1.4,
+        letterSpacing: 0.1,
         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
       );
 
   static TextStyle bodySmall(bool isDark) => GoogleFonts.inter(
-        fontSize: 12,
-        fontWeight: FontWeight.normal,
+        fontSize: 11,
+        fontWeight: FontWeight.w400,
+        height: 1.35,
         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
       );
 
   // Buttons & Badges
   static TextStyle buttonText = GoogleFonts.outfit(
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: FontWeight.w600,
+    letterSpacing: 0.2,
     color: Colors.white,
   );
 
   static TextStyle badgeText = GoogleFonts.inter(
     fontSize: 10,
     fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
     color: Colors.white,
   );
 }

@@ -164,12 +164,22 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 14),
-                            const SizedBox(width: 4),
+                            const Icon(Icons.star_rounded, color: Color(0xFFFFB300), size: 15),
+                            const SizedBox(width: 2),
                             Text(
-                              '${shop.rating} ★',
+                              shop.rating.toStringAsFixed(1),
                               style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : AppColors.secondary, fontSize: 12),
                             ),
+                            if (shop.reviewsCount > 0) ...[
+                              const SizedBox(width: 3),
+                              Text(
+                                '(${shop.reviewsCount})',
+                                style: TextStyle(
+                                  color: isDark ? Colors.white54 : Colors.grey[600],
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
                             const SizedBox(width: 12),
                             const Icon(Icons.location_on_outlined, color: AppColors.textSecondaryLight, size: 13),
                             const SizedBox(width: 2),

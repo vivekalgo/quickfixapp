@@ -245,8 +245,18 @@ class ProfileScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
                       color: isDark ? AppColors.surfaceDark : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -483,8 +493,18 @@ class ProfileScreen extends ConsumerWidget {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          width: 1,
+        ),
       ),
       child: Column(
         children: tiles.asMap().entries.map((entry) {
@@ -494,8 +514,8 @@ class ProfileScreen extends ConsumerWidget {
             children: [
               InkWell(
                 borderRadius: BorderRadius.vertical(
-                  top: i == 0 ? const Radius.circular(16) : Radius.zero,
-                  bottom: i == tiles.length - 1 ? const Radius.circular(16) : Radius.zero,
+                  top: i == 0 ? const Radius.circular(20) : Radius.zero,
+                  bottom: i == tiles.length - 1 ? const Radius.circular(20) : Radius.zero,
                 ),
                 onTap: () {
                   AppHaptics.lightTap();

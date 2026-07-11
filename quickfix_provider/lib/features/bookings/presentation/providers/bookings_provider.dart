@@ -147,6 +147,44 @@ class BookingsNotifier extends StateNotifier<BookingsState> {
     }
   }
 
+  Future<bool> uploadQuotation({
+    required String bookingId,
+    required double labourCharge,
+    required double spareParts,
+    required double additionalMaterials,
+    required double visitingCharges,
+    required double discount,
+    required double gst,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final response = await dio.post(
+        '/bookings/$bookingId/quotation',
+        data: {
+          'labourCharge': labourCharge,
+          'spareParts': spareParts,
+          'additionalMaterials': additionalMaterials,
+          'visitingCharges': visitingCharges,
+          'discount': discount,
+          'gst': gst,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        // Refresh details
+        await fetchBookingDetails(bookingId);
+        await fetchBookings(silent: true);
+        return true;
+      }
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to upload quotation');
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
+    }
+  }
+
   // Live Location Tracking during Navigation
   Future<void> _startLocationTracking(String bookingId) async {
     _stopLocationTracking(); // Clear any previous tracking

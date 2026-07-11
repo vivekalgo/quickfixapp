@@ -96,7 +96,14 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
               onPressed: () {
                 ref.read(cartProvider.notifier).clearCart();
                 ref.read(cartShopIdProvider.notifier).state = _shop!.id;
-                ref.read(cartProvider.notifier).addItem(service.id, service.title, service.price);
+                ref.read(cartProvider.notifier).addItem(
+                      service.id,
+                      service.title,
+                      service.price,
+                      pricingType: service.pricingType,
+                      isFreeInspection: service.isFreeInspection,
+                      visitingCharges: service.visitingCharges,
+                    );
                 Navigator.pop(ctx);
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
@@ -107,7 +114,14 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
       );
     } else {
       ref.read(cartShopIdProvider.notifier).state = _shop!.id;
-      ref.read(cartProvider.notifier).addItem(service.id, service.title, service.price);
+      ref.read(cartProvider.notifier).addItem(
+            service.id,
+            service.title,
+            service.price,
+            pricingType: service.pricingType,
+            isFreeInspection: service.isFreeInspection,
+            visitingCharges: service.visitingCharges,
+          );
     }
   }
 
@@ -155,6 +169,7 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
     }
 
     final shop = _shop!;
+    final displayedServices = shop.services.where((s) => s.isEnabled != false && s.isAvailable != false).toList();
     final imageToUse = shop.imagePath.isNotEmpty
         ? shop.imagePath
         : 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500';
@@ -239,17 +254,34 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: AppColors.success,
-                              borderRadius: BorderRadius.circular(8),
+                              color: AppColors.success.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.success.withOpacity(0.3)),
                             ),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.star, color: Colors.white, size: 14),
+                                const Icon(Icons.star_rounded, color: Color(0xFFFFB300), size: 16),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '${shop.rating}',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                  shop.rating.toStringAsFixed(1),
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : AppColors.secondary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
                                 ),
+                                if (shop.reviewsCount > 0) ...[
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '(${shop.reviewsCount})',
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -337,7 +369,7 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
               ),
 
               // Shop Services dynamic listings
-              shop.services.isEmpty
+              displayedServices.isEmpty
                   ? SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 40.0),
@@ -352,7 +384,7 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                   : SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          final service = shop.services[index];
+                          final service = displayedServices[index];
                           final quantity = cart[service.id]?.quantity ?? 0;
                           final isInCart = quantity > 0;
 
@@ -361,16 +393,17 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: isDark ? AppColors.surfaceDark : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.02),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
+                                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 8),
                                 ),
                               ],
                               border: Border.all(
                                 color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                width: 1,
                               ),
                             ),
                             child: Row(
@@ -387,15 +420,74 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                                       const SizedBox(height: 6),
                                       Row(
                                         children: [
+                                          if (service.pricingType == 'fixed')
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'Fixed Price',
+                                                style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            )
+                                          else if (service.pricingType == 'starting')
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.amber.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'Starts From',
+                                                style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            )
+                                          else if (service.pricingType == 'range')
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'Price Range',
+                                                style: TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            )
+                                          else if (service.pricingType == 'inspection')
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.orange.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'Quote Required',
+                                                style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
                                           Text(
-                                            '₹${service.price.toInt()}',
+                                            service.pricingType == 'inspection'
+                                                ? 'Price after inspection'
+                                                : service.pricingType == 'starting'
+                                                    ? 'Starting from ₹${service.price.toInt()}'
+                                                    : service.pricingType == 'range'
+                                                        ? '₹${service.minPrice.toInt()} - ₹${service.maxPrice.toInt()}'
+                                                        : '₹${service.price.toInt()}',
                                             style: TextStyle(
-                                              fontSize: 16,
+                                              fontSize: 15,
                                               fontWeight: FontWeight.bold,
                                               color: isDark ? Colors.white : AppColors.secondary,
                                             ),
                                           ),
-                                          if (service.originalPrice > service.price) ...[
+                                          if (service.pricingType == 'fixed' && service.originalPrice > service.price) ...[
                                             const SizedBox(width: 8),
                                             Text(
                                               '₹${service.originalPrice.toInt()}',
@@ -473,7 +565,14 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                                           ? Container(
                                               decoration: BoxDecoration(
                                                 color: AppColors.primary,
-                                                borderRadius: BorderRadius.circular(16),
+                                                borderRadius: BorderRadius.circular(12),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: AppColors.primary.withOpacity(0.2),
+                                                    blurRadius: 4,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
                                               ),
                                               child: Row(
                                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -503,9 +602,12 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                                               onPressed: () => _handleAddToCart(service),
                                               style: OutlinedButton.styleFrom(
                                                 foregroundColor: AppColors.primary,
+                                                backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
                                                 side: const BorderSide(color: AppColors.primary, width: 1.5),
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                                 padding: EdgeInsets.zero,
+                                                elevation: 2,
+                                                shadowColor: Colors.black.withOpacity(0.05),
                                               ),
                                               child: const Text('ADD', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                             ),
@@ -516,7 +618,7 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
                             ),
                           ).animate().fadeIn().slideY(begin: 0.05, end: 0);
                         },
-                        childCount: shop.services.length,
+                        childCount: displayedServices.length,
                       ),
                     ),
               const SliverToBoxAdapter(

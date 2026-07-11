@@ -141,6 +141,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     List<dynamic>? walletTransactions,
     String? ownerPhone,
     String? ownerEmail,
+    String? estimatedServiceTime,
+    String? priceRange,
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -162,6 +164,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (walletTransactions != null) dataToSend['walletTransactions'] = walletTransactions;
       if (ownerPhone != null) dataToSend['ownerPhone'] = ownerPhone;
       if (ownerEmail != null) dataToSend['ownerEmail'] = ownerEmail;
+      if (estimatedServiceTime != null) dataToSend['estimatedServiceTime'] = estimatedServiceTime;
+      if (priceRange != null) dataToSend['priceRange'] = priceRange;
 
       // We call the update hours endpoint which updates general details
       final response = await dio.post(ApiEndpoints.updateHours, data: dataToSend);
@@ -185,22 +189,107 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (state.shop == null) return;
     try {
       final dio = _ref.read(dioClientProvider);
-      // Fetch shop details via get nearbies query using shopDisplayId or phone
-      final response = await dio.get('/shops');
-      if (response.data is List) {
-        final list = response.data as List;
-        final matched = list.firstWhere(
-          (element) => element['id'] == state.shop!.id,
-          orElse: () => null,
-        );
-        if (matched != null) {
-          final updatedShop = ShopModel.fromJson(matched);
-          await HiveService.saveShopProfile(updatedShop.toJson());
-          state = state.copyWith(shop: updatedShop);
-        }
+      final response = await dio.get('/provider/profile');
+      if (response.data != null && response.data['success'] == true) {
+        final shopJson = response.data['shop'] as Map<String, dynamic>;
+        final updatedShop = ShopModel.fromJson(shopJson);
+        await HiveService.saveShopProfile(updatedShop.toJson());
+        state = state.copyWith(shop: updatedShop);
       }
     } catch (e) {
       print('Refresh profile error: $e');
+    }
+  }
+
+  Future<bool> uploadShopBanner(String base64Image, String mimeType) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final response = await dio.post(
+        '/provider/upload-banner',
+        data: {
+          'base64Image': base64Image,
+          'mimeType': mimeType,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final newImagePath = response.data['imagePath']?.toString() ?? '';
+        if (state.shop != null && newImagePath.isNotEmpty) {
+          final updatedShopJson = state.shop!.toJson();
+          updatedShopJson['imagePath'] = newImagePath;
+          final updatedShop = ShopModel.fromJson(updatedShopJson);
+          await HiveService.saveShopProfile(updatedShop.toJson());
+          state = state.copyWith(isLoading: false, shop: updatedShop);
+          return true;
+        }
+      }
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to upload shop banner.');
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> uploadPortfolioImage(String base64Image, String mimeType) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final response = await dio.post(
+        '/provider/upload-portfolio',
+        data: {
+          'base64Image': base64Image,
+          'mimeType': mimeType,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final newImages = List<String>.from(response.data['portfolioImages'] as List);
+        if (state.shop != null) {
+          final updatedShopJson = state.shop!.toJson();
+          updatedShopJson['portfolioImages'] = newImages;
+          final updatedShop = ShopModel.fromJson(updatedShopJson);
+          await HiveService.saveShopProfile(updatedShop.toJson());
+          state = state.copyWith(isLoading: false, shop: updatedShop);
+          return true;
+        }
+      }
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to upload portfolio image.');
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> deletePortfolioImage(String imageUrl) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final response = await dio.post(
+        '/provider/delete-portfolio',
+        data: {
+          'imageUrl': imageUrl,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final newImages = List<String>.from(response.data['portfolioImages'] as List);
+        if (state.shop != null) {
+          final updatedShopJson = state.shop!.toJson();
+          updatedShopJson['portfolioImages'] = newImages;
+          final updatedShop = ShopModel.fromJson(updatedShopJson);
+          await HiveService.saveShopProfile(updatedShop.toJson());
+          state = state.copyWith(isLoading: false, shop: updatedShop);
+          return true;
+        }
+      }
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to delete portfolio image.');
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
     }
   }
 

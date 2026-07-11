@@ -268,9 +268,19 @@ class DashboardScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,14 +291,23 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(fontSize: 12, color: Colors.white54, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               Icon(icon, color: color, size: 20),
             ],
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: 'Outfit'),
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppColors.secondary,
+              fontFamily: 'Inter',
+            ),
           ),
         ],
       ),
@@ -296,18 +315,33 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildRequestCard(BuildContext context, WidgetRef ref, dynamic booking, bool isDark) {
+    final labelStyle = TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.5,
+      color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+    );
+    final valueStyle = TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 13,
+      color: isDark ? Colors.white : AppColors.secondary,
+    );
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1),
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.05),
-            blurRadius: 8,
-            spreadRadius: 1,
-          )
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: Column(
@@ -333,7 +367,13 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const Divider(height: 20, color: Colors.white12),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: Divider(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              height: 1,
+            ),
+          ),
           
           // Job details (Privacy-safe)
           Row(
@@ -342,16 +382,16 @@ class DashboardScreen extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('SERVICE', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                  const SizedBox(height: 2),
-                  Text(booking.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text('SERVICE', style: labelStyle),
+                  const SizedBox(height: 3),
+                  Text(booking.title, style: valueStyle),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('EST. EARNINGS', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                  const SizedBox(height: 2),
+                  Text('EST. EARNINGS', style: labelStyle),
+                  const SizedBox(height: 3),
                   Text(
                     CurrencyFormatter.format(booking.estEarnings),
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.success),
@@ -360,7 +400,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -368,22 +408,22 @@ class DashboardScreen extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('LOCATION AREA', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                  const SizedBox(height: 2),
-                  Text(booking.approxAddress, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text('LOCATION AREA', style: labelStyle),
+                  const SizedBox(height: 3),
+                  Text(booking.approxAddress, style: valueStyle),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('DURATION', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                  const SizedBox(height: 2),
-                  Text(booking.estDuration, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text('DURATION', style: labelStyle),
+                  const SizedBox(height: 3),
+                  Text(booking.estDuration, style: valueStyle),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -391,22 +431,25 @@ class DashboardScreen extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('VISITING CHARGES', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                  const SizedBox(height: 2),
-                  Text(CurrencyFormatter.format(booking.visitingCharges), style: const TextStyle(fontSize: 12)),
+                  Text('VISITING CHARGES', style: labelStyle),
+                  const SizedBox(height: 3),
+                  Text(
+                    CurrencyFormatter.format(booking.visitingCharges),
+                    style: valueStyle,
+                  ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('TIME SLOT', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                  const SizedBox(height: 2),
-                  Text(booking.slot, style: const TextStyle(fontSize: 12)),
+                  Text('TIME SLOT', style: labelStyle),
+                  const SizedBox(height: 3),
+                  Text(booking.slot, style: valueStyle),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           
           // Action Buttons
           Row(
@@ -419,9 +462,9 @@ class DashboardScreen extends ConsumerWidget {
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.danger,
-                    side: const BorderSide(color: AppColors.danger),
+                    side: const BorderSide(color: AppColors.danger, width: 1.5),
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text('Reject', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
@@ -446,7 +489,8 @@ class DashboardScreen extends ConsumerWidget {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
                   ),
                   child: const Text('Accept Booking', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),

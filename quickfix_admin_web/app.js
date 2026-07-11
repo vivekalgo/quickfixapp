@@ -365,6 +365,7 @@ function renderShopsList() {
         <p style="font-size:11px;color:var(--primary-solid);margin-top:4px;">Coords: ${s.latitude}, ${s.longitude} • Radius: ${s.serviceRadius}km • Visiting Charges: ₹${s.visitingCharges}</p>
         <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">GST: ${s.gst || 'N/A'} • PAN: ${s.pan || 'N/A'} • Aadhaar: ${s.aadhaar || 'N/A'}</p>
         <p style="font-size:11px;color:var(--warning);margin-top:2px; font-family: monospace;">Login ID: ${s.shopDisplayId || 'N/A'} • Password: ${s.tempPassword || 'N/A'}</p>
+        <p style="font-size:12px;color:var(--accent);margin-top:4px;font-weight:600;">⭐ ${(s.rating || 5.0).toFixed(1)} <span style="font-weight:400;color:var(--text-muted);">(${ (s.reviewsCount || 0)} reviews)</span></p>
       </div>
       <div class="shop-actions">
         <div style="display:flex; gap:12px; align-items:center; font-size:11px;">
@@ -561,7 +562,11 @@ function setupForms() {
       pan: document.getElementById('shop-pan').value,
       aadhaar: document.getElementById('shop-aadhaar').value,
       verificationDocs: document.getElementById('shop-docs').value.split('\n').filter(d => d.trim().length > 0),
-      categories: checkedCats
+      categories: checkedCats,
+      estimatedServiceTime: document.getElementById('shop-estimated-time').value,
+      priceRange: document.getElementById('shop-price-range').value,
+      rating: parseFloat(document.getElementById('shop-rating').value) || 5.0,
+      reviewsCount: parseInt(document.getElementById('shop-reviews-count').value) || 0
     };
     
     try {
@@ -963,6 +968,10 @@ function editShop(id) {
   document.getElementById('shop-pan').value = shop.pan || '';
   document.getElementById('shop-aadhaar').value = shop.aadhaar || '';
   document.getElementById('shop-docs').value = (shop.verificationDocs || []).join('\n');
+  document.getElementById('shop-estimated-time').value = shop.estimatedServiceTime || '20 mins';
+  document.getElementById('shop-price-range').value = shop.priceRange || '₹₹';
+  document.getElementById('shop-rating').value = (shop.rating || 5.0).toFixed(1);
+  document.getElementById('shop-reviews-count').value = shop.reviewsCount || 0;
   
   // Set categories checkboxes
   document.querySelectorAll('input[name="categories"]').forEach(cb => {
@@ -1195,29 +1204,78 @@ function renderModalServicesList() {
     
     const imgUrl = srv.imageUrl || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300';
     
+    let priceDisplay = '';
+    let badgeHtml = '';
+    const type = srv.pricingType || 'fixed';
+    
+    if (type === 'fixed') {
+      priceDisplay = `₹${srv.price} <span style="text-decoration:line-through;color:var(--text-secondary);font-size:10px;margin-left:4px;">₹${srv.originalPrice || ''}</span>`;
+      badgeHtml = `<span class="badge" style="background-color:rgba(76, 175, 80, 0.15); color:#4CAF50; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-right:6px;">🟢 Fixed Price</span>`;
+    } else if (type === 'starting') {
+      priceDisplay = `Starting from ₹${srv.price}`;
+      badgeHtml = `<span class="badge" style="background-color:rgba(251, 192, 45, 0.15); color:#FBC02D; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-right:6px;">🟡 Starts From</span>`;
+    } else if (type === 'range') {
+      priceDisplay = `₹${srv.minPrice || 0} - ₹${srv.maxPrice || 0}`;
+      badgeHtml = `<span class="badge" style="background-color:rgba(33, 150, 243, 0.15); color:#2196F3; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-right:6px;">🔵 Price Range</span>`;
+    } else if (type === 'inspection') {
+      priceDisplay = `Price after inspection`;
+      badgeHtml = `<span class="badge" style="background-color:rgba(255, 152, 0, 0.15); color:#FF9800; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-right:6px;">🟠 Quote Required</span>`;
+    }
+    
     div.innerHTML = `
       <img src="${imgUrl}" alt="${srv.title}">
       <div class="service-item-details">
-        <h5>${srv.title}</h5>
-        <p>₹${srv.price} <span style="text-decoration:line-through;color:var(--text-secondary);font-size:10px;margin-left:4px;">₹${srv.originalPrice}</span> • ${srv.durationText}</p>
+        <h5 style="display:flex; align-items:center; gap:6px; margin:0;">${srv.title}</h5>
+        <div style="margin-top: 4px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+          ${badgeHtml}
+          <span style="font-size:12px; font-weight:600; color:var(--text-primary);">${priceDisplay}</span>
+          <span style="color:var(--text-secondary);font-size:11px;"> • ${srv.durationText}</span>
+        </div>
       </div>
       <div class="service-item-actions">
-        <button class="btn-icon" onclick="moveService(${idx}, -1)" title="Move Up" ${idx === 0 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>
+        <button class="btn-icon" type="button" onclick="moveService(${idx}, -1)" title="Move Up" ${idx === 0 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>
           <i class="fa-solid fa-arrow-up"></i>
         </button>
-        <button class="btn-icon" onclick="moveService(${idx}, 1)" title="Move Down" ${idx === tempServicesList.length - 1 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>
+        <button class="btn-icon" type="button" onclick="moveService(${idx}, 1)" title="Move Down" ${idx === tempServicesList.length - 1 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>
           <i class="fa-solid fa-arrow-down"></i>
         </button>
-        <button class="btn-icon" onclick="loadServiceForEdit('${srv.id}')" title="Edit Service">
+        <button class="btn-icon" type="button" onclick="loadServiceForEdit('${srv.id}')" title="Edit Service">
           <i class="fa-solid fa-pen-to-square"></i>
         </button>
-        <button class="btn-icon btn-delete" onclick="deleteService('${srv.id}')" title="Delete Service">
+        <button class="btn-icon btn-delete" type="button" onclick="deleteService('${srv.id}')" title="Delete Service">
           <i class="fa-solid fa-trash-can"></i>
         </button>
       </div>
     `;
     container.appendChild(div);
   });
+}
+
+function updatePricingFieldsVisibility(type) {
+  const groupFixed = document.getElementById('group-fixed-price');
+  const groupOriginal = document.getElementById('group-original-price');
+  const groupRange = document.getElementById('group-range-price');
+  const lblPrice = document.getElementById('lbl-srv-price');
+
+  if (!groupFixed || !groupRange || !lblPrice) return;
+
+  if (type === 'fixed') {
+    groupFixed.style.display = 'flex';
+    if (groupOriginal) groupOriginal.style.display = 'block';
+    groupRange.style.display = 'none';
+    lblPrice.textContent = 'Selling Price (₹)';
+  } else if (type === 'starting') {
+    groupFixed.style.display = 'flex';
+    if (groupOriginal) groupOriginal.style.display = 'block';
+    groupRange.style.display = 'none';
+    lblPrice.textContent = 'Starting Price (₹)';
+  } else if (type === 'range') {
+    groupFixed.style.display = 'none';
+    groupRange.style.display = 'flex';
+  } else if (type === 'inspection') {
+    groupFixed.style.display = 'none';
+    groupRange.style.display = 'none';
+  }
 }
 
 function moveService(idx, direction) {
@@ -1246,12 +1304,26 @@ function loadServiceForEdit(srvId) {
   document.getElementById('service-form-title').textContent = "Edit Service";
   document.getElementById('edit-service-id').value = srv.id;
   document.getElementById('srv-title').value = srv.title;
-  document.getElementById('srv-price').value = srv.price;
-  document.getElementById('srv-original-price').value = srv.originalPrice;
-  document.getElementById('srv-duration').value = srv.durationText;
+  
+  const pricingType = srv.pricingType || 'fixed';
+  document.getElementById('srv-pricing-type').value = pricingType;
+  document.getElementById('srv-price').value = srv.price || '';
+  document.getElementById('srv-original-price').value = srv.originalPrice || '';
+  document.getElementById('srv-min-price').value = srv.minPrice || '';
+  document.getElementById('srv-max-price').value = srv.maxPrice || '';
+  document.getElementById('srv-visiting-charges').value = srv.visitingCharges !== undefined ? srv.visitingCharges : '150';
+  document.getElementById('srv-free-inspection').checked = srv.isFreeInspection === true;
+  document.getElementById('srv-gst').value = srv.gst !== undefined ? srv.gst : '0';
+  document.getElementById('srv-extra-charges').value = srv.extraCharges !== undefined ? srv.extraCharges : '0';
+  document.getElementById('srv-extra-charges-label').value = srv.extraChargesLabel || '';
+  
+  document.getElementById('srv-duration').value = srv.durationText || '1 hr';
   document.getElementById('srv-image').value = srv.imageUrl || '';
   document.getElementById('srv-bullets').value = (srv.bulletPoints || []).join('\n');
+  document.getElementById('srv-allow-price-edit').checked = srv.allowPriceEdit !== false;
+  document.getElementById('srv-allow-visiting-edit').checked = srv.allowVisitingEdit !== false;
   
+  updatePricingFieldsVisibility(pricingType);
   document.getElementById('btn-cancel-edit-service').style.display = 'inline-flex';
 }
 
@@ -1259,49 +1331,77 @@ function resetServiceForm() {
   document.getElementById('service-form-title').textContent = "Add New Service";
   document.getElementById('edit-service-id').value = "";
   document.getElementById('service-edit-form').reset();
+  document.getElementById('srv-pricing-type').value = "fixed";
+  document.getElementById('srv-allow-price-edit').checked = true;
+  document.getElementById('srv-allow-visiting-edit').checked = true;
+  updatePricingFieldsVisibility("fixed");
   document.getElementById('btn-cancel-edit-service').style.display = 'none';
 }
 
 function setupServicesEvents() {
   document.getElementById('btn-cancel-edit-service').addEventListener('click', resetServiceForm);
   
+  document.getElementById('srv-pricing-type').addEventListener('change', (e) => {
+    updatePricingFieldsVisibility(e.target.value);
+  });
+  
   document.getElementById('service-edit-form').addEventListener('submit', (e) => {
     e.preventDefault();
     
     const srvId = document.getElementById('edit-service-id').value;
     const title = document.getElementById('srv-title').value;
-    const price = parseFloat(document.getElementById('srv-price').value);
-    const originalPrice = parseFloat(document.getElementById('srv-original-price').value);
+    const pricingType = document.getElementById('srv-pricing-type').value;
+    const price = parseFloat(document.getElementById('srv-price').value) || 0;
+    const originalPrice = parseFloat(document.getElementById('srv-original-price').value) || 0;
+    const minPrice = parseFloat(document.getElementById('srv-min-price').value) || 0;
+    const maxPrice = parseFloat(document.getElementById('srv-max-price').value) || 0;
+    const visitingCharges = parseFloat(document.getElementById('srv-visiting-charges').value) || 0;
+    const isFreeInspection = document.getElementById('srv-free-inspection').checked;
+    const gst = parseFloat(document.getElementById('srv-gst').value) || 0;
+    const extraCharges = parseFloat(document.getElementById('srv-extra-charges').value) || 0;
+    const extraChargesLabel = document.getElementById('srv-extra-charges-label').value;
+    
     const durationText = document.getElementById('srv-duration').value;
     const imageUrl = document.getElementById('srv-image').value || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300';
+    const allowPriceEdit = document.getElementById('srv-allow-price-edit').checked;
+    const allowVisitingEdit = document.getElementById('srv-allow-visiting-edit').checked;
     
     const bulletsRaw = document.getElementById('srv-bullets').value;
     const bulletPoints = bulletsRaw.split('\n').map(b => b.trim()).filter(b => b.length > 0);
+    
+    const servicePayload = {
+      title,
+      price: (pricingType === 'fixed' || pricingType === 'starting') ? price : 0,
+      originalPrice: (pricingType === 'fixed' || pricingType === 'starting') ? originalPrice : 0,
+      pricingType,
+      minPrice: pricingType === 'range' ? minPrice : 0,
+      maxPrice: pricingType === 'range' ? maxPrice : 0,
+      visitingCharges,
+      isFreeInspection,
+      gst,
+      extraCharges,
+      extraChargesLabel,
+      durationText,
+      imageUrl,
+      bulletPoints,
+      allowPriceEdit,
+      allowVisitingEdit
+    };
     
     if (srvId) {
       const idx = tempServicesList.findIndex(s => s.id === srvId);
       if (idx !== -1) {
         tempServicesList[idx] = {
           ...tempServicesList[idx],
-          title,
-          price,
-          originalPrice,
-          durationText,
-          imageUrl,
-          bulletPoints
+          ...servicePayload
         };
       }
     } else {
       const newSrv = {
         id: `srv-${Date.now()}`,
-        title,
-        price,
-        originalPrice,
         rating: 5.0,
         reviewsCount: 0,
-        durationText,
-        bulletPoints,
-        imageUrl
+        ...servicePayload
       };
       tempServicesList.push(newSrv);
     }

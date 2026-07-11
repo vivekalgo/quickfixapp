@@ -21,8 +21,11 @@ class BookingModel {
   final double customerRating;
   final String status;
   final String providerName;
-
-  BookingModel({
+  final String pricingType;
+  final Map<String, dynamic>? quotation;
+  final List<dynamic>? quotationHistory;
+ 
+   BookingModel({
     required this.id,
     required this.customerId,
     required this.customerName,
@@ -45,9 +48,12 @@ class BookingModel {
     required this.customerRating,
     required this.status,
     required this.providerName,
+    required this.pricingType,
+    this.quotation,
+    this.quotationHistory,
   });
-
-  factory BookingModel.fromJson(Map<String, dynamic> json) {
+ 
+   factory BookingModel.fromJson(Map<String, dynamic> json) {
     return BookingModel(
       id: json['id']?.toString() ?? '',
       customerId: json['customerId']?.toString() ?? '',
@@ -71,10 +77,13 @@ class BookingModel {
       customerRating: (json['customerRating'] as num?)?.toDouble() ?? 4.8,
       status: json['status']?.toString() ?? 'pending',
       providerName: json['providerName']?.toString() ?? '',
+      pricingType: json['pricingType']?.toString() ?? 'fixed',
+      quotation: json['quotation'] as Map<String, dynamic>?,
+      quotationHistory: json['quotationHistory'] as List<dynamic>?,
     );
   }
-
-  Map<String, dynamic> toJson() {
+ 
+   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'customerId': customerId,
@@ -98,10 +107,13 @@ class BookingModel {
       'customerRating': customerRating,
       'status': status,
       'providerName': providerName,
+      'pricingType': pricingType,
+      'quotation': quotation,
+      'quotationHistory': quotationHistory,
     };
   }
-
-  // Helper method to check if customer details are currently hidden/masked
+ 
+   // Helper method to check if customer details are currently hidden/masked
   bool get isDetailsMasked {
     return status == 'pending' || status == 'rejected';
   }

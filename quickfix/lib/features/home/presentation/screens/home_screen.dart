@@ -1219,6 +1219,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   AppHaptics.lightTap();
                   context.push('/shops');
                 },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
                 child: Row(
                   children: [
                     Text(
@@ -1226,9 +1229,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       style: TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
                     ),
-                    Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                    const Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
                   ],
                 ),
               ),
@@ -1245,9 +1249,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               return _buildComingSoonCard(context, isDark);
             }
             return SizedBox(
-              height: 250,
+              height: 258,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: shops.length,
                 itemBuilder: (context, index) {
@@ -1259,20 +1264,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     },
                     child: Container(
                       width: 260,
-                      margin: const EdgeInsets.only(right: 16, bottom: 8),
+                      margin: const EdgeInsets.only(right: 16, bottom: 12),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.surfaceDark : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
+                            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                            blurRadius: 16,
+                            offset: const Offset(0, 8),
                           ),
                         ],
-                        border: isDark
-                            ? Border.all(color: AppColors.borderDark)
-                            : Border.all(color: AppColors.borderLight.withOpacity(0.6)),
+                        border: Border.all(
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          width: 1,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1280,7 +1286,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           Stack(
                             children: [
                               ClipRRect(
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                                 child: Image.network(
                                   shop.imagePath,
                                   height: 130,
@@ -1288,30 +1294,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                   fit: BoxFit.cover,
                                 ),
                               ),
+                              // Gradient Overlay for readability
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                    gradient: LinearGradient(
+                                      colors: [Colors.black54, Colors.transparent],
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                    ),
+                                  ),
+                                ),
+                              ),
                               Positioned(
-                                top: 10,
-                                right: 10,
+                                top: 12,
+                                right: 12,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: AppColors.success,
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
                                   ),
                                   child: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.star, color: Colors.white, size: 12),
-                                      const SizedBox(width: 4),
+                                      const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 14),
+                                      const SizedBox(width: 3),
                                       Text(
-                                        shop.rating.toString(),
-                                        style: AppTextStyles.badgeText.copyWith(fontSize: 11),
+                                        shop.rating.toStringAsFixed(1),
+                                        style: const TextStyle(
+                                          color: AppColors.secondary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                       ),
+                                      if (shop.reviewsCount > 0) ...[
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          '(${shop.reviewsCount})',
+                                          style: TextStyle(
+                                            color: AppColors.textSecondaryLight,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
                               ),
                               Positioned(
-                                top: 10,
-                                left: 10,
+                                top: 12,
+                                left: 12,
                                 child: GestureDetector(
                                   onTap: () {
                                     AppHaptics.mediumTap();
@@ -1332,15 +1373,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                   child: Container(
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.4),
+                                      color: Colors.black.withOpacity(0.35),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
                                       ref.watch(wishlistProvider).contains(shop.id)
                                           ? Icons.favorite
                                           : Icons.favorite_border,
-                                      color: Colors.redAccent,
-                                      size: 18,
+                                      color: ref.watch(wishlistProvider).contains(shop.id)
+                                          ? Colors.red
+                                          : Colors.white,
+                                      size: 16,
                                     ),
                                   ),
                                 ),
@@ -1356,30 +1399,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                   shop.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: AppTextStyles.headingSmall(isDark),
+                                  style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 3),
                                 Text(
                                   shop.categories.join(', '),
-                                  style: AppTextStyles.bodySmall(isDark),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 11),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 10),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
                                       children: [
-                                        const Icon(Icons.access_time, size: 14, color: AppColors.textSecondaryLight),
+                                        Icon(Icons.access_time_filled_rounded, size: 14, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                         const SizedBox(width: 4),
                                         Text(
-                                          '${shop.deliveryTimeMins} mins',
+                                          shop.estimatedTimeDisplay,
                                           style: AppTextStyles.bodySmall(isDark).copyWith(fontWeight: FontWeight.bold),
                                         ),
                                       ],
                                     ),
                                     Row(
                                       children: [
-                                        const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondaryLight),
+                                        Icon(Icons.near_me_rounded, size: 14, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${shop.distanceKm} km',
@@ -1390,8 +1435,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                     Text(
                                       shop.priceRange,
                                       style: TextStyle(
-                                        color: isDark ? Colors.white : AppColors.secondary,
-                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? Colors.white70 : AppColors.secondary,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13,
                                       ),
                                     ),
                                   ],
@@ -1408,7 +1454,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             );
           },
           loading: () => SizedBox(
-            height: 250,
+            height: 258,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2776,7 +2822,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       ],
     );
   }
-
   Widget _buildSearchBarRow(BuildContext context, bool isDark) {
     return Row(
       children: [
@@ -2787,33 +2832,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               context.push('/search');
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 color: isDark ? AppColors.surfaceDark : Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.search,
-                    color: AppColors.textSecondaryLight,
-                    size: 20,
+                  Icon(
+                    Icons.search_rounded,
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    size: 22,
                   ),
                   const SizedBox(width: 12),
                   Text(
                     'Search for services or shops...',
                     style: AppTextStyles.bodyMedium(isDark).copyWith(
-                      color: AppColors.textSecondaryLight,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],

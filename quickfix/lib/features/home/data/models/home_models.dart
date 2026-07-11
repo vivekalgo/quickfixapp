@@ -28,6 +28,16 @@ class ShopService {
   final String durationText;
   final List<String> bulletPoints;
   final String imageUrl;
+  final String pricingType;
+  final double minPrice;
+  final double maxPrice;
+  final double visitingCharges;
+  final bool isFreeInspection;
+  final double gst;
+  final double extraCharges;
+  final String extraChargesLabel;
+  final bool isEnabled;
+  final bool isAvailable;
 
   const ShopService({
     required this.id,
@@ -39,6 +49,16 @@ class ShopService {
     required this.durationText,
     required this.bulletPoints,
     required this.imageUrl,
+    this.pricingType = 'fixed',
+    this.minPrice = 0,
+    this.maxPrice = 0,
+    this.visitingCharges = 0,
+    this.isFreeInspection = false,
+    this.gst = 0,
+    this.extraCharges = 0,
+    this.extraChargesLabel = '',
+    this.isEnabled = true,
+    this.isAvailable = true,
   });
 
   factory ShopService.fromJson(Map<String, dynamic> json) {
@@ -52,6 +72,16 @@ class ShopService {
       durationText: json['durationText']?.toString() ?? '1 hr',
       bulletPoints: (json['bulletPoints'] as List?)?.map((e) => e.toString()).toList() ?? [],
       imageUrl: json['imageUrl']?.toString() ?? '',
+      pricingType: json['pricingType']?.toString() ?? 'fixed',
+      minPrice: double.tryParse(json['minPrice']?.toString() ?? '0.0') ?? 0.0,
+      maxPrice: double.tryParse(json['maxPrice']?.toString() ?? '0.0') ?? 0.0,
+      visitingCharges: double.tryParse(json['visitingCharges']?.toString() ?? '0.0') ?? 0.0,
+      isFreeInspection: json['isFreeInspection'] == true,
+      gst: double.tryParse(json['gst']?.toString() ?? '0.0') ?? 0.0,
+      extraCharges: double.tryParse(json['extraCharges']?.toString() ?? '0.0') ?? 0.0,
+      extraChargesLabel: json['extraChargesLabel']?.toString() ?? '',
+      isEnabled: json['isEnabled'] != false,
+      isAvailable: json['isAvailable'] != false,
     );
   }
 }
@@ -61,8 +91,10 @@ class Shop {
   final String name;
   final List<String> categories;
   final double rating;
+  final int reviewsCount;
   final double distanceKm;
   final int deliveryTimeMins;
+  final String? estimatedServiceTime;
   final String priceRange;
   final String imagePath;
   final String ownerName;
@@ -81,8 +113,10 @@ class Shop {
     required this.name,
     required this.categories,
     required this.rating,
+    required this.reviewsCount,
     required this.distanceKm,
     required this.deliveryTimeMins,
+    this.estimatedServiceTime,
     required this.priceRange,
     required this.imagePath,
     required this.ownerName,
@@ -97,14 +131,31 @@ class Shop {
     required this.technicians,
   });
 
+  String get estimatedTimeDisplay => (estimatedServiceTime != null && estimatedServiceTime!.isNotEmpty) ? estimatedServiceTime! : '$deliveryTimeMins mins';
+
+  int get estimatedTimeMinutes {
+    if (estimatedServiceTime == null || estimatedServiceTime!.isEmpty) {
+      return deliveryTimeMins;
+    }
+    final text = estimatedServiceTime!.toLowerCase();
+    if (text.contains('hour')) {
+      final hourNum = int.tryParse(text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+      return hourNum * 60;
+    }
+    final minsNum = int.tryParse(text.replaceAll(RegExp(r'[^0-9]'), ''));
+    return minsNum ?? deliveryTimeMins;
+  }
+
   factory Shop.fromJson(Map<String, dynamic> json) {
     return Shop(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       categories: (json['categories'] as List?)?.map((e) => e.toString()).toList() ?? [],
       rating: double.tryParse(json['rating']?.toString() ?? '4.0') ?? 4.0,
+      reviewsCount: int.tryParse(json['reviewsCount']?.toString() ?? '0') ?? 0,
       distanceKm: double.tryParse(json['distanceKm']?.toString() ?? '1.0') ?? 1.0,
       deliveryTimeMins: int.tryParse(json['deliveryTimeMins']?.toString() ?? '15') ?? 15,
+      estimatedServiceTime: json['estimatedServiceTime']?.toString(),
       priceRange: json['priceRange']?.toString() ?? '₹',
       imagePath: json['imagePath']?.toString() ?? '',
       ownerName: json['ownerName']?.toString() ?? '',

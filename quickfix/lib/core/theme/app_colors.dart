@@ -7,18 +7,18 @@ class AppColors {
   static const Color accent = Color(0xFFFFB800); // Premium Gold for Membership/Plus
 
   // Neutral Colors (Light Theme)
-  static const Color backgroundLight = Color(0xFFF8F9FB);
+  static const Color backgroundLight = Color(0xFFF6F8FA);
   static const Color surfaceLight = Color(0xFFFFFFFF);
-  static const Color textPrimaryLight = Color(0xFF1E293B);
-  static const Color textSecondaryLight = Color(0xFF64748B);
-  static const Color borderLight = Color(0xFFE2E8F0);
+  static const Color textPrimaryLight = Color(0xFF0F172A);
+  static const Color textSecondaryLight = Color(0xFF475569);
+  static const Color borderLight = Color(0xFFEBEFF5);
 
   // Neutral Colors (Dark Theme)
-  static const Color backgroundDark = Color(0xFF0F172A);
-  static const Color surfaceDark = Color(0xFF1E293B);
+  static const Color backgroundDark = Color(0xFF0A0E17);
+  static const Color surfaceDark = Color(0xFF151E2E);
   static const Color textPrimaryDark = Color(0xFFF8FAFC);
   static const Color textSecondaryDark = Color(0xFF94A3B8);
-  static const Color borderDark = Color(0xFF334155);
+  static const Color borderDark = Color(0xFF222F43);
 
   // Category & Card Colors
   static const Color catCleaning = Color(0xFFEEF2FF);
@@ -47,7 +47,7 @@ class AppColors {
 
   // Premium Gradients
   static const Gradient primaryGradient = LinearGradient(
-    colors: [Color(0xFFFF4E36), Color(0xFFFF6B54)],
+    colors: [Color(0xFFFF4E36), Color(0xFFFF6F5C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -65,7 +65,7 @@ class AppColors {
   );
 
   static const Gradient cardOverlayGradient = LinearGradient(
-    colors: [Colors.black54, Colors.transparent],
+    colors: [Colors.black87, Colors.transparent],
     begin: Alignment.bottomCenter,
     end: Alignment.topCenter,
   );

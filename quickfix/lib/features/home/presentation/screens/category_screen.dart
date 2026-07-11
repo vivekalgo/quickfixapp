@@ -410,22 +410,34 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: AppColors.success,
-                                          borderRadius: BorderRadius.circular(8),
+                                          color: Colors.black.withOpacity(0.65),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: AppColors.success.withOpacity(0.6), width: 1),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.star, color: Colors.white, size: 12),
-                                            const SizedBox(width: 4),
+                                            const Icon(Icons.star_rounded, color: Color(0xFFFFB300), size: 13),
+                                            const SizedBox(width: 3),
                                             Text(
-                                              '${shop.rating}',
+                                              shop.rating.toStringAsFixed(1),
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
+                                            if (shop.reviewsCount > 0) ...[
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                '(${shop.reviewsCount})',
+                                                style: TextStyle(
+                                                  color: Colors.white.withOpacity(0.8),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),
@@ -520,7 +532,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                                               const Icon(Icons.alarm, size: 16, color: AppColors.textSecondaryLight),
                                               const SizedBox(width: 4),
                                               Text(
-                                                '${shop.deliveryTimeMins} mins',
+                                                shop.estimatedTimeDisplay,
                                                 style: AppTextStyles.bodySmall(isDark),
                                               ),
                                             ],

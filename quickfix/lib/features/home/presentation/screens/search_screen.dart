@@ -461,7 +461,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "${item.deliveryTimeMins} mins • ${item.distanceKm.toStringAsFixed(1)} km",
+                            "${item.estimatedTimeDisplay} • ${item.distanceKm.toStringAsFixed(1)} km",
                             style: AppTextStyles.bodySmall(isDark).copyWith(
                               fontWeight: FontWeight.bold,
                               color: isDark ? Colors.white70 : AppColors.textPrimaryLight,

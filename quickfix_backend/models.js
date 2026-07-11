@@ -323,7 +323,19 @@ const ServiceSchema = new mongoose.Schema({
   reviewsCount: { type: Number, default: 0 },
   durationText: { type: String, default: '1 hr' },
   bulletPoints: [String],
-  imageUrl: String
+  imageUrl: String,
+  pricingType: { type: String, enum: ['fixed', 'starting', 'inspection', 'range'], default: 'fixed' },
+  minPrice: { type: Number, default: 0 },
+  maxPrice: { type: Number, default: 0 },
+  visitingCharges: { type: Number, default: 0 },
+  isFreeInspection: { type: Boolean, default: false },
+  gst: { type: Number, default: 0 },
+  extraCharges: { type: Number, default: 0 },
+  extraChargesLabel: { type: String, default: '' },
+  allowPriceEdit: { type: Boolean, default: true },
+  allowVisitingEdit: { type: Boolean, default: true },
+  isAvailable: { type: Boolean, default: true },
+  isEnabled: { type: Boolean, default: true }
 });
 
 // 3. Shop Schema (Service Provider shop profile)
@@ -345,7 +357,9 @@ const ShopSchema = new mongoose.Schema({
   categories: { type: [String], default: ["Cleaning"] },
   imagePath: { type: String, default: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300' },
   rating: { type: Number, default: 5.0 },
+  reviewsCount: { type: Number, default: 0 },
   deliveryTimeMins: { type: Number, default: 20 },
+  estimatedServiceTime: { type: String, default: '20 mins' },
   priceRange: { type: String, default: "₹₹" },
   isOnline: { type: Boolean, default: true },
   timings: { type: String, default: "09:00 AM - 09:00 PM" },
@@ -419,12 +433,26 @@ const BookingSchema = new mongoose.Schema({
   estDuration: { type: String, default: '1.5 hrs' },
   specialInstructions: { type: String, default: '' },
   customerRating: { type: Number, default: 4.8 },
+  pricingType: { type: String, enum: ['fixed', 'starting', 'inspection', 'range'], default: 'fixed' },
   status: { 
     type: String, 
-    enum: ['pending', 'accepted', 'navigating', 'arrived', 'work_started', 'work_completed', 'payment_completed', 'cancelled', 'closed'], 
+    enum: ['pending', 'accepted', 'navigating', 'arrived', 'quote_sent', 'work_started', 'work_completed', 'payment_completed', 'cancelled', 'closed'], 
     default: 'pending' 
   },
-  providerName: { type: String, default: 'Assigning Expert...' }
+  providerName: { type: String, default: 'Assigning Expert...' },
+  quotation: {
+    labourCharge: { type: Number, default: 0 },
+    spareParts: { type: Number, default: 0 },
+    additionalMaterials: { type: Number, default: 0 },
+    visitingCharges: { type: Number, default: 0 },
+    discount: { type: Number, default: 0 },
+    gst: { type: Number, default: 0 },
+    totalAmount: { type: Number, default: 0 },
+    status: { type: String, enum: ['pending', 'accepted', 'rejected', 'modified'], default: 'pending' },
+    createdAt: { type: Date },
+    updatedAt: { type: Date }
+  },
+  quotationHistory: { type: Array, default: [] }
 }, { timestamps: true });
 
 // 5. Category Schema

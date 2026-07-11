@@ -87,7 +87,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
 
     // 3. Fast Delivery Filter (<= 15 mins)
     if (_filterFastDelivery) {
-      temp = temp.where((s) => s.deliveryTimeMins <= 15).toList();
+      temp = temp.where((s) => s.estimatedTimeMinutes <= 15).toList();
     }
 
     // 4. Affordable Filter (₹ or ₹₹)
@@ -221,21 +221,21 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                         itemBuilder: (context, index) {
                           final shop = _filteredShops![index];
                           final isFav = ref.watch(wishlistProvider).contains(shop.id);
-
                           return Container(
                             margin: const EdgeInsets.only(bottom: 16),
                             decoration: BoxDecoration(
                               color: isDark ? AppColors.surfaceDark : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.03),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                                  color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 8),
                                 ),
                               ],
                               border: Border.all(
                                 color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                width: 1,
                               ),
                             ),
                             child: InkWell(
@@ -243,7 +243,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                 AppHaptics.mediumTap();
                                 context.push('/shop/${shop.id}', extra: shop);
                               },
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(20),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -251,12 +251,25 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                   Stack(
                                     children: [
                                       ClipRRect(
-                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                                         child: Image.network(
                                           shop.imagePath,
                                           height: 150,
                                           width: double.infinity,
                                           fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      // Gradient Overlay for text readability
+                                      Positioned.fill(
+                                        child: Container(
+                                          decoration: const BoxDecoration(
+                                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                            gradient: LinearGradient(
+                                              colors: [Colors.black54, Colors.transparent],
+                                              begin: Alignment.bottomCenter,
+                                              end: Alignment.topCenter,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                       // Star Rating Badge
@@ -266,22 +279,39 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: AppColors.success,
-                                            borderRadius: BorderRadius.circular(8),
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 4,
+                                              ),
+                                            ],
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              const Icon(Icons.star, color: Colors.white, size: 12),
-                                              const SizedBox(width: 4),
+                                              const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 14),
+                                              const SizedBox(width: 3),
                                               Text(
-                                                '${shop.rating}',
+                                                shop.rating.toStringAsFixed(1),
                                                 style: const TextStyle(
-                                                  color: Colors.white,
+                                                  color: AppColors.secondary,
                                                   fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
+                                                  fontWeight: FontWeight.w800,
                                                 ),
                                               ),
+                                              if (shop.reviewsCount > 0) ...[
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  '(${shop.reviewsCount})',
+                                                  style: TextStyle(
+                                                    color: AppColors.textSecondaryLight,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
                                             ],
                                           ),
                                         ),
@@ -297,7 +327,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                  isFav
+                                                  ref.watch(wishlistProvider).contains(shop.id)
                                                       ? 'Removed ${shop.name} from Wishlist'
                                                       : 'Added ${shop.name} to Wishlist',
                                                 ),
@@ -309,13 +339,17 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                           child: Container(
                                             padding: const EdgeInsets.all(6),
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(0.4),
+                                              color: Colors.black.withOpacity(0.35),
                                               shape: BoxShape.circle,
                                             ),
                                             child: Icon(
-                                              isFav ? Icons.favorite : Icons.favorite_border,
-                                              color: Colors.redAccent,
-                                              size: 18,
+                                              ref.watch(wishlistProvider).contains(shop.id)
+                                                  ? Icons.favorite
+                                                  : Icons.favorite_border,
+                                              color: ref.watch(wishlistProvider).contains(shop.id)
+                                                  ? Colors.red
+                                                  : Colors.white,
+                                              size: 16,
                                             ),
                                           ),
                                         ),
@@ -343,11 +377,15 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                             decoration: BoxDecoration(
                                               color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade100,
                                               borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                                width: 0.5,
+                                              ),
                                             ),
                                             child: Text(
                                               c,
                                               style: TextStyle(
-                                                fontSize: 10.5,
+                                                fontSize: 10,
                                                 color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -373,10 +411,10 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                             ),
                                             Row(
                                               children: [
-                                                const Icon(Icons.alarm, size: 16, color: AppColors.textSecondaryLight),
+                                                const Icon(Icons.access_time_filled_rounded, size: 16, color: AppColors.textSecondaryLight),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  '${shop.deliveryTimeMins} mins',
+                                                  shop.estimatedTimeDisplay,
                                                   style: AppTextStyles.bodySmall(isDark),
                                                 ),
                                               ],

@@ -32,6 +32,9 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
   String _bookingStatus = 'pending';
   Timer? _pollingTimer;
   bool _isLoading = true;
+  String _pricingType = 'fixed';
+  Map<String, dynamic>? _quotation;
+  List<dynamic>? _quotationHistory;
 
   @override
   void initState() {
@@ -96,6 +99,9 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
           _providerDistance = distance;
           _providerTime = timeMins < 1 ? 1 : timeMins;
           _isLoading = false;
+          _pricingType = data['pricingType']?.toString() ?? 'fixed';
+          _quotation = data['quotation'] as Map<String, dynamic>?;
+          _quotationHistory = data['quotationHistory'] as List<dynamic>?;
         });
 
         // Pan map camera to driver position
@@ -300,6 +306,7 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
 
                   const SizedBox(height: 12),
                   const Divider(),
+                  _buildQuotationReviewCard(isDark),
 
                   // Milestones status tracker
                   Padding(
@@ -401,6 +408,214 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('CONFIRM SOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _respondToQuotation(String responseType, {String? comment}) async {
+    try {
+      final res = await DioClient().post(
+        '/bookings/${widget.bookingId}/quotation/respond',
+        data: {
+          'response': responseType,
+          'comment': comment ?? '',
+        },
+      );
+      if (res.data != null && res.data['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Quotation response: $responseType submitted!'),
+            backgroundColor: responseType == 'accepted' ? AppColors.success : AppColors.error,
+          ),
+        );
+        _fetchBookingDetails();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(res.data['message'] ?? 'Failed to update quotation response.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error submitting response: $e')),
+      );
+    }
+  }
+
+  void _showModificationDialog() {
+    final commentController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Request Modification'),
+        content: TextField(
+          controller: commentController,
+          decoration: const InputDecoration(
+            labelText: 'Enter instructions/comments',
+            hintText: 'e.g. Please reduce spare parts cost or use local parts',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _respondToQuotation('modify', comment: commentController.text);
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuotationReviewCard(bool isDark) {
+    if (_quotation == null) return const SizedBox.shrink();
+
+    final status = _quotation!['status']?.toString() ?? 'pending';
+    final double labour = (_quotation!['labourCharge'] as num?)?.toDouble() ?? 0.0;
+    final double spares = (_quotation!['spareParts'] as num?)?.toDouble() ?? 0.0;
+    final double materials = (_quotation!['additionalMaterials'] as num?)?.toDouble() ?? 0.0;
+    final double visiting = (_quotation!['visitingCharges'] as num?)?.toDouble() ?? 0.0;
+    final double discount = (_quotation!['discount'] as num?)?.toDouble() ?? 0.0;
+    final double gst = (_quotation!['gst'] as num?)?.toDouble() ?? 0.0;
+    final double total = (_quotation!['totalAmount'] as num?)?.toDouble() ?? 0.0;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.orange.shade50.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.orange.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.receipt_long, color: Colors.orange),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Expert\'s Quotation',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppColors.secondary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: status == 'accepted'
+                      ? Colors.green.withOpacity(0.15)
+                      : status == 'rejected'
+                          ? Colors.red.withOpacity(0.15)
+                          : Colors.orange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: status == 'accepted'
+                        ? Colors.green
+                        : status == 'rejected'
+                            ? Colors.red
+                            : Colors.orange,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildQuoteRow('Labour Charges', labour),
+          _buildQuoteRow('Spare Parts', spares),
+          _buildQuoteRow('Materials', materials),
+          _buildQuoteRow('Visiting Charges', visiting),
+          _buildQuoteRow('Discount', -discount, isGreen: true),
+          _buildQuoteRow('GST (Calculated)', gst),
+          const Divider(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Total Bill Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                '₹ ${total.toStringAsFixed(2)}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+              ),
+            ],
+          ),
+          if (status == 'pending' || status == 'modified' || _bookingStatus == 'quote_sent') ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _respondToQuotation('rejected'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Reject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _showModificationDialog,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Modify', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _respondToQuotation('accepted'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Accept', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuoteRow(String label, double val, {bool isGreen = false}) {
+    if (val == 0.0 && !isGreen) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          Text(
+            '${val < 0 ? "-" : ""}₹${val.abs().toStringAsFixed(0)}',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isGreen ? Colors.green : Colors.grey.shade700,
+            ),
           ),
         ],
       ),

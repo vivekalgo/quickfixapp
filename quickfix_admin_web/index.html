@@ -307,6 +307,42 @@
                   <input type="text" id="shop-pan" placeholder="e.g. ABCDE1234F">
                 </div>
               </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-estimated-time">Estimated Service Time</label>
+                  <input type="text" id="shop-estimated-time" list="estimated-times-list" placeholder="e.g. 20 mins" value="20 mins">
+                  <datalist id="estimated-times-list">
+                    <option value="15 mins">
+                    <option value="30 mins">
+                    <option value="45 mins">
+                    <option value="1 Hour">
+                  </datalist>
+                </div>
+                <div class="form-group">
+                  <label for="shop-price-range">Price Level</label>
+                  <input type="text" id="shop-price-range" list="price-levels-list" placeholder="e.g. ₹₹" value="₹₹">
+                  <datalist id="price-levels-list">
+                    <option value="₹">
+                    <option value="₹₹">
+                    <option value="₹₹₹">
+                    <option value="₹₹₹₹">
+                    <option value="Starting ₹199">
+                    <option value="From ₹299">
+                    <option value="Affordable">
+                    <option value="Premium">
+                  </datalist>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-rating">⭐ Shop Rating (0 – 5)</label>
+                  <input type="number" id="shop-rating" step="0.1" min="0" max="5" value="5.0" placeholder="e.g. 4.3">
+                </div>
+                <div class="form-group">
+                  <label for="shop-reviews-count">💬 Total Reviews Count</label>
+                  <input type="number" id="shop-reviews-count" min="0" value="0" placeholder="e.g. 128">
+                </div>
+              </div>
               <div class="form-group">
                 <label for="shop-aadhaar">Aadhaar Card ID</label>
                 <input type="text" id="shop-aadhaar" placeholder="e.g. 1234 5678 9012">
@@ -1129,15 +1165,58 @@
               <label for="srv-title">Service Title</label>
               <input type="text" id="srv-title" required placeholder="e.g. Toilet Seat Replacement">
             </div>
+            <div class="form-group">
+              <label for="srv-pricing-type">Pricing Model Type</label>
+              <select id="srv-pricing-type" style="width: 100%; padding: 12px 16px; background-color: var(--background); border: 1px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 14px; outline: none; transition: border-color 0.2s;">
+                <option value="fixed">🟢 Fixed Price</option>
+                <option value="starting">🟡 Starts From Price</option>
+                <option value="range">🔵 Price Range</option>
+                <option value="inspection">🟠 Quote Required (Inspection Based)</option>
+              </select>
+            </div>
+            <div class="form-row" id="group-fixed-price">
+              <div class="form-group">
+                <label id="lbl-srv-price" for="srv-price">Selling Price (₹)</label>
+                <input type="number" id="srv-price" placeholder="e.g. 299">
+              </div>
+              <div class="form-group" id="group-original-price">
+                <label for="srv-original-price">Original Price (₹)</label>
+                <input type="number" id="srv-original-price" placeholder="e.g. 499">
+              </div>
+            </div>
+            <div class="form-row" id="group-range-price" style="display: none;">
+              <div class="form-group">
+                <label for="srv-min-price">Minimum Price (₹)</label>
+                <input type="number" id="srv-min-price" placeholder="e.g. 500">
+              </div>
+              <div class="form-group">
+                <label for="srv-max-price">Maximum Price (₹)</label>
+                <input type="number" id="srv-max-price" placeholder="e.g. 1500">
+              </div>
+            </div>
             <div class="form-row">
               <div class="form-group">
-                <label for="srv-price">Selling Price (₹)</label>
-                <input type="number" id="srv-price" required placeholder="e.g. 299">
+                <label for="srv-visiting-charges">Visiting Charges (₹)</label>
+                <input type="number" id="srv-visiting-charges" value="150" placeholder="e.g. 150">
+              </div>
+              <div class="form-group" style="display: flex; align-items: center; gap: 8px; padding-top: 24px;">
+                <input type="checkbox" id="srv-free-inspection" style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
+                <label for="srv-free-inspection" style="margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-primary);">Free Inspection</label>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="srv-gst">GST (%) (Optional)</label>
+                <input type="number" id="srv-gst" value="0" placeholder="e.g. 18">
               </div>
               <div class="form-group">
-                <label for="srv-original-price">Original Price (₹)</label>
-                <input type="number" id="srv-original-price" required placeholder="e.g. 499">
+                <label for="srv-extra-charges">Extra Charges (₹) (Optional)</label>
+                <input type="number" id="srv-extra-charges" value="0" placeholder="e.g. 50">
               </div>
+            </div>
+            <div class="form-group">
+              <label for="srv-extra-charges-label">Extra Charges Label (Optional)</label>
+              <input type="text" id="srv-extra-charges-label" placeholder="e.g. Safety Kit charges">
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -1147,6 +1226,16 @@
               <div class="form-group">
                 <label for="srv-image">Image URL</label>
                 <input type="url" id="srv-image" placeholder="https://images.unsplash.com/...">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <input type="checkbox" id="srv-allow-price-edit" checked style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
+                <label for="srv-allow-price-edit" style="margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-primary);">Allow Price Edit</label>
+              </div>
+              <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <input type="checkbox" id="srv-allow-visiting-edit" checked style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
+                <label for="srv-allow-visiting-edit" style="margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-primary);">Allow Visiting Charge Edit</label>
               </div>
             </div>
             <div class="form-group">

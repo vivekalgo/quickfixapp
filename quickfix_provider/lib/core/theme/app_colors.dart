@@ -1,29 +1,38 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color primary = Color(0xFF9d4edd); // Purple accent
-  static const Color secondary = Color(0xFF1e293b); // Slate blue
-  static const Color backgroundLight = Color(0xFFf8fafc);
-  static const Color backgroundDark = Color(0xFF0b0f19);
+  // Brand color identity (deep royal violet/indigo for service partners)
+  static const Color primary = Color(0xFF7C3AED); // Modern Violet Accent
+  static const Color secondary = Color(0xFF0F172A); // Deep Slate
+  
+  static const Color backgroundLight = Color(0xFFF8FAFC);
+  static const Color backgroundDark = Color(0xFF0B0F19);
   
   static const Color surfaceLight = Colors.white;
-  static const Color surfaceDark = Color(0xFF131b2e);
+  static const Color surfaceDark = Color(0xFF131B2E);
   
-  static const Color borderLight = Color(0xFFe2e8f0);
-  static const Color borderDark = Color(0xFF1e293b);
+  static const Color borderLight = Color(0xFFE2E8F0);
+  static const Color borderDark = Color(0xFF1E293B);
   
-  static const Color textPrimaryLight = Color(0xFF0f172a);
-  static const Color textPrimaryDark = Color(0xFFf8fafc);
-  static const Color textSecondaryLight = Color(0xFF64748b);
-  static const Color textSecondaryDark = Color(0xFF94a3b8);
+  static const Color textPrimaryLight = Color(0xFF0F172A);
+  static const Color textPrimaryDark = Color(0xFFF8FAFC);
+  static const Color textSecondaryLight = Color(0xFF64748B);
+  static const Color textSecondaryDark = Color(0xFF94A3B8);
   
-  static const Color success = Color(0xFF10b981);
-  static const Color info = Color(0xFF06b6d4);
-  static const Color warning = Color(0xFFf59e0b);
-  static const Color danger = Color(0xFFef4444);
+  static const Color success = Color(0xFF10B981);
+  static const Color info = Color(0xFF0EA5E9);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color danger = Color(0xFFEF4444);
 
+  // Gradient definitions for premium look
   static const LinearGradient plusGradient = LinearGradient(
-    colors: [Color(0xFF9d4edd), Color(0xFF7b2cbf)],
+    colors: [Color(0xFF7C3AED), Color(0xFF5B21B6)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient activeGradient = LinearGradient(
+    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

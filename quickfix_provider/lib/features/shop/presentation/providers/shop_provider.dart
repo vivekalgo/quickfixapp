@@ -62,48 +62,14 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
   }
 
   Future<bool> toggleService(String serviceId, bool isEnabled) async {
-    final shop = _ref.read(authProvider).shop;
-    if (shop == null) return false;
-
-    state = state.copyWith(isLoading: true, errorMessage: null, isSuccess: false);
-    try {
-      final dio = _ref.read(dioClientProvider);
-      
-      // Update local catalog list
-      final servicesList = List<Map<String, dynamic>>.from(
-        shop.toJson()['services'] as List? ?? []
-      );
-      
-      // Find and update status / pricing if needed, or remove/add
-      // For this toggle: we can keep a status flag, or if disabled, set originalPrice to -1.
-      // Let's assume we toggle it by updating bulletPoints or we can just filter it.
-      // Wait, let's allow updating the services array directly:
-      final updatedList = servicesList.map((s) {
-        if (s['id'] == serviceId) {
-          s['isEnabled'] = isEnabled;
-        }
-        return s;
-      }).toList();
-
-      final response = await dio.post(
-        ApiEndpoints.updateServices,
-        data: {'services': updatedList},
-      );
-
-      if (response.data != null && response.data['success'] == true) {
-        await _ref.read(authProvider.notifier).refreshProfile();
-        state = ShopManagementState(isSuccess: true);
-        return true;
-      }
-      state = state.copyWith(isLoading: false, errorMessage: 'Failed to toggle service.');
-      return false;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
-      return false;
-    }
+    return updateServiceDetails(serviceId, {'isEnabled': isEnabled});
   }
 
   Future<bool> updateServicePrice(String serviceId, double newPrice) async {
+    return updateServiceDetails(serviceId, {'price': newPrice});
+  }
+
+  Future<bool> updateServiceDetails(String serviceId, Map<String, dynamic> data) async {
     final shop = _ref.read(authProvider).shop;
     if (shop == null) return false;
 
@@ -116,14 +82,16 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
       
       final updatedList = servicesList.map((s) {
         if (s['id'] == serviceId) {
-          s['price'] = newPrice;
+          s.addAll(data);
         }
         return s;
       }).toList();
 
       final response = await dio.post(
         ApiEndpoints.updateServices,
-        data: {'services': updatedList},
+        data: {
+          'services': updatedList
+        },
       );
 
       if (response.data != null && response.data['success'] == true) {
@@ -131,7 +99,7 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
         state = ShopManagementState(isSuccess: true);
         return true;
       }
-      state = state.copyWith(isLoading: false, errorMessage: 'Failed to update service price.');
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to update service details.');
       return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
@@ -144,6 +112,14 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
     required double price,
     required String durationText,
     required List<String> bulletPoints,
+    String pricingType = 'fixed',
+    double minPrice = 0,
+    double maxPrice = 0,
+    double visitingCharges = 0,
+    bool isFreeInspection = false,
+    double gst = 0,
+    double extraCharges = 0,
+    String extraChargesLabel = '',
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null, isSuccess: false);
     try {
@@ -156,6 +132,14 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
             'price': price,
             'durationText': durationText,
             'bulletPoints': bulletPoints,
+            'pricingType': pricingType,
+            'minPrice': minPrice,
+            'maxPrice': maxPrice,
+            'visitingCharges': visitingCharges,
+            'isFreeInspection': isFreeInspection,
+            'gst': gst,
+            'extraCharges': extraCharges,
+            'extraChargesLabel': extraChargesLabel,
           }
         },
       );
@@ -166,6 +150,37 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
         return true;
       }
       state = state.copyWith(isLoading: false, errorMessage: 'Failed to add custom service.');
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> deleteService(String serviceId) async {
+    final shop = _ref.read(authProvider).shop;
+    if (shop == null) return false;
+
+    state = state.copyWith(isLoading: true, errorMessage: null, isSuccess: false);
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final servicesList = List<Map<String, dynamic>>.from(
+        shop.toJson()['services'] as List? ?? []
+      );
+      
+      final updatedList = servicesList.where((s) => s['id'] != serviceId).toList();
+
+      final response = await dio.post(
+        ApiEndpoints.updateServices,
+        data: {'services': updatedList},
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        await _ref.read(authProvider.notifier).refreshProfile();
+        state = ShopManagementState(isSuccess: true);
+        return true;
+      }
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to delete service.');
       return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());

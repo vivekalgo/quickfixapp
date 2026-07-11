@@ -26,6 +26,10 @@ class ShopModel {
   final bool emergencyAvailable;
   final double rating;
   final List<String> portfolioImages;
+  final String estimatedServiceTime;
+  final String priceRange;
+  final String imagePath;
+  final List<dynamic> services;
 
   ShopModel({
     required this.id,
@@ -55,6 +59,10 @@ class ShopModel {
     required this.emergencyAvailable,
     required this.rating,
     required this.portfolioImages,
+    required this.estimatedServiceTime,
+    required this.priceRange,
+    required this.imagePath,
+    required this.services,
   });
 
   factory ShopModel.fromJson(Map<String, dynamic> json) {
@@ -86,6 +94,10 @@ class ShopModel {
       emergencyAvailable: json['emergencyAvailable'] as bool? ?? false,
       rating: (json['rating'] as num?)?.toDouble() ?? 4.5,
       portfolioImages: json['portfolioImages'] is List ? List<String>.from(json['portfolioImages'] as List) : [],
+      estimatedServiceTime: json['estimatedServiceTime']?.toString() ?? '20 mins',
+      priceRange: json['priceRange']?.toString() ?? '₹₹',
+      imagePath: json['imagePath']?.toString() ?? 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300',
+      services: json['services'] as List? ?? [],
     );
   }
 
@@ -118,6 +130,10 @@ class ShopModel {
       'emergencyAvailable': emergencyAvailable,
       'rating': rating,
       'portfolioImages': portfolioImages,
+      'estimatedServiceTime': estimatedServiceTime,
+      'priceRange': priceRange,
+      'imagePath': imagePath,
+      'services': services,
     };
   }
 }
