@@ -21,7 +21,8 @@ import '../../features/profile/presentation/screens/settings_screen.dart';
 import '../../features/profile/presentation/screens/refer_earn_screen.dart';
 import '../../features/profile/presentation/screens/addresses_screen.dart';
 import '../../features/profile/presentation/screens/order_history_screen.dart';
-import '../../features/profile/presentation/screens/wallet_screen.dart';
+import '../../features/profile/presentation/screens/privacy_policy_screen.dart';
+import '../../features/profile/presentation/screens/terms_conditions_screen.dart';
 import '../../features/profile/presentation/screens/support_screen.dart';
 import '../../features/profile/presentation/screens/wishlist_screen.dart';
 import '../../features/profile/presentation/screens/offers_screen.dart';
@@ -161,9 +162,14 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
-      path: '/wallet',
+      path: '/privacy',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const WalletScreen(),
+      builder: (context, state) => const PrivacyPolicyScreen(),
+    ),
+    GoRoute(
+      path: '/terms',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const TermsConditionsScreen(),
     ),
     GoRoute(
       path: '/support',

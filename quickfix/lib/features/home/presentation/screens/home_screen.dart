@@ -1533,7 +1533,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             ElevatedButton(
               onPressed: () {
                 AppHaptics.heavyTap();
-                context.push('/wallet');
+                context.push('/refer-earn');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,

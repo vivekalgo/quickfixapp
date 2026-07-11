@@ -4,11 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../features/home/presentation/providers/home_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import 'order_history_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -34,6 +37,7 @@ class ProfileScreen extends ConsumerWidget {
     final bool isPhoneVerified = user?['isPhoneVerified'] as bool? ?? true;
     final double walletBalance = (user?['walletBalance'] as num?)?.toDouble() ?? 0.0;
     final int referralCount = (user?['referralCount'] as num?)?.toInt() ?? 0;
+    final savedAddresses = user?['savedAddresses'] as List<dynamic>? ?? [];
     final String memberSinceRaw = user?['memberSince']?.toString() ?? '';
     String memberSince = '';
     try {
@@ -42,7 +46,11 @@ class ProfileScreen extends ConsumerWidget {
       }
     } catch (_) {}
 
-    final bookingsList = (user?['walletTransactions'] as List<dynamic>?)?.length ?? 0;
+    final bookingsAsync = ref.watch(customerBookingsProvider);
+    final String bookingsCount = bookingsAsync.maybeWhen(
+      data: (list) => list.length.toString(),
+      orElse: () => '...',
+    );
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
@@ -261,18 +269,18 @@ class ProfileScreen extends ConsumerWidget {
                     child: Row(
                       children: [
                         _buildStatItem(
-                          icon: Icons.wallet_outlined,
-                          label: 'Wallet',
-                          value: '₹${walletBalance.toStringAsFixed(0)}',
-                          color: AppColors.success,
+                          icon: Icons.location_on_outlined,
+                          label: 'Addresses',
+                          value: savedAddresses.length.toString(),
+                          color: AppColors.catPlumbingIcon,
                           isDark: isDark,
-                          onTap: () => context.push('/wallet'),
+                          onTap: () => context.push('/addresses'),
                         ),
                         _buildStatDivider(isDark),
                         _buildStatItem(
                           icon: Icons.receipt_long_outlined,
                           label: 'Orders',
-                          value: bookingsList.toString(),
+                          value: bookingsCount,
                           color: AppColors.info,
                           isDark: isDark,
                           onTap: () {
@@ -303,7 +311,6 @@ class ProfileScreen extends ConsumerWidget {
                     tiles: [
                       _ProfileTile(icon: Icons.person_outline, label: 'Edit Profile', subtitle: 'Name, photo, gender, DOB', color: AppColors.primary, route: '/edit-profile'),
                       _ProfileTile(icon: Icons.location_on_outlined, label: 'Saved Addresses', subtitle: 'Manage home, work & other', color: AppColors.catPlumbingIcon, route: '/addresses'),
-                      _ProfileTile(icon: Icons.payment_outlined, label: 'Payment Methods', subtitle: 'UPI, cards & wallet', color: AppColors.catAppliancesIcon, route: '/wallet'),
                     ],
                     context: context,
                     ref: ref,
@@ -317,7 +324,6 @@ class ProfileScreen extends ConsumerWidget {
                   _buildTileGroup(
                     isDark: isDark,
                     tiles: [
-                      _ProfileTile(icon: Icons.wallet_outlined, label: 'QuickFix Wallet', subtitle: 'Balance: ₹${walletBalance.toStringAsFixed(0)}', color: AppColors.success, route: '/wallet'),
                       _ProfileTile(icon: Icons.history_outlined, label: 'Order History', subtitle: 'Track past & current jobs', color: AppColors.info, route: '/orders', isNavTab: true),
                       _ProfileTile(icon: Icons.local_offer_outlined, label: 'Coupons & Offers', subtitle: 'Exclusive deals & discounts', color: AppColors.catElectricianIcon, route: '/offers'),
                       _ProfileTile(icon: Icons.notifications_outlined, label: 'Notifications', subtitle: 'Alerts & updates', color: AppColors.catCleaningIcon, route: '/notifications'),
@@ -521,15 +527,14 @@ class ProfileScreen extends ConsumerWidget {
                   AppHaptics.lightTap();
                   if (tile.label == 'Logout') return;
                   if (tile.label == 'Rate the App') {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Opening Play Store...'), behavior: SnackBarBehavior.floating),
-                    );
+                    final Uri url = Uri.parse('https://play.google.com/store/apps/details?id=com.quickfix.customer');
+                    try {
+                      launchUrl(url, mode: LaunchMode.externalApplication);
+                    } catch (_) {}
                     return;
                   }
                   if (tile.label == 'Share App') {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Sharing QuickFix...'), behavior: SnackBarBehavior.floating),
-                    );
+                    Share.share('Install QuickFix, the fastest hyperlocal service app! Use code QF100 for Rs.100 off: https://quickfix.com/download');
                     return;
                   }
                   if (tile.label == 'Delete Account') {

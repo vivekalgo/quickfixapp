@@ -132,8 +132,8 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
         loading: () => _buildSkeletonLoader(isDark),
         error: (err, st) => _buildErrorState(context, isDark, err.toString()),
         data: (list) {
-          final active = list.where((o) => o.status == 'pending' || o.status == 'accepted' || o.status == 'on_the_way').toList();
-          final completed = list.where((o) => o.status == 'completed').toList();
+          final active = list.where((o) => o.status == 'pending' || o.status == 'accepted' || o.status == 'navigating' || o.status == 'on_the_way' || o.status == 'arrived' || o.status == 'quote_sent' || o.status == 'work_started').toList();
+          final completed = list.where((o) => o.status == 'completed' || o.status == 'work_completed' || o.status == 'payment_completed' || o.status == 'closed').toList();
           final cancelled = list.where((o) => o.status == 'cancelled' || o.status == 'rejected').toList();
           return TabBarView(
             controller: _tabController,
@@ -259,7 +259,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
               Row(children: [
                 // Actions based on tab type
                 if (tabType == 'active') ...[
-                  if (order.status != 'on_the_way')
+                  if (order.status == 'pending' || order.status == 'accepted')
                     OutlinedButton(
                       onPressed: () => _showCancelDialog(context, order.id, isDark),
                       style: OutlinedButton.styleFrom(
@@ -339,10 +339,37 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
         label = 'ACCEPTED';
         break;
       case 'on_the_way':
+      case 'navigating':
         bg = Colors.purple.withOpacity(0.12);
         textColor = Colors.purple.shade800;
         label = 'ON THE WAY';
         break;
+      case 'arrived':
+        bg = Colors.deepPurple.withOpacity(0.12);
+        textColor = Colors.deepPurple.shade800;
+        label = 'ARRIVED';
+        break;
+      case 'quote_sent':
+        bg = Colors.orange.withOpacity(0.12);
+        textColor = Colors.orange.shade800;
+        label = 'QUOTE SENT';
+        break;
+      case 'work_started':
+        bg = Colors.amber.withOpacity(0.12);
+        textColor = Colors.amber.shade900;
+        label = 'IN PROGRESS';
+        break;
+      case 'work_completed':
+        bg = Colors.teal.withOpacity(0.12);
+        textColor = Colors.teal.shade800;
+        label = 'WORK COMPLETED';
+        break;
+      case 'payment_completed':
+        bg = Colors.green.withOpacity(0.12);
+        textColor = Colors.green.shade800;
+        label = 'PAYMENT COMPLETED';
+        break;
+      case 'closed':
       case 'completed':
         bg = Colors.green.withOpacity(0.12);
         textColor = Colors.green.shade800;

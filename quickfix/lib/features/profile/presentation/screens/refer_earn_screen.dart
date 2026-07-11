@@ -4,12 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../features/home/presentation/providers/home_providers.dart';
-import '../../../auth/presentation/providers/auth_providers.dart';
 
 final _referralInfoProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final client = DioClient();
@@ -43,22 +43,13 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
 
   void _shareCode(String code, String link, BuildContext context) {
     AppHaptics.mediumTap();
-    // In production, use share_plus: Share.share(...)
-    Clipboard.setData(ClipboardData(text: 'Use my QuickFix referral code $code: $link'));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Referral link copied! Share it with friends.'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.success,
-      ),
-    );
+    Share.share('Use my QuickFix referral code $code to get a welcome bonus of ₹50! Download app: $link');
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = ref.watch(isDarkModeProvider);
     final referralAsync = ref.watch(_referralInfoProvider);
-    final user = ref.watch(authProvider).user;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
@@ -104,7 +95,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'You get ₹100 wallet cash for every friend who joins,\nyour friend gets ₹50 as a welcome bonus!',
+                    'You get ₹100 discount coupon for every friend who joins,\nyour friend gets ₹50 as a welcome bonus!',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
                   ),
@@ -218,7 +209,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                       ...[
                         _HowItWorksStep(number: '1', title: 'Share your code', desc: 'Send your unique referral code to friends via WhatsApp, SMS or any platform.'),
                         _HowItWorksStep(number: '2', title: 'Friend signs up', desc: 'Your friend downloads QuickFix and registers with your referral code.'),
-                        _HowItWorksStep(number: '3', title: 'Both get rewarded', desc: 'You earn ₹100 wallet cash. Your friend gets ₹50 as a welcome bonus!'),
+                        _HowItWorksStep(number: '3', title: 'Both get rewarded', desc: 'You earn a ₹100 discount coupon. Your friend gets ₹50 as a welcome bonus!'),
                       ].asMap().entries.map((e) => _buildStep(e.value, isDark).animate(delay: (100 * e.key).ms).fadeIn().slideX(begin: 0.05)),
 
                       const SizedBox(height: 24),
@@ -242,7 +233,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                             const SizedBox(height: 8),
                             ...['Referral rewards apply only when the invited user completes their first booking.',
                                 'Both referrer and referred must have valid QuickFix accounts.',
-                                'Rewards are credited to QuickFix Wallet within 24 hours of booking completion.',
+                                'Rewards are credited as discount coupons within 24 hours of booking completion.',
                                 'QuickFix reserves the right to revoke rewards for misuse or fraud.']
                                 .map((t) => Padding(
                                   padding: const EdgeInsets.only(top: 4),

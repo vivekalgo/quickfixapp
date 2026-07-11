@@ -2111,8 +2111,8 @@ app.post('/api/bookings/cancel', async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    if (booking.status === 'on_the_way' || booking.status === 'completed') {
-      return res.status(400).json({ error: 'Cannot cancel order once it is on the way or completed!' });
+    if (['on_the_way', 'navigating', 'arrived', 'work_started', 'work_completed', 'payment_completed', 'completed', 'closed'].includes(booking.status)) {
+      return res.status(400).json({ error: 'Cannot cancel order once provider has started travel or work is in progress!' });
     }
 
     booking.status = 'cancelled';
@@ -2120,6 +2120,105 @@ app.post('/api/bookings/cancel', async (req, res) => {
     res.json({ success: true, booking });
   } catch (e) {
     res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+});
+
+// Quotation Upload & Respond Endpoints
+app.post('/api/bookings/:bookingId/quotation', async (req, res) => {
+  const { bookingId } = req.params;
+  const { labourCharge, spareParts, additionalMaterials, visitingCharges, discount, gst } = req.body;
+  try {
+    const booking = await Booking.findOne({ id: bookingId });
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const lC = parseFloat(labourCharge) || 0.0;
+    const sP = parseFloat(spareParts) || 0.0;
+    const aM = parseFloat(additionalMaterials) || 0.0;
+    const vC = parseFloat(visitingCharges) || 0.0;
+    const disc = parseFloat(discount) || 0.0;
+    const gstPct = parseFloat(gst) || 0.0;
+
+    const subtotal = lC + sP + aM + vC - disc;
+    const gstAmt = subtotal * (gstPct / 100);
+    const totalAmount = subtotal + gstAmt;
+
+    booking.quotation = {
+      labourCharge: lC,
+      spareParts: sP,
+      additionalMaterials: aM,
+      visitingCharges: vC,
+      discount: disc,
+      gst: gstPct,
+      totalAmount: parseFloat(totalAmount.toFixed(2)),
+      status: 'pending',
+      updatedAt: new Date(),
+      createdAt: booking.quotation && booking.quotation.createdAt ? booking.quotation.createdAt : new Date()
+    };
+
+    booking.status = 'quote_sent';
+    
+    if (!booking.quotationHistory) {
+      booking.quotationHistory = [];
+    }
+    booking.quotationHistory.push({
+      ...booking.quotation,
+      date: new Date()
+    });
+
+    await booking.save();
+    res.json({ success: true, booking });
+  } catch (e) {
+    console.error('Quotation upload failed:', e);
+    res.status(500).json({ error: 'Failed to upload quotation' });
+  }
+});
+
+app.post('/api/bookings/:bookingId/quotation/respond', async (req, res) => {
+  const { bookingId } = req.params;
+  const { response, comment } = req.body;
+  try {
+    const booking = await Booking.findOne({ id: bookingId });
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (!booking.quotation) {
+      return res.status(400).json({ error: 'No quotation found to respond to' });
+    }
+
+    booking.quotation.status = response;
+    booking.quotation.updatedAt = new Date();
+
+    if (!booking.quotationHistory) {
+      booking.quotationHistory = [];
+    }
+    booking.quotationHistory.push({
+      action: `respond_${response}`,
+      comment: comment || '',
+      date: new Date()
+    });
+
+    if (response === 'accepted') {
+      booking.status = 'work_started';
+      booking.amount = booking.quotation.totalAmount;
+      
+      const shop = await Shop.findOne({ id: booking.shopId });
+      const commissionRate = shop ? (shop.commissionRate || 15.0) : 15.0;
+      booking.estEarnings = parseFloat((booking.amount * (1 - commissionRate / 100)).toFixed(2));
+    } else if (response === 'rejected') {
+      booking.status = 'cancelled';
+    } else if (response === 'modify') {
+      booking.status = 'arrived';
+      booking.quotation.status = 'modified';
+    }
+
+    await booking.save();
+    res.json({ success: true, booking });
+  } catch (e) {
+    console.error('Quotation response failed:', e);
+    res.status(500).json({ error: 'Failed to respond to quotation' });
   }
 });
 

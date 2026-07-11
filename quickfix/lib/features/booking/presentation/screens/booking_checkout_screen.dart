@@ -512,10 +512,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
 
             const SizedBox(height: 20),
 
-            // 6. Payment Selection
             _buildSectionHeader(isDark, 'Select Payment Method'),
             Column(
-              children: ['Razorpay', 'QuickFix Wallet (Balance: ₹${(user?['walletBalance'] ?? 0.0).toStringAsFixed(2)})', 'Cash after Service'].map((method) {
+              children: ['Razorpay', 'Cash after Service'].map((method) {
                 final isSelected = paymentMethod == method;
                 return GestureDetector(
                   onTap: () {
@@ -541,7 +540,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                             Icon(
                               method == 'Razorpay' 
                                   ? Icons.payment_outlined 
-                                  : (method.contains('Wallet') ? Icons.wallet_outlined : Icons.monetization_on_outlined),
+                                  : Icons.monetization_on_outlined,
                               color: isSelected ? AppColors.primary : AppColors.textSecondaryLight,
                             ),
                             const SizedBox(width: 12),
@@ -758,19 +757,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
 
     String methodParam = 'Cash';
     if (amount > 0.0) {
-      if (paymentMethod.startsWith('QuickFix Wallet')) {
-        methodParam = 'Wallet';
-        final walletBalance = (user?['walletBalance'] ?? 0.0) as num;
-        if (walletBalance < amount) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Insufficient wallet balance! Please add money to your wallet.'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-          return;
-        }
-      } else if (paymentMethod == 'Razorpay') {
+      if (paymentMethod == 'Razorpay') {
         methodParam = 'Razorpay';
       }
     } else {

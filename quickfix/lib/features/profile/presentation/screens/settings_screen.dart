@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/haptics.dart';
@@ -117,27 +119,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 label: 'Privacy Policy',
                 subtitle: 'How we use your data',
                 iconColor: AppColors.catAppliancesIcon,
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Opening Privacy Policy...'), behavior: SnackBarBehavior.floating),
-                ),
+                onTap: () => context.push('/privacy'),
               ),
               _SettingsTile(
                 icon: Icons.article_outlined,
                 label: 'Terms & Conditions',
                 subtitle: 'Usage policies & agreements',
                 iconColor: AppColors.catCarpentryIcon,
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Opening Terms...'), behavior: SnackBarBehavior.floating),
-                ),
+                onTap: () => context.push('/terms'),
               ),
               _SettingsTile(
                 icon: Icons.security_outlined,
                 label: 'Data & Permissions',
                 subtitle: 'Manage what data we store',
                 iconColor: AppColors.catPlumbingIcon,
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon'), behavior: SnackBarBehavior.floating),
-                ),
+                onTap: () async {
+                  await openAppSettings();
+                },
               ),
             ]),
 
@@ -159,9 +157,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 label: 'Rate Our App',
                 subtitle: 'Share feedback on Play Store',
                 iconColor: AppColors.warning,
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Opening Play Store...'), behavior: SnackBarBehavior.floating),
-                ),
+                onTap: () async {
+                  final Uri url = Uri.parse('https://play.google.com/store/apps/details?id=com.quickfix.customer');
+                  try {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  } catch (_) {}
+                },
               ),
               _SettingsTile(
                 icon: Icons.headset_mic_outlined,
