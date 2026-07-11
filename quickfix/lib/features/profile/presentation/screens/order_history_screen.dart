@@ -20,6 +20,7 @@ class OrderItem {
   final String providerName;
   final String status;
   final String shopId;
+  final String pricingType;
 
   const OrderItem({
     required this.id,
@@ -30,6 +31,7 @@ class OrderItem {
     required this.providerName,
     required this.status,
     this.shopId = '',
+    this.pricingType = 'fixed',
   });
 }
 
@@ -52,6 +54,7 @@ final customerBookingsProvider = FutureProvider<List<OrderItem>>((ref) async {
         providerName: json['providerName']?.toString() ?? 'Assigning Expert...',
         status: json['status']?.toString() ?? 'pending',
         shopId: json['shopId']?.toString() ?? '',
+        pricingType: json['pricingType']?.toString() ?? 'fixed',
       );
     }).toList();
   } catch (e) {
@@ -253,8 +256,40 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Amount Paid', style: AppTextStyles.bodySmall(isDark)),
-                Text('₹${order.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.secondary)),
+                Text('Amount', style: AppTextStyles.bodySmall(isDark)),
+                if (order.pricingType == 'inspection' && order.amount == 0)
+                  Text('Awaiting Quote', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, color: Colors.orange.shade700))
+                else
+                  Text('₹${order.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.secondary)),
+                if (order.pricingType != 'fixed')
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: order.pricingType == 'inspection'
+                          ? Colors.orange.withOpacity(0.1)
+                          : order.pricingType == 'starting'
+                              ? Colors.amber.withOpacity(0.1)
+                              : Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      order.pricingType == 'inspection'
+                          ? 'Quote Required'
+                          : order.pricingType == 'starting'
+                              ? 'Starts From'
+                              : 'Price Range',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: order.pricingType == 'inspection'
+                            ? Colors.orange
+                            : order.pricingType == 'starting'
+                                ? Colors.amber.shade700
+                                : Colors.blue,
+                      ),
+                    ),
+                  ),
               ]),
               Row(children: [
                 // Actions based on tab type

@@ -300,7 +300,51 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(item.title, style: AppTextStyles.bodyMedium(isDark).copyWith(fontWeight: FontWeight.bold)),
-                                  Text('₹${item.price.toInt()} x ${item.quantity}', style: AppTextStyles.bodySmall(isDark)),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      if (item.pricingType == 'inspection')
+                                        Text('Price after inspection', style: AppTextStyles.bodySmall(isDark).copyWith(fontStyle: FontStyle.italic))
+                                      else if (item.pricingType == 'starting')
+                                        Text('Starting from ₹${item.price.toInt()} x ${item.quantity}', style: AppTextStyles.bodySmall(isDark))
+                                      else
+                                        Text('₹${item.price.toInt()} x ${item.quantity}', style: AppTextStyles.bodySmall(isDark)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: item.pricingType == 'inspection'
+                                          ? Colors.orange.withOpacity(0.1)
+                                          : item.pricingType == 'starting'
+                                              ? Colors.amber.withOpacity(0.1)
+                                              : item.pricingType == 'range'
+                                                  ? Colors.blue.withOpacity(0.1)
+                                                  : Colors.green.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      item.pricingType == 'inspection'
+                                          ? 'Quote Required'
+                                          : item.pricingType == 'starting'
+                                              ? 'Starts From'
+                                              : item.pricingType == 'range'
+                                                  ? 'Price Range'
+                                                  : 'Fixed Price',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: item.pricingType == 'inspection'
+                                            ? Colors.orange
+                                            : item.pricingType == 'starting'
+                                                ? Colors.amber.shade700
+                                                : item.pricingType == 'range'
+                                                    ? Colors.blue
+                                                    : Colors.green,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -777,7 +821,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
       'customerAddress': addresses[selectedAddressIndex]['details'],
       'shopId': cartShopId ?? 'shop-1', 
       'paymentMethod': methodParam,
-      'pricingType': hasInspectionService ? 'inspection' : 'fixed',
+      'pricingType': hasInspectionService ? 'inspection' : (cart.values.any((item) => item.pricingType == 'starting') ? 'starting' : (cart.values.any((item) => item.pricingType == 'range') ? 'range' : 'fixed')),
       'isFreeInspection': isFreeInspection,
     };
 

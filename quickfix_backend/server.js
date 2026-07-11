@@ -795,13 +795,23 @@ app.post('/api/provider/update-services', requireAuth, async (req, res) => {
       const newService = {
         id: `srv-custom-${Date.now()}`,
         title: customService.title,
-        price: parseFloat(customService.price),
+        price: parseFloat(customService.price) || 0,
         originalPrice: customService.originalPrice ? parseFloat(customService.originalPrice) : undefined,
         rating: 5.0,
         reviewsCount: 0,
         durationText: customService.durationText || '1 hr',
         bulletPoints: customService.bulletPoints || [],
-        imageUrl: customService.imageUrl || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300'
+        imageUrl: customService.imageUrl || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300',
+        pricingType: customService.pricingType || 'fixed',
+        minPrice: parseFloat(customService.minPrice) || 0,
+        maxPrice: parseFloat(customService.maxPrice) || 0,
+        visitingCharges: parseFloat(customService.visitingCharges) || 0,
+        isFreeInspection: customService.isFreeInspection === true,
+        gst: parseFloat(customService.gst) || 0,
+        extraCharges: parseFloat(customService.extraCharges) || 0,
+        extraChargesLabel: customService.extraChargesLabel || '',
+        isAvailable: customService.isAvailable !== false,
+        isEnabled: customService.isEnabled !== false
       };
       shop.services.push(newService);
     }
