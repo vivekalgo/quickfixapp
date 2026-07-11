@@ -138,8 +138,23 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
       if (res.statusCode == 200 && res.data['success'] == true) {
         ref.read(authProvider.notifier).checkSession();
         AppHaptics.successNotification();
+        
+        final bookingId = res.data['bookingId'] ?? (res.data['booking'] != null ? res.data['booking']['id'] : null);
+        final amount = res.data['booking'] != null ? res.data['booking']['amount'] : null;
+        final date = res.data['booking'] != null ? res.data['booking']['date'] : null;
+        final slot = res.data['booking'] != null ? res.data['booking']['slot'] : null;
+        
         ref.read(cartProvider.notifier).clearCart();
-        context.push('/confirmation');
+        
+        context.push(
+          '/confirmation',
+          extra: {
+            'bookingId': bookingId,
+            'amount': amount,
+            'date': date,
+            'slot': slot,
+          },
+        );
       } else {
         throw Exception(res.data['error'] ?? 'Server booking rejection.');
       }

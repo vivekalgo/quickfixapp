@@ -325,7 +325,7 @@ class ProfileScreen extends ConsumerWidget {
                     isDark: isDark,
                     tiles: [
                       _ProfileTile(icon: Icons.history_outlined, label: 'Order History', subtitle: 'Track past & current jobs', color: AppColors.info, route: '/orders', isNavTab: true),
-                      _ProfileTile(icon: Icons.local_offer_outlined, label: 'Coupons & Offers', subtitle: 'Exclusive deals & discounts', color: AppColors.catElectricianIcon, route: '/offers'),
+                      _ProfileTile(icon: Icons.local_offer_outlined, label: 'Coupons & Offers', subtitle: 'Exclusive deals & discounts', color: AppColors.catElectricianIcon, route: '/offers', isNavTab: true),
                       _ProfileTile(icon: Icons.notifications_outlined, label: 'Notifications', subtitle: 'Alerts & updates', color: AppColors.catCleaningIcon, route: '/notifications'),
                     ],
                     context: context,
@@ -543,7 +543,17 @@ class ProfileScreen extends ConsumerWidget {
                   }
                   if (tile.route.isEmpty) return;
                   if (tile.isNavTab) {
-                    ref.read(currentNavIndexProvider.notifier).state = 1;
+                    int targetIndex = 1;
+                    if (tile.route == '/orders') {
+                      targetIndex = 1;
+                    } else if (tile.route == '/offers') {
+                      targetIndex = 4;
+                    } else if (tile.route == '/wishlist') {
+                      targetIndex = 3;
+                    } else if (tile.route == '/home') {
+                      targetIndex = 0;
+                    }
+                    ref.read(currentNavIndexProvider.notifier).state = targetIndex;
                     context.go(tile.route);
                   } else {
                     context.push(tile.route);

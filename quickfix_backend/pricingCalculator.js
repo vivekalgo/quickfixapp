@@ -10,6 +10,8 @@ const { Settings, Offer } = require('./models');
  * @returns {Promise<Object>} Calculated amounts and formatting info
  */
 async function calculateCheckoutPriceInternal(shop, items, couponCode) {
+  console.log(`[Pricing Engine] Calculating checkout price for shop: ${shop.name} (${shop.id}), items:`, JSON.stringify(items), `coupon:`, couponCode);
+
   let bookingPricingType = 'fixed';
   let hasInspection = false;
   let hasStarting = false;
@@ -40,9 +42,11 @@ async function calculateCheckoutPriceInternal(shop, items, couponCode) {
     const effectiveVisitingCharges = cartServices.map(cs => {
       if (cs.service.isFreeInspection) return 0;
       // Use service visitingCharges if set and > 0, otherwise fallback to shop visitingCharges
-      return (cs.service.visitingCharges !== undefined && cs.service.visitingCharges > 0)
-        ? cs.service.visitingCharges 
-        : (shop.visitingCharges !== undefined ? shop.visitingCharges : 150.0);
+      const svcCharges = parseFloat(cs.service.visitingCharges);
+      const shopCharges = parseFloat(shop.visitingCharges);
+      return (!isNaN(svcCharges) && svcCharges > 0)
+        ? svcCharges 
+        : (!isNaN(shopCharges) ? shopCharges : 150.0);
     });
     visitingCharge = Math.max(...effectiveVisitingCharges, 0);
   }
@@ -56,19 +60,22 @@ async function calculateCheckoutPriceInternal(shop, items, couponCode) {
     const srv = cs.service;
     const qty = cs.quantity;
 
+    let itemPrice = parseFloat(srv.price) || 0;
     let itemTaxable = 0;
     if (srv.pricingType === 'fixed') {
-      itemTaxable = srv.price * qty;
+      itemTaxable = itemPrice * qty;
       servicePrice += itemTaxable;
     }
 
-    if (srv.pricingType === 'fixed' && srv.gst > 0) {
-      const itemGst = itemTaxable * (srv.gst / 100);
+    const itemGstPct = parseFloat(srv.gst) || 0;
+    if (srv.pricingType === 'fixed' && itemGstPct > 0) {
+      const itemGst = itemTaxable * (itemGstPct / 100);
       gstTotal += itemGst;
     }
 
-    if (srv.extraCharges > 0) {
-      const extraAmt = srv.extraCharges * qty;
+    const srvExtraCharges = parseFloat(srv.extraCharges) || 0;
+    if (srvExtraCharges > 0) {
+      const extraAmt = srvExtraCharges * qty;
       extraChargesTotal += extraAmt;
       extraChargesList.push({
         label: srv.extraChargesLabel || 'Material Cost',
@@ -166,7 +173,7 @@ async function calculateCheckoutPriceInternal(shop, items, couponCode) {
     // Starting prices listing
     const startPrices = cartServices
       .filter(cs => cs.service.pricingType === 'starting')
-      .map(cs => `Starts From ₹${Math.round(cs.service.price)}`);
+      .map(cs => `Starts From ₹${Math.round(parseFloat(cs.service.price))}`);
     estimatedPriceText = startPrices.join(', ') || 'Starts From ₹0';
     
     billDetails.push({ label: 'Estimated Service Price', value: estimatedPriceText });
@@ -180,7 +187,7 @@ async function calculateCheckoutPriceInternal(shop, items, couponCode) {
     // Ranges listing
     const ranges = cartServices
       .filter(cs => cs.service.pricingType === 'range')
-      .map(cs => `₹${Math.round(cs.service.minPrice)} - ₹${Math.round(cs.service.maxPrice)}`);
+      .map(cs => `₹${Math.round(parseFloat(cs.service.minPrice))} - ₹${Math.round(parseFloat(cs.service.maxPrice))}`);
     estimatedPriceText = ranges.join(', ') || '₹0 - ₹0';
     
     billDetails.push({ label: 'Estimated Price', value: estimatedPriceText });
@@ -196,7 +203,7 @@ async function calculateCheckoutPriceInternal(shop, items, couponCode) {
     redBannerText = "🔴 Service price is not fixed. Provider will inspect and send quotation before starting work.";
   }
 
-  return {
+  const finalResult = {
     pricingType: bookingPricingType,
     isFreeInspection,
     servicePrice,
@@ -213,6 +220,9 @@ async function calculateCheckoutPriceInternal(shop, items, couponCode) {
     estimatedPriceText,
     billDetails
   };
+
+  console.log(`[Pricing Engine] Output calculations:`, JSON.stringify(finalResult));
+  return finalResult;
 }
 
 module.exports = {

@@ -600,8 +600,23 @@
                 <input type="text" id="cat-name" required placeholder="e.g. Deep Cleaning">
               </div>
               <div class="form-group">
-                <label for="cat-icon-url">Icon Image URL / Slug</label>
-                <input type="text" id="cat-icon-url" placeholder="e.g. https://images.unsplash.com/... or icon name (cleaning, plumbing, etc.)">
+                <label>Category Icon Image</label>
+                <div class="image-upload-wrapper" style="display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; gap:12px; align-items:center;">
+                    <label for="cat-icon-file" class="btn btn-secondary" style="cursor:pointer; margin:0; display:inline-flex; align-items:center; gap:6px;">
+                      <i class="fa-solid fa-cloud-arrow-up"></i> Upload Image
+                    </label>
+                    <input type="file" id="cat-icon-file" accept="image/*" style="display:none;">
+                    <span id="cat-icon-file-name" style="font-size:12px; color:var(--text-secondary);">No file chosen</span>
+                  </div>
+                  <input type="hidden" id="cat-icon-url">
+                  <div id="cat-icon-preview-container" style="display:none; align-items:center; gap:8px; margin-top:4px;">
+                    <img id="cat-icon-preview" src="" style="width:48px; height:48px; border-radius:8px; object-fit:cover; border:1px solid var(--border);">
+                    <button type="button" id="btn-remove-cat-icon" class="btn btn-danger btn-sm btn-icon" style="padding:4px 8px; font-size:12px;" title="Remove Image">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                </div>
               </div>
               <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Add Category</button>
             </form>

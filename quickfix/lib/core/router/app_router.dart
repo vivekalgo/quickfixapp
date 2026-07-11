@@ -151,7 +151,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/confirmation',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const BookingConfirmationScreen(),
+      builder: (context, state) {
+        final extraData = state.extra as Map<String, dynamic>?;
+        return BookingConfirmationScreen(extraData: extraData);
+      },
     ),
     GoRoute(
       path: '/tracking/:id',

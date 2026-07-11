@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSubtabs();
   setupCmsEvents();
   setupCmsForms();
+  setupCategoryImageUpload();
   
   // Custom Filters & Dropdowns
   const statusFilter = document.getElementById('booking-filter-status');
@@ -754,11 +755,45 @@ function setupForms() {
   if (categoryForm) {
     categoryForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      const fileInput = document.getElementById('cat-icon-file');
+      let iconUrl = document.getElementById('cat-icon-url').value;
+      
+      // If a new file is chosen, we upload it first
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        const file = fileInput.files[0];
+        showToast('Uploading category icon...', 'warning');
+        try {
+          const base64Data = await convertFileToBase64(file);
+          const uploadRes = await fetch(`${API_URL}/categories/upload-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              base64Image: base64Data.base64,
+              mimeType: file.type
+            })
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadData.success) {
+            iconUrl = uploadData.imageUrl;
+            document.getElementById('cat-icon-url').value = iconUrl;
+            showToast('Category icon uploaded successfully', 'success');
+          } else {
+            showToast('Failed to upload category icon: ' + (uploadData.error || 'Unknown error'), 'error');
+            return;
+          }
+        } catch (uploadErr) {
+          console.error('Category icon upload failed:', uploadErr);
+          showToast('Image upload failed', 'error');
+          return;
+        }
+      }
+      
       const isEdit = document.getElementById('cat-id').disabled;
       const bodyData = {
         id: document.getElementById('cat-id').value,
         name: document.getElementById('cat-name').value,
-        iconUrl: document.getElementById('cat-icon-url').value
+        iconUrl: iconUrl
       };
       const endpoint = isEdit ? `${API_URL}/categories/update` : `${API_URL}/categories/create`;
       try {
@@ -1576,6 +1611,20 @@ function editCategory(id, name, iconUrl) {
   document.getElementById('cat-name').value = name;
   document.getElementById('cat-icon-url').value = iconUrl;
   
+  const previewImg = document.getElementById('cat-icon-preview');
+  const previewContainer = document.getElementById('cat-icon-preview-container');
+  const fileNameSpan = document.getElementById('cat-icon-file-name');
+  
+  if (iconUrl) {
+    previewImg.src = iconUrl;
+    previewContainer.style.display = 'flex';
+    fileNameSpan.textContent = 'Existing image';
+  } else {
+    previewImg.src = '';
+    previewContainer.style.display = 'none';
+    fileNameSpan.textContent = 'No file chosen';
+  }
+  
   const formHeader = document.querySelector('#categories-tab .form-card h2');
   if (formHeader) formHeader.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Service Category';
   
@@ -1600,6 +1649,17 @@ function resetCategoryForm() {
   document.getElementById('category-form').reset();
   document.getElementById('cat-id').disabled = false;
   
+  const fileInput = document.getElementById('cat-icon-file');
+  if (fileInput) fileInput.value = '';
+  const fileNameSpan = document.getElementById('cat-icon-file-name');
+  if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+  const previewImg = document.getElementById('cat-icon-preview');
+  if (previewImg) previewImg.src = '';
+  const previewContainer = document.getElementById('cat-icon-preview-container');
+  if (previewContainer) previewContainer.style.display = 'none';
+  const iconUrlInput = document.getElementById('cat-icon-url');
+  if (iconUrlInput) iconUrlInput.value = '';
+  
   const formHeader = document.querySelector('#categories-tab .form-card h2');
   if (formHeader) formHeader.innerHTML = '<i class="fa-solid fa-square-plus"></i> Create Service Category';
   
@@ -1608,6 +1668,54 @@ function resetCategoryForm() {
   
   const cancelBtn = document.getElementById('btn-cancel-category-edit');
   if (cancelBtn) cancelBtn.remove();
+}
+
+function convertFileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64String = reader.result.split(',')[1];
+      resolve({ base64: base64String });
+    };
+    reader.onerror = error => reject(error);
+  });
+}
+
+function setupCategoryImageUpload() {
+  const fileInput = document.getElementById('cat-icon-file');
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const previewImg = document.getElementById('cat-icon-preview');
+      const previewContainer = document.getElementById('cat-icon-preview-container');
+      const fileNameSpan = document.getElementById('cat-icon-file-name');
+      
+      if (file) {
+        fileNameSpan.textContent = file.name;
+        previewImg.src = URL.createObjectURL(file);
+        previewContainer.style.display = 'flex';
+      } else {
+        if (!document.getElementById('cat-icon-url').value) {
+          fileNameSpan.textContent = 'No file chosen';
+          previewImg.src = '';
+          previewContainer.style.display = 'none';
+        }
+      }
+    });
+  }
+
+  const removeBtn = document.getElementById('btn-remove-cat-icon');
+  if (removeBtn) {
+    removeBtn.addEventListener('click', () => {
+      const fileInput = document.getElementById('cat-icon-file');
+      if (fileInput) fileInput.value = '';
+      document.getElementById('cat-icon-file-name').textContent = 'No file chosen';
+      document.getElementById('cat-icon-preview').src = '';
+      document.getElementById('cat-icon-preview-container').style.display = 'none';
+      document.getElementById('cat-icon-url').value = '';
+    });
+  }
 }
 
 // Delete category

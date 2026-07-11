@@ -11,28 +11,49 @@ import '../providers/cart_provider.dart';
 import 'booking_checkout_screen.dart';
 
 class BookingConfirmationScreen extends ConsumerWidget {
-  const BookingConfirmationScreen({super.key});
+  final Map<String, dynamic>? extraData;
+  const BookingConfirmationScreen({super.key, this.extraData});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(isDarkModeProvider);
-    final totalAmount = ref.watch(cartTotalAmountProvider);
     
-    final selectedDate = ref.watch(selectedDateProvider);
-    final selectedSlot = ref.watch(selectedSlotProvider);
-
-    final coupon = ref.watch(appliedCouponProvider);
-    double discount = 0.0;
-    if (coupon == 'QUICK20') {
-      discount = totalAmount * 0.20;
-    } else if (coupon == 'FIRST15') {
-      discount = totalAmount * 0.15;
+    // Extract data from extraData if available, otherwise fallback to providers/hardcoded
+    final String bookingId = extraData?['bookingId']?.toString() ?? 'QF-8947265';
+    
+    final double? extraAmount = (extraData?['amount'] as num?)?.toDouble();
+    final double finalPaidAmount;
+    if (extraAmount != null) {
+      finalPaidAmount = extraAmount;
+    } else {
+      final totalAmount = ref.watch(cartTotalAmountProvider);
+      final coupon = ref.watch(appliedCouponProvider);
+      double discount = 0.0;
+      if (coupon == 'QUICK20') {
+        discount = totalAmount * 0.20;
+      } else if (coupon == 'FIRST15') {
+        discount = totalAmount * 0.15;
+      }
+      finalPaidAmount = totalAmount - discount + (totalAmount > 0 ? 49.0 : 0.0);
     }
-    
-    final finalPaidAmount = totalAmount - discount + (totalAmount > 0 ? 49.0 : 0.0);
 
-    // Random Booking ID simulation
-    const String bookingId = 'QF-8947265';
+    final DateTime selectedDate;
+    if (extraData?['date'] != null) {
+      DateTime? parsed;
+      try {
+        parsed = DateTime.parse(extraData!['date'].toString());
+      } catch (_) {}
+      selectedDate = parsed ?? ref.watch(selectedDateProvider);
+    } else {
+      selectedDate = ref.watch(selectedDateProvider);
+    }
+
+    final String selectedSlot;
+    if (extraData?['slot'] != null) {
+      selectedSlot = extraData!['slot'].toString();
+    } else {
+      selectedSlot = ref.watch(selectedSlotProvider);
+    }
 
     return Scaffold(
       body: SafeArea(
