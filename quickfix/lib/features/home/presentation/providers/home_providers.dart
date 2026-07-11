@@ -31,47 +31,7 @@ final categoriesProvider = FutureProvider<List<ServiceCategory>>((ref) async {
       .where((category) => category.id.trim().isNotEmpty && category.name.trim().isNotEmpty)
       .toList();
 
-  final baseCategories = normalized.isEmpty
-      ? const [
-          ServiceCategory(
-            id: 'cleaning',
-            name: 'Cleaning',
-            icon: Icons.cleaning_services_outlined,
-            backgroundColor: Color(0xFFEEF2FF),
-            iconColor: Color(0xFF4F46E5),
-          ),
-          ServiceCategory(
-            id: 'plumbing',
-            name: 'Plumbing',
-            icon: Icons.plumbing_outlined,
-            backgroundColor: Color(0xFFECFDF5),
-            iconColor: Color(0xFF059669),
-          ),
-          ServiceCategory(
-            id: 'electrician',
-            name: 'Electrician',
-            icon: Icons.bolt_outlined,
-            backgroundColor: Color(0xFFFFFBEB),
-            iconColor: Color(0xFFD97706),
-          ),
-          ServiceCategory(
-            id: 'appliances',
-            name: 'Appliances Repair',
-            icon: Icons.local_laundry_service_outlined,
-            backgroundColor: Color(0xFFF5F3FF),
-            iconColor: Color(0xFF7C3AED),
-          ),
-          ServiceCategory(
-            id: 'carpentry',
-            name: 'Carpentry',
-            icon: Icons.carpenter_outlined,
-            backgroundColor: Color(0xFFFFF7ED),
-            iconColor: Color(0xFFEA580C),
-          ),
-        ]
-      : normalized;
-
-  return baseCategories;
+  return normalized;
 });
 
 // Selected Nearby Shop Filter Tag Provider

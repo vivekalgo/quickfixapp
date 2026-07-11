@@ -1079,46 +1079,6 @@ app.get('/api/categories', async (req, res) => {
 app.get('/api/reviews', async (req, res) => {
   try {
     let list = await Review.find({ status: 'approved', isActive: { $ne: false } });
-    if (list.length === 0) {
-      const defaultReviews = [
-        {
-          id: 'rev-default-1',
-          userName: 'Aman Verma',
-          userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-          rating: 5.0,
-          comment: 'Very quick service! Professional was extremely skilled and resolved our issue within minutes.',
-          serviceName: 'Deep Home Cleaning',
-          locationName: 'Kalyanpur',
-          shopId: 'shop-cleaning-expert',
-          providerName: 'Rohan Sharma',
-          date: new Date().toISOString().split('T')[0],
-          verifiedBadge: true,
-          priority: 0,
-          status: 'approved',
-          isActive: true,
-          isFeatured: true
-        },
-        {
-          id: 'rev-default-2',
-          userName: 'Neha Singh',
-          userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-          rating: 5.0,
-          comment: 'Outstanding quality and very reasonable prices. Will book again!',
-          serviceName: 'Leak Repair & Pipeline Fixing',
-          locationName: 'Swaroop Nagar',
-          shopId: 'shop-plumbing-expert',
-          providerName: 'Suresh Kumar',
-          date: new Date().toISOString().split('T')[0],
-          verifiedBadge: true,
-          priority: 1,
-          status: 'approved',
-          isActive: true,
-          isFeatured: true
-        }
-      ];
-      await Review.insertMany(defaultReviews);
-      list = await Review.find({ status: 'approved', isActive: { $ne: false } });
-    }
     list.sort((a, b) => (a.priority || 0) - (b.priority || 0));
     res.json(list);
   } catch (e) {
@@ -1219,97 +1179,6 @@ app.get('/api/professionals', async (req, res) => {
   const { sort, lat, lng } = req.query;
   try {
     let list = await Professional.find({ isActive: { $ne: false } });
-    if (list.length === 0) {
-      let shopsList = await Shop.find({});
-      if (shopsList.length === 0) {
-        const defaultShops = [
-          {
-            id: 'shop-cleaning-expert',
-            shopDisplayId: 'QF100201',
-            name: 'Sparkle Home Solutions',
-            ownerName: 'Rohan Sharma',
-            password: 'hashedpassword',
-            phone: '9876543210',
-            email: 'rohan@sparkle.com',
-            latitude: 26.4912,
-            longitude: 80.3156,
-            address: '12, Kalyanpur, Kanpur',
-            categories: ['Cleaning'],
-            imagePath: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300',
-            rating: 4.9,
-            isOpen: true,
-            isOnline: true,
-            verificationStatus: 'approved',
-            visitingCharges: 150.0,
-            services: [
-              { id: 'clean-1', title: 'Deep Home Cleaning', price: 999, originalPrice: 1499, rating: 4.9, reviewsCount: 150, durationText: '3 hrs', bulletPoints: ['Complete sanitization', 'Eco-friendly chemicals', '4 experts team'], imageUrl: '' }
-            ]
-          },
-          {
-            id: 'shop-plumbing-expert',
-            shopDisplayId: 'QF100202',
-            name: 'FlowGuard Plumbers',
-            ownerName: 'Suresh Kumar',
-            password: 'hashedpassword',
-            phone: '9876543211',
-            email: 'suresh@flowguard.com',
-            latitude: 26.4850,
-            longitude: 80.3200,
-            address: '45, Swaroop Nagar, Kanpur',
-            categories: ['Plumbing'],
-            imagePath: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-            rating: 4.8,
-            isOpen: true,
-            isOnline: true,
-            verificationStatus: 'approved',
-            visitingCharges: 120.0,
-            services: [
-              { id: 'plumb-1', title: 'Leak Repair & Pipeline Fixing', price: 299, originalPrice: 499, rating: 4.8, reviewsCount: 95, durationText: '1 hr', bulletPoints: ['High-quality threads', '6 months warranty', 'No mess leftover'], imageUrl: '' }
-            ]
-          }
-        ];
-        await Shop.insertMany(defaultShops);
-      }
-      
-      const defaultProfs = [
-        {
-          id: 'expert-rohan',
-          name: 'Rohan Sharma',
-          specialty: 'Expert Cleaner',
-          rating: 4.9,
-          reviewsCount: 150,
-          imageUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-          shopId: 'shop-cleaning-expert',
-          experience: '5 Years',
-          completedJobs: 420,
-          location: 'Kalyanpur, Kanpur',
-          verifiedBadge: true,
-          availability: true,
-          featuredStatus: 'Featured Experts',
-          priority: 0,
-          isActive: true
-        },
-        {
-          id: 'expert-suresh',
-          name: 'Suresh Kumar',
-          specialty: 'Master Plumber',
-          rating: 4.8,
-          reviewsCount: 95,
-          imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-          shopId: 'shop-plumbing-expert',
-          experience: '8 Years',
-          completedJobs: 650,
-          location: 'Swaroop Nagar, Kanpur',
-          verifiedBadge: true,
-          availability: true,
-          featuredStatus: 'Highest Rated',
-          priority: 1,
-          isActive: true
-        }
-      ];
-      await Professional.insertMany(defaultProfs);
-      list = await Professional.find({ isActive: { $ne: false } });
-    }
 
     const syncedList = await Promise.all(list.map(async (prof) => {
       const p = prof.toObject ? prof.toObject() : { ...prof };
@@ -1440,31 +1309,6 @@ app.get('/api/promotions', async (req, res) => {
   try {
     const nowStr = new Date().toISOString();
     let list = await Promotion.find({ isActive: true });
-    
-    if (list.length === 0) {
-      const defaultPromos = [
-        {
-          id: 'promo-default-1',
-          title: 'Festive Offer',
-          subtitle: 'Upto 50% OFF on Top Services',
-          description: 'Limited time offer! Grab premium discounts now.',
-          offerPercentage: '50% OFF',
-          couponCode: 'FESTIVE50',
-          ctaButtonText: 'Grab Now',
-          ctaButtonAction: 'Open Category',
-          ctaButtonActionValue: 'cleaning',
-          bannerImage: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500',
-          backgroundColor: '#FFF1F0',
-          textColor: '#A8071A',
-          buttonColor: '#FF4D4F',
-          buttonTextColor: '#FFFFFF',
-          priority: 0,
-          isActive: true
-        }
-      ];
-      await Promotion.insertMany(defaultPromos);
-      list = await Promotion.find({ isActive: true });
-    }
 
     const validPromotions = list.filter(promo => {
       if (promo.startDate && promo.startDate > nowStr) return false;
@@ -1566,52 +1410,6 @@ app.get('/api/special-cards', async (req, res) => {
   try {
     const nowStr = new Date().toISOString();
     let list = await SpecialCard.find({ isActive: true });
-    
-    if (list.length === 0) {
-      const defaultCards = [
-        {
-          id: 'special-default-1',
-          icon: 'water_drop_outlined',
-          title: 'Mega Monsoon Sale',
-          subtitle: 'Up to 40% OFF on Plumbing & Electrical',
-          description: 'Stay safe and dry this monsoon with professional checkups.',
-          backgroundColor: '#EEF2FF',
-          buttonText: 'Book Now',
-          ctaAction: 'Open Category',
-          ctaActionValue: 'plumbing',
-          priority: 0,
-          isActive: true
-        },
-        {
-          id: 'special-default-2',
-          icon: 'flash_on_outlined',
-          title: 'Same Day Service',
-          subtitle: 'Book now & get service today',
-          description: 'No more waiting. Super-fast dispatch for urgent repairs.',
-          backgroundColor: '#ECFDF5',
-          buttonText: 'Book Now',
-          ctaAction: 'Open Category',
-          ctaActionValue: 'electrician',
-          priority: 1,
-          isActive: true
-        },
-        {
-          id: 'special-default-3',
-          icon: 'discount_outlined',
-          title: 'Combo Offers',
-          subtitle: 'More services, bigger savings',
-          description: 'Bundle cleaning and repair to save flat 25% on total bill.',
-          backgroundColor: '#FFFBEB',
-          buttonText: 'View Combos',
-          ctaAction: 'Open Category',
-          ctaActionValue: 'cleaning',
-          priority: 2,
-          isActive: true
-        }
-      ];
-      await SpecialCard.insertMany(defaultCards);
-      list = await SpecialCard.find({ isActive: true });
-    }
 
     const validCards = list.filter(card => {
       if (card.startDate && card.startDate > nowStr) return false;
@@ -2627,6 +2425,22 @@ app.post('/api/categories/create', async (req, res) => {
     res.json({ success: true, category: cat });
   } catch (e) {
     res.status(500).json({ error: 'Failed to create category' });
+  }
+});
+
+app.post('/api/categories/update', async (req, res) => {
+  const { id, name, iconUrl } = req.body;
+  if (!id) return res.status(400).json({ error: 'id is required' });
+  try {
+    const cat = await Category.findOneAndUpdate(
+      { id: id.toLowerCase() },
+      { name, iconUrl },
+      { new: true }
+    );
+    if (!cat) return res.status(404).json({ error: 'Category not found' });
+    res.json({ success: true, category: cat });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update category' });
   }
 });
 

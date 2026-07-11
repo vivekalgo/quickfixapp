@@ -17,7 +17,7 @@ class ErrorHandler {
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.sendTimeout:
         case DioExceptionType.receiveTimeout:
-          return ApiException('Connection timed out. Please check your internet connection.');
+          return ApiException('Connection timed out. The server could not be reached.\n\nTip: If you are using mobile data (Jio/Airtel), our server may be blocked by your operator. Try switching to Wi-Fi, using a VPN, or changing your phone\'s Private DNS to "dns.google" or "1.1.1.1".');
         
         case DioExceptionType.badResponse:
           final statusCode = error.response?.statusCode;
@@ -47,7 +47,7 @@ class ErrorHandler {
           return ApiException('Request was cancelled.');
           
         case DioExceptionType.connectionError:
-          return ApiException('No internet connection. Hyperlocal services require a network access.');
+          return ApiException('Connection error. The server could not be reached.\n\nTip: If you are using mobile data (Jio/Airtel), our server may be blocked by your operator. Try switching to Wi-Fi, using a VPN, or changing your phone\'s Private DNS to "dns.google" or "1.1.1.1".');
           
         default:
           return ApiException('Failed to connect to QuickFix servers.');

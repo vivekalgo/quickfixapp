@@ -1,6 +1,4 @@
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-  ? 'http://localhost:3000/api' 
-  : 'https://quickfixapp-production.up.railway.app/api';
+const API_URL = 'https://quickfixapp-production.up.railway.app/api';
 
 // State variables
 let shops = [];
@@ -751,28 +749,30 @@ function setupForms() {
   if (categoryForm) {
     categoryForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const isEdit = document.getElementById('cat-id').disabled;
       const bodyData = {
         id: document.getElementById('cat-id').value,
         name: document.getElementById('cat-name').value,
         iconUrl: document.getElementById('cat-icon-url').value
       };
+      const endpoint = isEdit ? `${API_URL}/categories/update` : `${API_URL}/categories/create`;
       try {
-        const res = await fetch(`${API_URL}/categories/create`, {
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(bodyData)
         });
         const data = await res.json();
         if (data.success) {
-          showToast('Category created successfully', 'success');
-          await logAdminActivity('Create Category', bodyData.id, `Created category: ${bodyData.name}`);
-          categoryForm.reset();
+          showToast(isEdit ? 'Category updated successfully' : 'Category created successfully', 'success');
+          await logAdminActivity(isEdit ? 'Update Category' : 'Create Category', bodyData.id, `${isEdit ? 'Updated' : 'Created'} category: ${bodyData.name}`);
+          resetCategoryForm();
           loadCategories();
           refreshAllData().then(() => {
             renderShopCategoriesCheckbox();
           });
         } else {
-          showToast(data.error || 'Failed to create category', 'error');
+          showToast(data.error || 'Failed to process category request', 'error');
         }
       } catch (err) {
         console.error(err);
@@ -1457,13 +1457,57 @@ async function loadCategories() {
           ${imgHtml}
           <h4>${c.name} <span style="font-size: 10px; color: var(--text-muted);">(${c.id})</span></h4>
         </div>
-        <button class="btn btn-icon btn-delete" onclick="deleteCategory('${c.id}')"><i class="fa-solid fa-trash-can"></i></button>
+        <div style="display: flex; gap: 5px;">
+          <button class="btn btn-icon" onclick="editCategory('${c.id}', '${c.name.replace(/'/g, "\\'")}', '${(c.iconUrl || '').replace(/'/g, "\\'")}')" title="Edit Category"><i class="fa-solid fa-pen-to-square"></i></button>
+          <button class="btn btn-icon btn-delete" onclick="deleteCategory('${c.id}')" title="Delete Category"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
       `;
       container.appendChild(div);
     });
   } catch (e) {
     console.error(e);
   }
+}
+
+// Edit Category helper function
+function editCategory(id, name, iconUrl) {
+  document.getElementById('cat-id').value = id;
+  document.getElementById('cat-id').disabled = true;
+  document.getElementById('cat-name').value = name;
+  document.getElementById('cat-icon-url').value = iconUrl;
+  
+  const formHeader = document.querySelector('#categories-tab .form-card h2');
+  if (formHeader) formHeader.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Service Category';
+  
+  const submitBtn = document.querySelector('#category-form button[type="submit"]');
+  if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Update Category';
+  
+  let cancelBtn = document.getElementById('btn-cancel-category-edit');
+  if (!cancelBtn && submitBtn) {
+    cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.id = 'btn-cancel-category-edit';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.style.marginLeft = '8px';
+    cancelBtn.innerHTML = 'Cancel';
+    cancelBtn.addEventListener('click', resetCategoryForm);
+    submitBtn.parentNode.appendChild(cancelBtn);
+  }
+}
+
+// Reset Category Form helper function
+function resetCategoryForm() {
+  document.getElementById('category-form').reset();
+  document.getElementById('cat-id').disabled = false;
+  
+  const formHeader = document.querySelector('#categories-tab .form-card h2');
+  if (formHeader) formHeader.innerHTML = '<i class="fa-solid fa-square-plus"></i> Create Service Category';
+  
+  const submitBtn = document.querySelector('#category-form button[type="submit"]');
+  if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Add Category';
+  
+  const cancelBtn = document.getElementById('btn-cancel-category-edit');
+  if (cancelBtn) cancelBtn.remove();
 }
 
 // Delete category
@@ -2389,12 +2433,34 @@ function renderCmsReviews() {
         </select>
       </td>
       <td>
+        <button class="btn btn-secondary btn-sm" onclick="editReview('${rev.id}')" title="Edit Review"><i class="fa-solid fa-pen-to-square"></i></button>
         <button class="btn btn-secondary btn-sm" onclick="promptReviewReply('${rev.id}')" title="Reply to Review"><i class="fa-solid fa-reply"></i></button>
         <button class="btn btn-danger btn-sm" onclick="deleteReview('${rev.id}')"><i class="fa-solid fa-trash-can"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+function editReview(id) {
+  const rev = cmsReviews.find(r => r.id === id);
+  if (!rev) return;
+
+  document.getElementById('review-modal-title').textContent = "Edit Testimonial Review";
+  document.getElementById('edit-review-id').value = rev.id;
+  document.getElementById('review-user-name').value = rev.userName || '';
+  document.getElementById('review-user-avatar').value = rev.userAvatar || '';
+  document.getElementById('review-service-name').value = rev.serviceName || '';
+  document.getElementById('review-provider-name').value = rev.providerName || '';
+  document.getElementById('review-rating').value = rev.rating || 5.0;
+  document.getElementById('review-location-name').value = rev.locationName || '';
+  document.getElementById('review-comment').value = rev.comment || '';
+  document.getElementById('review-priority').value = rev.priority || 0;
+  document.getElementById('review-status').value = rev.status || 'approved';
+  document.getElementById('review-featured').value = rev.isFeatured ? "true" : "false";
+  document.getElementById('review-active').value = rev.isActive !== false ? "true" : "false";
+
+  document.getElementById('review-modal').classList.add('active');
 }
 
 async function changeReviewStatus(id, status) {
@@ -2510,6 +2576,16 @@ function setupCmsEvents() {
       document.getElementById('expert-form').reset();
       populateExpertShopsDropdown();
       document.getElementById('expert-modal').classList.add('active');
+    });
+  }
+
+  const addReviewBtn = document.getElementById('btn-add-review-modal');
+  if (addReviewBtn) {
+    addReviewBtn.addEventListener('click', () => {
+      document.getElementById('review-modal-title').textContent = "Add Testimonial Review";
+      document.getElementById('edit-review-id').value = "";
+      document.getElementById('review-form').reset();
+      document.getElementById('review-modal').classList.add('active');
     });
   }
 
@@ -2636,6 +2712,45 @@ function setupCmsForms() {
       }
     });
   }
+
+  const reviewForm = document.getElementById('review-form');
+  if (reviewForm) {
+    reviewForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-review-id').value;
+      const userName = document.getElementById('review-user-name').value;
+      const userAvatar = document.getElementById('review-user-avatar').value;
+      const rating = document.getElementById('review-rating').value;
+      const comment = document.getElementById('review-comment').value;
+      const serviceName = document.getElementById('review-service-name').value;
+      const locationName = document.getElementById('review-location-name').value;
+      const providerName = document.getElementById('review-provider-name').value;
+      const priority = document.getElementById('review-priority').value;
+      const status = document.getElementById('review-status').value;
+      const isFeatured = document.getElementById('review-featured').value === "true";
+      const isActive = document.getElementById('review-active').value === "true";
+
+      const body = { id, userName, userAvatar, rating: parseFloat(rating), comment, serviceName, locationName, providerName, priority: parseInt(priority) || 0, status, isFeatured, isActive };
+
+      try {
+        const res = await fetch(`${API_URL}/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Testimonial saved successfully', 'success');
+          await logAdminActivity(id ? 'Edit Testimonial' : 'Create Testimonial', data.review.id, `Saved review/testimonial for: ${userName}`);
+          document.getElementById('review-modal').classList.remove('active');
+          loadCmsData();
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to save testimonial', 'error');
+      }
+    });
+  }
 }
 
 // Bind handlers globally for dynamic HTML events
@@ -2678,6 +2793,7 @@ window.changeReviewStatus = changeReviewStatus;
 window.toggleReviewFeatured = toggleReviewFeatured;
 window.promptReviewReply = promptReviewReply;
 window.deleteReview = deleteReview;
+window.editReview = editReview;
 window.loadCmsData = loadCmsData;
 window.saveCmsLayoutOrder = saveCmsLayoutOrder;
 window.exportReportsCSV = exportReportsCSV;

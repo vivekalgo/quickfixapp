@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
@@ -113,26 +114,43 @@ class AllServicesScreen extends ConsumerWidget {
                               : Colors.white,
                           shape: BoxShape.circle,
                         ),
-                        child: cat.iconUrl != null && cat.iconUrl!.trim().isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(13),
-                                child: Image.network(
-                                  cat.iconUrl!,
-                                  width: 26,
-                                  height: 26,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) => Icon(
-                                    cat.icon,
-                                    color: cat.iconColor,
-                                    size: 26,
-                                  ),
-                                ),
-                              )
-                            : Icon(
+                        child: cat.iconUrl == null || cat.iconUrl!.trim().isEmpty
+                            ? Icon(
                                 cat.icon,
                                 color: cat.iconColor,
                                 size: 26,
-                              ),
+                              )
+                            : (cat.iconUrl!.trim().toLowerCase().contains('.svg') ||
+                                    cat.iconUrl!.trim().toLowerCase().contains('format=svg'))
+                                ? SvgPicture.network(
+                                    cat.iconUrl!.trim().startsWith('http://')
+                                        ? cat.iconUrl!.trim().replaceFirst('http://', 'https://')
+                                        : cat.iconUrl!.trim(),
+                                    width: 26,
+                                    height: 26,
+                                    fit: BoxFit.contain,
+                                    placeholderBuilder: (context) => Icon(
+                                      cat.icon,
+                                      color: cat.iconColor,
+                                      size: 26,
+                                    ),
+                                  )
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(13),
+                                    child: Image.network(
+                                      cat.iconUrl!.trim().startsWith('http://')
+                                          ? cat.iconUrl!.trim().replaceFirst('http://', 'https://')
+                                          : cat.iconUrl!.trim(),
+                                      width: 26,
+                                      height: 26,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (context, error, stackTrace) => Icon(
+                                        cat.icon,
+                                        color: cat.iconColor,
+                                        size: 26,
+                                      ),
+                                    ),
+                                  ),
                       ),
                       const SizedBox(height: 8),
                       Padding(

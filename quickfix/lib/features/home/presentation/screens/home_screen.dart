@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
@@ -582,26 +583,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               color: isDark ? cat.iconColor.withOpacity(0.15) : Colors.white,
                               shape: BoxShape.circle,
                             ),
-                            child: cat.iconUrl != null && cat.iconUrl!.trim().isNotEmpty
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(13),
-                                    child: Image.network(
-                                      cat.iconUrl!,
-                                      width: 26,
-                                      height: 26,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (context, error, stackTrace) => Icon(
-                                        cat.icon,
-                                        color: cat.iconColor,
-                                        size: 26,
-                                      ),
-                                    ),
-                                  )
-                                : Icon(
+                            child: cat.iconUrl == null || cat.iconUrl!.trim().isEmpty
+                                ? Icon(
                                     cat.icon,
                                     color: cat.iconColor,
                                     size: 26,
-                                  ),
+                                  )
+                                : (cat.iconUrl!.trim().toLowerCase().contains('.svg') ||
+                                        cat.iconUrl!.trim().toLowerCase().contains('format=svg'))
+                                    ? SvgPicture.network(
+                                        cat.iconUrl!.trim().startsWith('http://')
+                                            ? cat.iconUrl!.trim().replaceFirst('http://', 'https://')
+                                            : cat.iconUrl!.trim(),
+                                        width: 26,
+                                        height: 26,
+                                        fit: BoxFit.contain,
+                                        placeholderBuilder: (context) => Icon(
+                                          cat.icon,
+                                          color: cat.iconColor,
+                                          size: 26,
+                                        ),
+                                      )
+                                    : ClipRRect(
+                                        borderRadius: BorderRadius.circular(13),
+                                        child: Image.network(
+                                          cat.iconUrl!.trim().startsWith('http://')
+                                              ? cat.iconUrl!.trim().replaceFirst('http://', 'https://')
+                                              : cat.iconUrl!.trim(),
+                                          width: 26,
+                                          height: 26,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (context, error, stackTrace) => Icon(
+                                            cat.icon,
+                                            color: cat.iconColor,
+                                            size: 26,
+                                          ),
+                                        ),
+                                      ),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -1940,142 +1958,187 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   final prof = professionals[index];
                   final isFav = wishlist.contains(prof.id);
                   
-                  return Container(
-                    width: 220,
-                    margin: const EdgeInsets.only(right: 16, bottom: 8),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                      border: isDark 
-                          ? Border.all(color: AppColors.borderDark)
-                          : Border.all(color: AppColors.borderLight.withOpacity(0.6)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 24,
-                              backgroundImage: NetworkImage(prof.avatarUrl.isNotEmpty ? prof.avatarUrl : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          prof.name,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14),
+                  return GestureDetector(
+                    onTap: () {
+                      AppHaptics.mediumTap();
+                      if (prof.shopId.isNotEmpty) {
+                        context.push('/shop/${prof.shopId}');
+                      } else {
+                        final spec = prof.specialty.toLowerCase();
+                        String categoryId = 'plumbing';
+                        if (spec.contains('electrician')) {
+                          categoryId = 'electrician';
+                        } else if (spec.contains('clean')) {
+                          categoryId = 'cleaning';
+                        } else if (spec.contains('plumb')) {
+                          categoryId = 'plumbing';
+                        } else if (spec.contains('appliance')) {
+                          categoryId = 'appliances';
+                        } else if (spec.contains('carpent')) {
+                          categoryId = 'carpentry';
+                        } else if (spec.contains('paint')) {
+                          categoryId = 'painting';
+                        } else if (spec.contains('pest')) {
+                          categoryId = 'pestcontrol';
+                        }
+                        context.push('/category/$categoryId');
+                      }
+                    },
+                    child: Container(
+                      width: 220,
+                      margin: const EdgeInsets.only(right: 16, bottom: 8),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        border: isDark 
+                            ? Border.all(color: AppColors.borderDark)
+                            : Border.all(color: AppColors.borderLight.withOpacity(0.6)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundImage: NetworkImage(prof.avatarUrl.isNotEmpty ? prof.avatarUrl : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            prof.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14),
+                                          ),
                                         ),
-                                      ),
-                                      if (prof.verifiedBadge) ...[
-                                        const SizedBox(width: 4),
-                                        const Icon(Icons.verified, color: Colors.blue, size: 14),
+                                        if (prof.verifiedBadge) ...[
+                                          const SizedBox(width: 4),
+                                          const Icon(Icons.verified, color: Colors.blue, size: 14),
+                                        ],
                                       ],
-                                    ],
-                                  ),
+                                    ),
+                                    Text(
+                                      '${prof.specialty}${prof.experience.isNotEmpty ? " • ${prof.experience}" : ""}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.star, color: Colors.amber, size: 14),
+                                  const SizedBox(width: 4),
                                   Text(
-                                    '${prof.specialty}${prof.experience.isNotEmpty ? " • ${prof.experience}" : ""}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 11),
+                                    '${prof.rating} (${prof.reviewsCount} reviews)',
+                                    style: AppTextStyles.bodySmall(isDark).copyWith(fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.star, color: Colors.amber, size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${prof.rating} (${prof.reviewsCount} reviews)',
-                                  style: AppTextStyles.bodySmall(isDark).copyWith(fontWeight: FontWeight.bold),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: prof.availability ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: prof.availability ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                prof.availability ? 'Online' : 'Offline',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                  color: prof.availability ? Colors.green : Colors.red,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                isFav ? Icons.favorite : Icons.favorite_border,
-                                color: Colors.redAccent,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                AppHaptics.mediumTap();
-                                ref.read(wishlistProvider.notifier).toggleFavourite(prof.id);
-                                final isNowFav = ref.read(wishlistProvider.notifier).isFavourite(prof.id);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      isNowFav
-                                          ? 'Added ${prof.name} to Wishlist'
-                                          : 'Removed ${prof.name} from Wishlist',
-                                    ),
-                                    duration: const Duration(seconds: 1),
-                                    behavior: SnackBarBehavior.floating,
+                                child: Text(
+                                  prof.availability ? 'Online' : 'Offline',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: prof.availability ? Colors.green : Colors.red,
                                   ),
-                                );
-                              },
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                AppHaptics.heavyTap();
-                                final String categoryId = prof.specialty.toLowerCase().contains('electrician')
-                                    ? 'electrician'
-                                    : 'plumbing';
-                                context.push('/category/$categoryId');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                elevation: 0,
+                                ),
                               ),
-                              child: const Text('Book', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  isFav ? Icons.favorite : Icons.favorite_border,
+                                  color: Colors.redAccent,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  AppHaptics.mediumTap();
+                                  ref.read(wishlistProvider.notifier).toggleFavourite(prof.id);
+                                  final isNowFav = ref.read(wishlistProvider.notifier).isFavourite(prof.id);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        isNowFav
+                                            ? 'Added ${prof.name} to Wishlist'
+                                            : 'Removed ${prof.name} from Wishlist',
+                                      ),
+                                      duration: const Duration(seconds: 1),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                },
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  AppHaptics.heavyTap();
+                                  if (prof.shopId.isNotEmpty) {
+                                    context.push('/shop/${prof.shopId}');
+                                  } else {
+                                    final spec = prof.specialty.toLowerCase();
+                                    String categoryId = 'plumbing';
+                                    if (spec.contains('electrician')) {
+                                      categoryId = 'electrician';
+                                    } else if (spec.contains('clean')) {
+                                      categoryId = 'cleaning';
+                                    } else if (spec.contains('plumb')) {
+                                      categoryId = 'plumbing';
+                                    } else if (spec.contains('appliance')) {
+                                      categoryId = 'appliances';
+                                    } else if (spec.contains('carpent')) {
+                                      categoryId = 'carpentry';
+                                    } else if (spec.contains('paint')) {
+                                      categoryId = 'painting';
+                                    } else if (spec.contains('pest')) {
+                                      categoryId = 'pestcontrol';
+                                    }
+                                    context.push('/category/$categoryId');
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  elevation: 0,
+                                ),
+                                child: const Text('Book', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },

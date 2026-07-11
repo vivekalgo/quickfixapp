@@ -5,7 +5,7 @@ class ErrorHandler {
     if (error is DioException) {
       switch (error.type) {
         case DioExceptionType.connectionTimeout:
-          return 'Connection timeout. Please check your internet connection.';
+          return 'Connection timeout. The server could not be reached.\n\nTip: If you are using mobile data (Jio/Airtel), our server may be blocked by your operator. Try switching to Wi-Fi, using a VPN, or changing your phone\'s Private DNS to "dns.google" or "1.1.1.1".';
         case DioExceptionType.sendTimeout:
           return 'Request send timeout. Please try again.';
         case DioExceptionType.receiveTimeout:
@@ -39,7 +39,7 @@ class ErrorHandler {
         case DioExceptionType.cancel:
           return 'Request cancelled.';
         case DioExceptionType.connectionError:
-          return 'Connection error. The server could not be reached.';
+          return 'Connection error. The server could not be reached.\n\nTip: If you are using mobile data (Jio/Airtel), our server may be blocked by your operator. Try switching to Wi-Fi, using a VPN, or changing your phone\'s Private DNS to "dns.google" or "1.1.1.1".';
         case DioExceptionType.unknown:
           return 'An unexpected error occurred. Please check your internet.';
         default:
