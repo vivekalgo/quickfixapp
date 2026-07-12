@@ -475,7 +475,7 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
   }
 
   Widget _buildQuotationReviewCard(bool isDark) {
-    if (_quotation == null) return const SizedBox.shrink();
+    if (_pricingType != 'inspection' || _quotation == null) return const SizedBox.shrink();
 
     final status = _quotation!['status']?.toString() ?? 'pending';
     final double labour = (_quotation!['labourCharge'] as num?)?.toDouble() ?? 0.0;
@@ -485,6 +485,34 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
     final double discount = (_quotation!['discount'] as num?)?.toDouble() ?? 0.0;
     final double gst = (_quotation!['gst'] as num?)?.toDouble() ?? 0.0;
     final double total = (_quotation!['totalAmount'] as num?)?.toDouble() ?? 0.0;
+
+    if (total == 0.0) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : Colors.orange.shade50.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orange.shade300),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.info_outline, color: Colors.orange),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Expert will inspect the issue and send a quotation for your approval.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white70 : AppColors.secondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

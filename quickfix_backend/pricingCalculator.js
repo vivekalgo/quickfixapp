@@ -171,12 +171,43 @@ async function calculateCheckoutPriceInternal(shop, items, couponCode) {
     billDetails.push({ label: 'Inspection / Advance Fee', value: isFreeInspection ? 'FREE' : `₹${visitingCharge}`, isGreen: isFreeInspection });
     
     // Starting prices listing
-    const startPrices = cartServices
-      .filter(cs => cs.service.pricingType === 'starting')
-      .map(cs => `Starts From ₹${Math.round(parseFloat(cs.service.price))}`);
-    estimatedPriceText = startPrices.join(', ') || 'Starts From ₹0';
+    const startServices = cartServices.filter(cs => cs.service.pricingType === 'starting');
+    let totalEstBase = 0;
+    let totalEstGst = 0;
+    let totalEstExtra = 0;
+    const extraChargesItems = [];
+
+    for (const cs of startServices) {
+      const srv = cs.service;
+      const qty = cs.quantity;
+      const base = (parseFloat(srv.price) || 0) * qty;
+      const gstPct = parseFloat(srv.gst) || 0;
+      const gst = base * (gstPct / 100);
+      const extra = (parseFloat(srv.extraCharges) || 0) * qty;
+
+      totalEstBase += base;
+      totalEstGst += gst;
+      totalEstExtra += extra;
+
+      if (extra > 0) {
+        extraChargesItems.push({
+          label: `Estimated ${srv.extraChargesLabel || 'Material Cost'}`,
+          value: `₹${Math.round(extra)}`
+        });
+      }
+    }
+
+    const grandEstTotal = totalEstBase + totalEstGst + totalEstExtra;
+    estimatedPriceText = `Starts From ₹${Math.round(grandEstTotal)}`;
     
-    billDetails.push({ label: 'Estimated Service Price', value: estimatedPriceText });
+    billDetails.push({ label: 'Estimated Service Price', value: `Starts From ₹${Math.round(totalEstBase)}` });
+    if (totalEstGst > 0) {
+      billDetails.push({ label: 'Estimated GST', value: `Starts From ₹${Math.round(totalEstGst)}` });
+    }
+    for (const ec of extraChargesItems) {
+      billDetails.push({ label: ec.label, value: ec.value });
+    }
+
     if (couponDiscount > 0) {
       billDetails.push({ label: 'Coupon Discount', value: `- ₹${couponDiscount}`, isGreen: true });
     }
@@ -185,18 +216,88 @@ async function calculateCheckoutPriceInternal(shop, items, couponCode) {
     billDetails.push({ label: 'Inspection Fee', value: isFreeInspection ? 'FREE' : `₹${visitingCharge}`, isGreen: isFreeInspection });
     
     // Ranges listing
-    const ranges = cartServices
-      .filter(cs => cs.service.pricingType === 'range')
-      .map(cs => `₹${Math.round(parseFloat(cs.service.minPrice))} - ₹${Math.round(parseFloat(cs.service.maxPrice))}`);
-    estimatedPriceText = ranges.join(', ') || '₹0 - ₹0';
+    const rangeServices = cartServices.filter(cs => cs.service.pricingType === 'range');
+    let totalEstMinBase = 0;
+    let totalEstMaxBase = 0;
+    let totalEstMinGst = 0;
+    let totalEstMaxGst = 0;
+    let totalEstExtra = 0;
+    const extraChargesItems = [];
+
+    for (const cs of rangeServices) {
+      const srv = cs.service;
+      const qty = cs.quantity;
+      const min = (parseFloat(srv.minPrice) || 0) * qty;
+      const max = (parseFloat(srv.maxPrice) || 0) * qty;
+      const gstPct = parseFloat(srv.gst) || 0;
+      const minGst = min * (gstPct / 100);
+      const maxGst = max * (gstPct / 100);
+      const extra = (parseFloat(srv.extraCharges) || 0) * qty;
+
+      totalEstMinBase += min;
+      totalEstMaxBase += max;
+      totalEstMinGst += minGst;
+      totalEstMaxGst += maxGst;
+      totalEstExtra += extra;
+
+      if (extra > 0) {
+        extraChargesItems.push({
+          label: `Estimated ${srv.extraChargesLabel || 'Material Cost'}`,
+          value: `₹${Math.round(extra)}`
+        });
+      }
+    }
+
+    const grandEstMinTotal = totalEstMinBase + totalEstMinGst + totalEstExtra;
+    const grandEstMaxTotal = totalEstMaxBase + totalEstMaxGst + totalEstExtra;
+    estimatedPriceText = `₹${Math.round(grandEstMinTotal)} - ₹${Math.round(grandEstMaxTotal)}`;
     
-    billDetails.push({ label: 'Estimated Price', value: estimatedPriceText });
+    billDetails.push({ label: 'Estimated Price', value: `₹${Math.round(totalEstMinBase)} - ₹${Math.round(totalEstMaxBase)}` });
+    if (totalEstMinGst > 0 || totalEstMaxGst > 0) {
+      billDetails.push({ label: 'Estimated GST', value: `₹${Math.round(totalEstMinGst)} - ₹${Math.round(totalEstMaxGst)}` });
+    }
+    for (const ec of extraChargesItems) {
+      billDetails.push({ label: ec.label, value: ec.value });
+    }
+
     if (couponDiscount > 0) {
       billDetails.push({ label: 'Coupon Discount', value: `- ₹${couponDiscount}`, isGreen: true });
     }
     redBannerText = "🔴 This payment includes inspection fee only. Final repair cost will be decided after inspection.";
   } else if (bookingPricingType === 'inspection') {
     billDetails.push({ label: 'Inspection Fee', value: isFreeInspection ? 'FREE' : `₹${visitingCharge}`, isGreen: isFreeInspection });
+
+    const inspectionServices = cartServices.filter(cs => cs.service.pricingType === 'inspection');
+    let totalEstExtra = 0;
+    const extraChargesItems = [];
+    let hasGst = false;
+
+    for (const cs of inspectionServices) {
+      const srv = cs.service;
+      const qty = cs.quantity;
+      const gstPct = parseFloat(srv.gst) || 0;
+      const extra = (parseFloat(srv.extraCharges) || 0) * qty;
+
+      totalEstExtra += extra;
+      if (gstPct > 0) {
+        hasGst = true;
+      }
+
+      if (extra > 0) {
+        extraChargesItems.push({
+          label: `Estimated ${srv.extraChargesLabel || 'Material Cost'}`,
+          value: `₹${Math.round(extra)}`
+        });
+      }
+    }
+
+    if (hasGst) {
+      billDetails.push({ label: 'Estimated GST', value: 'Will be added to final quote' });
+    }
+    for (const ec of extraChargesItems) {
+      billDetails.push({ label: ec.label, value: ec.value });
+    }
+
     if (couponDiscount > 0) {
       billDetails.push({ label: 'Coupon Discount', value: `- ₹${couponDiscount}`, isGreen: true });
     }

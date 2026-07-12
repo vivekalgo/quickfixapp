@@ -2203,7 +2203,7 @@ app.post('/api/bookings/:bookingId/quotation', async (req, res) => {
     const gstPct = parseFloat(gst) || 0.0;
 
     const subtotal = lC + sP + aM + vC - disc;
-    const gstAmt = subtotal * (gstPct / 100);
+    const gstAmt = parseFloat((subtotal * (gstPct / 100)).toFixed(2));
     const totalAmount = subtotal + gstAmt;
 
     booking.quotation = {
@@ -2212,7 +2212,7 @@ app.post('/api/bookings/:bookingId/quotation', async (req, res) => {
       additionalMaterials: aM,
       visitingCharges: vC,
       discount: disc,
-      gst: gstPct,
+      gst: gstAmt,
       totalAmount: parseFloat(totalAmount.toFixed(2)),
       status: 'pending',
       updatedAt: new Date(),
