@@ -701,6 +701,9 @@ function setupForms() {
         if (data.success) {
           showToast('Banner details updated', 'success');
           await logAdminActivity('Update Banner', bannerIdVal, `Updated banner: ${bodyData.title}`);
+        } else {
+          showToast('Failed to update banner: ' + (data.error || 'Unknown error'), 'error');
+          return;
         }
       } else {
         res = await fetch(`${API_URL}/banners`, {
@@ -712,6 +715,9 @@ function setupForms() {
         if (data.success) {
           showToast('New Carousel Banner added', 'success');
           await logAdminActivity('Create Banner', data.banner.id, `Created banner: ${bodyData.title}`);
+        } else {
+          showToast('Failed to create banner: ' + (data.error || 'Unknown error'), 'error');
+          return;
         }
       }
       

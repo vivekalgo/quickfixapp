@@ -1844,14 +1844,17 @@ app.get('/api/banners', async (req, res) => {
 });
 
 app.post('/api/banners', async (req, res) => {
-  const { title, code, percent, imageUrl } = req.body;
+  const { title, code, percent, imageUrl, redirectUrl, priority, expiryDate } = req.body;
   try {
     const newBanner = new Banner({
       id: `banner-${Date.now()}`,
-      title,
-      code,
-      percent,
+      title: title || '',
+      code: code || '',
+      percent: percent || '',
       imageUrl: imageUrl || 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=500',
+      redirectUrl: redirectUrl || '',
+      priority: parseInt(priority) || 0,
+      expiryDate: expiryDate || '',
       isActive: true
     });
     await newBanner.save();

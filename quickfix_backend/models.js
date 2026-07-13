@@ -505,9 +505,9 @@ const ProfessionalSchema = new mongoose.Schema({
 // 8. Promo Banner Schema (Carousel Banners)
 const BannerSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
-  title: { type: String, required: true },
-  code: { type: String, required: true },
-  percent: { type: String, required: true },
+  title: { type: String, default: '' },
+  code: { type: String, default: '' },
+  percent: { type: String, default: '' },
   imageUrl: { type: String },
   isActive: { type: Boolean, default: true },
   redirectUrl: { type: String, default: '' },
