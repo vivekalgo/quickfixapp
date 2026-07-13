@@ -84,9 +84,9 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
       temp = temp.where((s) => s.rating >= 4.5).toList();
     }
 
-    // 3. Fast Delivery Filter (<= 15 mins)
+    // 3. Fast Delivery Filter (<= 25 mins)
     if (_filterFastDelivery) {
-      temp = temp.where((s) => s.estimatedTimeMinutes <= 15).toList();
+      temp = temp.where((s) => s.estimatedTimeMinutes <= 25).toList();
     }
 
     // 4. Affordable Filter (₹ or ₹₹)

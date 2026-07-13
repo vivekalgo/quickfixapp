@@ -306,125 +306,144 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               AppHaptics.mediumTap();
               handleCtaAction(context, data.bannerActionType, data.bannerActionValue);
             },
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              height: 180,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: AspectRatio(
+                aspectRatio: 1.0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.network(
-                      data.bannerImageUrl,
-                      fit: BoxFit.cover,
-                      cacheWidth: 800,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: isDark ? AppColors.surfaceDark : Colors.grey[200],
-                        child: const Icon(Icons.broken_image, size: 40),
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.1),
-                            Colors.black.withValues(alpha: 0.65),
-                          ],
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          data.bannerImageUrl,
+                          fit: BoxFit.cover,
+                          cacheWidth: 800,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: isDark ? AppColors.surfaceDark : Colors.grey[200],
+                            child: const Icon(Icons.broken_image, size: 40),
+                          ),
                         ),
-                      ),
-                    ),
-                    if (data.bannerBadgeText.isNotEmpty)
-                      Positioned(
-                        top: 14,
-                        left: 14,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        Container(
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A9E3F),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            data.bannerBadgeText,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.25),
+                                Colors.black.withValues(alpha: 0.05),
+                                Colors.black.withValues(alpha: 0.55),
+                              ],
+                              stops: const [0.0, 0.45, 1.0],
                             ),
                           ),
                         ),
-                      ),
-                    Positioned(
-                      bottom: 14,
-                      left: 14,
-                      right: 14,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            data.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 4.0,
-                                  color: Colors.black45,
-                                  offset: Offset(0.0, 1.5),
+                        if (data.bannerBadgeText.isNotEmpty)
+                          Positioned(
+                            top: 16,
+                            left: 16,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F793E),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                data.bannerBadgeText,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.2,
                                 ),
-                              ],
-                            ),
-                          ),
-                          if (data.subtitle.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              data.subtitle,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                fontSize: 12,
-                                shadows: const [
-                                  Shadow(
-                                    blurRadius: 3.0,
-                                    color: Colors.black45,
-                                    offset: Offset(0.0, 1.0),
-                                  ),
-                                ],
                               ),
                             ),
-                          ],
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          ),
+                        Positioned(
+                          top: 68,
+                          left: 16,
+                          right: 16,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                data.title.toUpperCase(),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 3.5,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 4.0,
+                                      color: Colors.black.withValues(alpha: 0.45),
+                                      offset: const Offset(0.0, 1.5),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                data.subtitle,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.15,
+                                  letterSpacing: -0.5,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 6.0,
+                                      color: Colors.black.withValues(alpha: 0.55),
+                                      offset: const Offset(0.0, 2.0),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 18,
+                          left: 18,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
                             child: const Text(
                               'Explore now',
                               style: TextStyle(
-                                color: Colors.black87,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.1,
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

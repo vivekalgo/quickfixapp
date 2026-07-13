@@ -5,7 +5,7 @@ import 'package:quickfix/shared/themes/app_colors.dart';
 class AppTextStyles {
   // Headings (using Outfit)
   static TextStyle headingXLarge(bool isDark) => GoogleFonts.outfit(
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.6,
         height: 1.2,
@@ -13,7 +13,7 @@ class AppTextStyles {
       );
 
   static TextStyle headingLarge(bool isDark) => GoogleFonts.outfit(
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.4,
         height: 1.25,
@@ -21,7 +21,7 @@ class AppTextStyles {
       );
 
   static TextStyle headingMedium(bool isDark) => GoogleFonts.outfit(
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: FontWeight.w600,
         letterSpacing: -0.2,
         height: 1.3,
@@ -29,7 +29,7 @@ class AppTextStyles {
       );
 
   static TextStyle headingSmall(bool isDark) => GoogleFonts.outfit(
-        fontSize: 15,
+        fontSize: 17,
         fontWeight: FontWeight.w600,
         letterSpacing: -0.1,
         height: 1.3,
@@ -38,7 +38,7 @@ class AppTextStyles {
 
   // Body Text (using Inter)
   static TextStyle bodyLarge(bool isDark) => GoogleFonts.inter(
-        fontSize: 15,
+        fontSize: 17,
         fontWeight: FontWeight.w400,
         height: 1.45,
         letterSpacing: 0.1,
@@ -46,7 +46,7 @@ class AppTextStyles {
       );
 
   static TextStyle bodyMedium(bool isDark) => GoogleFonts.inter(
-        fontSize: 13,
+        fontSize: 15,
         fontWeight: FontWeight.w400,
         height: 1.4,
         letterSpacing: 0.1,
@@ -54,7 +54,7 @@ class AppTextStyles {
       );
 
   static TextStyle bodySmall(bool isDark) => GoogleFonts.inter(
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: FontWeight.w400,
         height: 1.35,
         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
@@ -62,14 +62,14 @@ class AppTextStyles {
 
   // Buttons & Badges
   static TextStyle buttonText = GoogleFonts.outfit(
-    fontSize: 15,
+    fontSize: 16.5,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.2,
     color: Colors.white,
   );
 
   static TextStyle badgeText = GoogleFonts.inter(
-    fontSize: 10,
+    fontSize: 11.5,
     fontWeight: FontWeight.bold,
     letterSpacing: 0.5,
     color: Colors.white,
@@ -77,7 +77,7 @@ class AppTextStyles {
 
   // Section label — for small uppercase section tags
   static TextStyle sectionLabel = GoogleFonts.inter(
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: FontWeight.w600,
     letterSpacing: 1.0,
     color: AppColors.primary,
@@ -85,7 +85,7 @@ class AppTextStyles {
 
   // Caption — smallest readable text
   static TextStyle captionText(bool isDark) => GoogleFonts.inter(
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: FontWeight.w400,
         height: 1.3,
         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
@@ -93,7 +93,7 @@ class AppTextStyles {
 
   // Price text — for showing monetary values
   static TextStyle priceText(bool isDark) => GoogleFonts.outfit(
-        fontSize: 15,
+        fontSize: 17,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,

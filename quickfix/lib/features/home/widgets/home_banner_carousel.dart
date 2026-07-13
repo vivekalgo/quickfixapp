@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,17 +24,66 @@ class HomeBannerCarousel extends ConsumerStatefulWidget {
 class _HomeBannerCarouselState extends ConsumerState<HomeBannerCarousel> {
   late final PageController _bannerController;
   int _currentBannerIndex = 0;
+  Timer? _autoPlayTimer;
 
   @override
   void initState() {
     super.initState();
-    _bannerController = PageController(viewportFraction: 0.92);
+    final bannersCount = widget.banners.length;
+    final initialPage = bannersCount > 1 ? bannersCount * 1000 : 0;
+    _bannerController = PageController(
+      viewportFraction: 0.92,
+      initialPage: initialPage,
+    );
+    _currentBannerIndex = 0;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _startAutoPlay();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeBannerCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.banners.length != oldWidget.banners.length) {
+      _stopAutoPlay();
+      _currentBannerIndex = 0;
+      if (_bannerController.hasClients && widget.banners.isNotEmpty) {
+        final bannersCount = widget.banners.length;
+        final initialPage = bannersCount > 1 ? bannersCount * 1000 : 0;
+        _bannerController.jumpToPage(initialPage);
+      }
+      _startAutoPlay();
+    }
   }
 
   @override
   void dispose() {
+    _stopAutoPlay();
     _bannerController.dispose();
     super.dispose();
+  }
+
+  void _startAutoPlay() {
+    _stopAutoPlay();
+    if (widget.banners.length <= 1) return;
+    _autoPlayTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (_bannerController.hasClients) {
+        final nextPage = _bannerController.page!.round() + 1;
+        _bannerController.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
+  }
+
+  void _stopAutoPlay() {
+    _autoPlayTimer?.cancel();
+    _autoPlayTimer = null;
   }
 
   @override
@@ -47,20 +97,40 @@ class _HomeBannerCarouselState extends ConsumerState<HomeBannerCarousel> {
         SizedBox(
           height: 162,
           child: RepaintBoundary(
-            child: PageView.builder(
-              controller: _bannerController,
-              onPageChanged: (i) => setState(() => _currentBannerIndex = i),
-              itemCount: widget.banners.length,
-              itemBuilder: (context, index) {
-                final banner = widget.banners[index];
-                return _BannerCard(
-                  banner: banner,
-                  onTap: () {
-                    AppHaptics.heavyTap();
-                    context.push('/category/all');
-                  },
-                );
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification is ScrollStartNotification) {
+                  if (notification.dragDetails != null) {
+                    _stopAutoPlay();
+                  }
+                } else if (notification is ScrollEndNotification) {
+                  _startAutoPlay();
+                }
+                return false;
               },
+              child: PageView.builder(
+                controller: _bannerController,
+                onPageChanged: (i) {
+                  if (widget.banners.isNotEmpty) {
+                    setState(() {
+                      _currentBannerIndex = i % widget.banners.length;
+                    });
+                  }
+                },
+                itemCount: widget.banners.length <= 1 ? widget.banners.length : 100000,
+                itemBuilder: (context, index) {
+                  if (widget.banners.isEmpty) return const SizedBox.shrink();
+                  final actualIndex = index % widget.banners.length;
+                  final banner = widget.banners[actualIndex];
+                  return _BannerCard(
+                    banner: banner,
+                    onTap: () {
+                      AppHaptics.heavyTap();
+                      context.push('/category/all');
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -103,6 +173,7 @@ class _BannerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool showFullWidthImage = banner.title.isEmpty && banner.code.isEmpty && banner.percent.isEmpty;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: onTap,
@@ -125,9 +196,13 @@ class _BannerCard extends StatelessWidget {
                 height: double.infinity,
                 cacheWidth: 800,
                 errorBuilder: (_, __, ___) => Container(
-                  color: const Color(0xFFF1F5F9),
-                  child: const Center(
-                    child: Icon(Icons.image, color: Color(0xFF94A3B8), size: 40),
+                  color: isDark ? AppColors.surfaceDark : const Color(0xFFF1F5F9),
+                  child: Center(
+                    child: Icon(
+                      Icons.image, 
+                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF94A3B8), 
+                      size: 40,
+                    ),
                   ),
                 ),
               ),

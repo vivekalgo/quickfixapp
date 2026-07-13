@@ -167,6 +167,20 @@ const modelDefaults = {
     referralCode: '',
     referralCount: 0,
     referralRewardsEarned: 0
+  },
+  Shop: {
+    deliveryTimeMins: 20,
+    estimatedServiceTime: '20 mins',
+    priceRange: '₹₹',
+    rating: 5.0,
+    reviewsCount: 0,
+    isOpen: true,
+    isOnline: true,
+    verificationStatus: 'approved',
+    visitingCharges: 150.0,
+    services: [],
+    technicians: [],
+    categories: ["Cleaning"]
   }
 };
 

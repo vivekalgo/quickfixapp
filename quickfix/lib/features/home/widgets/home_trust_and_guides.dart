@@ -307,7 +307,7 @@ class HomeNeedHelpCard extends ConsumerWidget {
                         icon: const Icon(Icons.chat_bubble_outline, size: 14, color: Colors.white),
                         label: Text('Chat Now', style: AppTextStyles.badgeText.copyWith(fontSize: 11)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondary,
+                          backgroundColor: isDark ? AppColors.primary : AppColors.secondary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

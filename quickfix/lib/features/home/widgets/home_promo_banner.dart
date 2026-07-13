@@ -43,6 +43,13 @@ class HomeFestiveOfferBanner extends ConsumerWidget {
               // Safe fallback
             }
 
+            if (isDark) {
+              bgColor = AppColors.surfaceDark;
+              if (txtColor.computeLuminance() < 0.2) {
+                txtColor = AppColors.primary;
+              }
+            }
+
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6),
               child: Container(
@@ -50,7 +57,9 @@ class HomeFestiveOfferBanner extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: bgColor,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: txtColor.withValues(alpha: 0.15)),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : txtColor.withValues(alpha: 0.15),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.04),
@@ -71,8 +80,8 @@ class HomeFestiveOfferBanner extends ConsumerWidget {
                           fit: BoxFit.cover,
                           errorBuilder: (c, o, s) => Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2A2A38) : Colors.white,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(Icons.card_giftcard, color: txtColor, size: 24),
@@ -83,8 +92,8 @@ class HomeFestiveOfferBanner extends ConsumerWidget {
                     ] else ...[
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF2A2A38) : Colors.white,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -101,14 +110,14 @@ class HomeFestiveOfferBanner extends ConsumerWidget {
                         children: [
                           Text(
                             promo.title,
-                            style: AppTextStyles.bodySmall(false).copyWith(
+                            style: AppTextStyles.bodySmall(isDark).copyWith(
                               fontWeight: FontWeight.bold,
                               color: txtColor,
                             ),
                           ),
                           Text(
                             promo.subtitle,
-                            style: AppTextStyles.headingSmall(false).copyWith(
+                            style: AppTextStyles.headingSmall(isDark).copyWith(
                               color: isDark ? Colors.white : AppColors.secondary,
                             ),
                           ),
@@ -116,7 +125,7 @@ class HomeFestiveOfferBanner extends ConsumerWidget {
                             const SizedBox(height: 2),
                             Text(
                               promo.description,
-                              style: AppTextStyles.bodySmall(false).copyWith(
+                              style: AppTextStyles.bodySmall(isDark).copyWith(
                                 color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
                               ),
                             ),

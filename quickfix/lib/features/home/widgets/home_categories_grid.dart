@@ -63,7 +63,7 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
-                  childAspectRatio: 0.88,
+                  childAspectRatio: 0.84,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                 ),
@@ -109,8 +109,8 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                             duration: const Duration(milliseconds: 200),
                             curve: Curves.easeInOut,
                             child: Container(
-                              width: 56,
-                              height: 56,
+                              width: 64,
+                              height: 64,
                               decoration: BoxDecoration(
                                 color: isDark
                                     ? cat.iconColor.withValues(alpha: 0.15)
@@ -132,7 +132,7 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 13.0,
                                 fontWeight: FontWeight.w600,
                                 height: 1.25,
                                 letterSpacing: -0.1,

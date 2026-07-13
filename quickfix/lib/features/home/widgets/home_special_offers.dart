@@ -105,6 +105,8 @@ class HomeOfferPromoSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(isDarkModeProvider);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
       child: Row(
@@ -114,13 +116,23 @@ class HomeOfferPromoSection extends ConsumerWidget {
               height: 150,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFECFDF5), Color(0xFFD1FAE5)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: isDark
+                    ? const LinearGradient(
+                        colors: [Color(0xFF064E3B), Color(0xFF022C22)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : const LinearGradient(
+                        colors: [Color(0xFFECFDF5), Color(0xFFD1FAE5)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.15)),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.green.withValues(alpha: 0.25)
+                      : Colors.green.withValues(alpha: 0.15),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,13 +143,17 @@ class HomeOfferPromoSection extends ConsumerWidget {
                     children: [
                       Text(
                         'Refer & Earn',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.green.shade300 : Colors.green.shade800,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Get ₹100\nfor every friend',
-                        style: AppTextStyles.headingSmall(false).copyWith(
-                          color: AppColors.secondary,
+                        style: AppTextStyles.headingSmall(isDark).copyWith(
+                          color: isDark ? Colors.white : AppColors.secondary,
                           fontWeight: FontWeight.bold,
                           height: 1.2,
                         ),
@@ -147,10 +163,10 @@ class HomeOfferPromoSection extends ConsumerWidget {
                   ElevatedButton(
                     onPressed: () {
                       AppHaptics.heavyTap();
-                      context.push('/profile');
+                      context.push('/refer-earn');
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade600,
+                      backgroundColor: isDark ? Colors.green.shade500 : Colors.green.shade600,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       minimumSize: const Size(80, 32),
@@ -174,13 +190,23 @@ class HomeOfferPromoSection extends ConsumerWidget {
               height: 150,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: isDark
+                    ? const LinearGradient(
+                        colors: [Color(0xFF1E3A8A), Color(0xFF172554)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : const LinearGradient(
+                        colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.blue.withValues(alpha: 0.15)),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.blue.withValues(alpha: 0.25)
+                      : Colors.blue.withValues(alpha: 0.15),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,13 +217,17 @@ class HomeOfferPromoSection extends ConsumerWidget {
                     children: [
                       Text(
                         'Flat 15% OFF',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'On First App\nBooking',
-                        style: AppTextStyles.headingSmall(false).copyWith(
-                          color: AppColors.secondary,
+                        style: AppTextStyles.headingSmall(isDark).copyWith(
+                          color: isDark ? Colors.white : AppColors.secondary,
                           fontWeight: FontWeight.bold,
                           height: 1.2,
                         ),
@@ -210,7 +240,7 @@ class HomeOfferPromoSection extends ConsumerWidget {
                       context.push('/category/all');
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600,
+                      backgroundColor: isDark ? Colors.blue.shade500 : Colors.blue.shade600,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       minimumSize: const Size(80, 32),
