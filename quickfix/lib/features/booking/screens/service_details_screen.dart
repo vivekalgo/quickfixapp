@@ -56,7 +56,7 @@ class ServiceDetailsScreen extends ConsumerWidget {
             leading: Padding(
               padding: const EdgeInsets.all(8.0),
               child: CircleAvatar(
-                backgroundColor: isDark ? Colors.black54 : Colors.white.withOpacity(0.9),
+                backgroundColor: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.9),
                 child: IconButton(
                   icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : AppColors.secondary, size: 20),
                   onPressed: () {
@@ -88,7 +88,7 @@ class ServiceDetailsScreen extends ConsumerWidget {
                   // Title, rating and category
                   Text(
                     pkg.subCategory.toUpperCase(),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
@@ -108,7 +108,7 @@ class ServiceDetailsScreen extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withOpacity(0.1),
+                          color: AppColors.success.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
@@ -160,7 +160,7 @@ class ServiceDetailsScreen extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -223,9 +223,9 @@ class ServiceDetailsScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.04),
+                      color: Colors.green.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.withOpacity(0.15)),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.15)),
                     ),
                     child: Column(
                       children: [
@@ -246,9 +246,9 @@ class ServiceDetailsScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.04),
+                      color: Colors.red.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.withOpacity(0.15)),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.15)),
                     ),
                     child: Column(
                       children: [
@@ -309,7 +309,7 @@ class ServiceDetailsScreen extends ConsumerWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, -4),
             ),
@@ -354,9 +354,9 @@ class ServiceDetailsScreen extends ConsumerWidget {
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
+                        children: [
                           Text('Proceed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           SizedBox(width: 8),
                           Icon(Icons.chevron_right),

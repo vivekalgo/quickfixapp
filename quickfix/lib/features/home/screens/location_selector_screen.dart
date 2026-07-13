@@ -551,7 +551,7 @@ class _LocationSelectorScreenState
                     const BorderRadius.vertical(top: Radius.circular(24)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.10),
+                    color: Colors.black.withValues(alpha: 0.10),
                     blurRadius: 20,
                     offset: const Offset(0, -4),
                   ),
@@ -585,7 +585,7 @@ class _LocationSelectorScreenState
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.10),
+                              color: AppColors.primary.withValues(alpha: 0.10),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -680,7 +680,7 @@ class _LocationSelectorScreenState
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
                             disabledBackgroundColor:
-                                AppColors.primary.withOpacity(0.4),
+                                AppColors.primary.withValues(alpha: 0.4),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
                             elevation: 0,

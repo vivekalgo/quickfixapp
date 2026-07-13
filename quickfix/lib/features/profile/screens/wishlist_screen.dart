@@ -116,7 +116,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
             border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -242,7 +242,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
             border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -332,7 +332,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
               borderRadius: BorderRadius.circular(50),
               blur: 8,
               border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
+                color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
                 width: 1.5,
               ),
               child: Center(

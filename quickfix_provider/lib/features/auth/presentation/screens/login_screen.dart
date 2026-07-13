@@ -70,7 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
+                        color: AppColors.primary.withValues(alpha: 0.3),
                         blurRadius: 20,
                         spreadRadius: 2,
                       )
@@ -123,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       validator: Validators.validateShopId,
                       decoration: InputDecoration(
                         hintText: 'Enter Shop ID (e.g. QFS000135)',
-                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                         filled: true,
                         fillColor: AppColors.surfaceDark,
                         prefixIcon: const Icon(Icons.store_rounded, color: AppColors.primary),
@@ -157,14 +157,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       validator: Validators.validatePassword,
                       decoration: InputDecoration(
                         hintText: 'Enter Password',
-                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                         filled: true,
                         fillColor: AppColors.surfaceDark,
                         prefixIcon: const Icon(Icons.key_rounded, color: AppColors.primary),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                            color: Colors.white.withOpacity(0.5),
+                            color: Colors.white.withValues(alpha: 0.5),
                           ),
                           onPressed: () {
                             setState(() {
@@ -191,9 +191,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.danger.withOpacity(0.15),
+                          color: AppColors.danger.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+                          border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
@@ -242,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'Forgot password or can\'t log in?\nContact administration panel to reset your credentials.',
                       textAlign: TextAlign.center,
                       style: AppTextStyles.bodySmall(true).copyWith(
-                        color: Colors.white.withOpacity(0.4),
+                        color: Colors.white.withValues(alpha: 0.4),
                         height: 1.5,
                       ),
                     ),

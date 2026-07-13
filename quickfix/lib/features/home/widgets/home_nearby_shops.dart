@@ -4,18 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:quickfix/shared/themes/app_colors.dart';
 import 'package:quickfix/shared/themes/app_text_styles.dart';
-import 'package:quickfix/shared/themes/app_shadows.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:quickfix/shared/themes/app_colors.dart';
-import 'package:quickfix/shared/themes/app_text_styles.dart';
-import 'package:quickfix/shared/themes/app_shadows.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/shared/widgets/shimmer_loading.dart';
 import 'package:quickfix/shared/widgets/section_header.dart';
-import 'package:quickfix/core/providers/network_providers.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/core/network/error_handler.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
@@ -139,7 +130,7 @@ class HomeNearbyShops extends ConsumerWidget {
                                         const SizedBox(width: 3),
                                         Text(
                                           '(${shop.reviewsCount})',
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: AppColors.textSecondaryLight,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,

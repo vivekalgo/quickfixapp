@@ -8,7 +8,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:quickfix/shared/themes/app_colors.dart';
 import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
-import 'package:quickfix/core/services/dio_client.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/core/network/error_handler.dart';
 import 'package:quickfix/core/providers/network_providers.dart';
@@ -84,7 +83,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.card_giftcard_outlined, size: 48, color: Colors.white),
@@ -147,7 +146,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                           color: isDark ? AppColors.surfaceDark : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4))],
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
                         ),
                         child: Column(
                           children: [
@@ -156,9 +155,9 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6C3AFF).withOpacity(0.08),
+                                color: const Color(0xFF6C3AFF).withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF6C3AFF).withOpacity(0.3), width: 1.5),
+                                border: Border.all(color: const Color(0xFF6C3AFF).withValues(alpha: 0.3), width: 1.5),
                               ),
                               child: Text(
                                 code.isNotEmpty ? code : '---',
@@ -216,9 +215,9 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                       Text('How It Works', style: AppTextStyles.headingSmall(isDark)),
                       const SizedBox(height: 14),
                       ...[
-                        _HowItWorksStep(number: '1', title: 'Share your code', desc: 'Send your unique referral code to friends via WhatsApp, SMS or any platform.'),
-                        _HowItWorksStep(number: '2', title: 'Friend signs up', desc: 'Your friend downloads QuickFix and registers with your referral code.'),
-                        _HowItWorksStep(number: '3', title: 'Both get rewarded', desc: 'You earn a ₹100 discount coupon. Your friend gets ₹50 as a welcome bonus!'),
+                        const _HowItWorksStep(number: '1', title: 'Share your code', desc: 'Send your unique referral code to friends via WhatsApp, SMS or any platform.'),
+                        const _HowItWorksStep(number: '2', title: 'Friend signs up', desc: 'Your friend downloads QuickFix and registers with your referral code.'),
+                        const _HowItWorksStep(number: '3', title: 'Both get rewarded', desc: 'You earn a ₹100 discount coupon. Your friend gets ₹50 as a welcome bonus!'),
                       ].asMap().entries.map((e) => _buildStep(e.value, isDark).animate(delay: (100 * e.key).ms).fadeIn().slideX(begin: 0.05)),
 
                       const SizedBox(height: 24),
@@ -278,7 +277,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
         child: Column(children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 8),

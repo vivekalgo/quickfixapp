@@ -65,7 +65,7 @@ class SectionHeader extends StatelessWidget {
                   children: [
                     Text(
                       seeAllLabel,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -73,7 +73,7 @@ class SectionHeader extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 2),
-                    Icon(
+                    const Icon(
                       Icons.chevron_right_rounded,
                       size: 16,
                       color: AppColors.primary,

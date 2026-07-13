@@ -7,7 +7,6 @@ import 'package:quickfix/shared/themes/app_colors.dart';
 import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
-import 'package:quickfix/core/services/dio_client.dart';
 import 'package:quickfix/core/network/error_handler.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
@@ -55,8 +54,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             AppHaptics.lightTap();
-            if (context.canPop()) context.pop();
-            else { ref.read(currentNavIndexProvider.notifier).state = 0; context.go('/home'); }
+            if (context.canPop()) {
+              context.pop();
+            } else { ref.read(currentNavIndexProvider.notifier).state = 0; context.go('/home'); }
           },
         ),
         actions: [
@@ -108,19 +108,19 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     decoration: BoxDecoration(
                       color: isRead
                           ? (isDark ? AppColors.surfaceDark : Colors.white)
-                          : (isDark ? AppColors.surfaceDark.withOpacity(0.8) : color.withOpacity(0.04)),
+                          : (isDark ? AppColors.surfaceDark.withValues(alpha: 0.8) : color.withValues(alpha: 0.04)),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: isRead
                             ? (isDark ? AppColors.borderDark : AppColors.borderLight)
-                            : color.withOpacity(0.25),
+                            : color.withValues(alpha: 0.25),
                       ),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
                     ),
                     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
                         child: Icon(icon, color: color, size: 20),
                       ),
                       const SizedBox(width: 14),

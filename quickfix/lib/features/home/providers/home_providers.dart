@@ -7,7 +7,6 @@ import 'package:quickfix/core/services/hive_service.dart';
 import 'package:dio/dio.dart';
 
 import 'package:quickfix/core/providers/network_providers.dart';
-import 'package:quickfix/core/services/dio_client.dart';
 import 'package:quickfix/features/home/services/home_remote_data_source.dart';
 
 // Remote Data Source Provider
@@ -187,7 +186,7 @@ class LocationNotifier extends StateNotifier<UserLocation> {
         Position? position;
         try {
           position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.balanced,
+            desiredAccuracy: LocationAccuracy.medium,
             timeLimit: const Duration(seconds: 5),
           );
         } catch (_) {
@@ -237,7 +236,7 @@ class LocationNotifier extends StateNotifier<UserLocation> {
       Position? position;
       try {
         position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.balanced,
+          desiredAccuracy: LocationAccuracy.medium,
           timeLimit: const Duration(seconds: 8),
         );
       } catch (_) {

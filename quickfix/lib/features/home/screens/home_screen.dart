@@ -122,14 +122,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   ...layoutAsync.when(
                     data: (sections) => sections.map((sec) => _buildDynamicSection(sec, isDark)).toList(),
                     loading: () => [
-                      SliverToBoxAdapter(
+                      const SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: Column(
                             children: [
-                              const ShimmerLoading(width: double.infinity, height: 168, borderRadius: 18),
-                              const SizedBox(height: 14),
-                              const ShimmerLoading(width: double.infinity, height: 120, borderRadius: 14),
+                              ShimmerLoading(width: double.infinity, height: 168, borderRadius: 18),
+                              SizedBox(height: 14),
+                              ShimmerLoading(width: double.infinity, height: 120, borderRadius: 14),
                             ],
                           ),
                         ),
@@ -314,7 +314,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
+                    color: Colors.black.withValues(alpha: 0.12),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -340,8 +340,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withOpacity(0.1),
-                            Colors.black.withOpacity(0.65),
+                            Colors.black.withValues(alpha: 0.1),
+                            Colors.black.withValues(alpha: 0.65),
                           ],
                         ),
                       ),
@@ -393,7 +393,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                             Text(
                               data.subtitle,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
                                 fontSize: 12,
                                 shadows: const [
                                   Shadow(
@@ -458,7 +458,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       AppHaptics.lightTap();
                       handleCtaAction(context, data.seeAllActionType, data.seeAllActionValue);
                     },
-                    child: Text(
+                    child: const Text(
                       'See all',
                       style: TextStyle(
                         color: AppColors.primary,
@@ -528,7 +528,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white70 : AppColors.textPrimaryLight.withOpacity(0.8),
+                                  color: isDark ? Colors.white70 : AppColors.textPrimaryLight.withValues(alpha: 0.8),
                               ),
                             ),
                             if (item.reviewsCount.isNotEmpty) ...[

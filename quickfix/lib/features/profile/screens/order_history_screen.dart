@@ -8,7 +8,6 @@ import 'package:quickfix/shared/themes/app_colors.dart';
 import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
-import 'package:quickfix/core/services/dio_client.dart';
 import 'package:quickfix/features/auth/providers/auth_providers.dart';
 import 'package:quickfix/core/network/error_handler.dart';
 import 'package:quickfix/core/providers/network_providers.dart';
@@ -172,7 +171,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
             ),
             const SizedBox(height: 6),
             Text(
-              tabType == 'active' ? 'Book a service to get started!' : 'Your ${tabType} orders will appear here',
+              tabType == 'active' ? 'Book a service to get started!' : 'Your $tabType orders will appear here',
               style: AppTextStyles.bodySmall(isDark),
             ),
             if (tabType == 'active') ...[
@@ -216,7 +215,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -270,10 +269,10 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: order.pricingType == 'inspection'
-                          ? Colors.orange.withOpacity(0.1)
+                          ? Colors.orange.withValues(alpha: 0.1)
                           : order.pricingType == 'starting'
-                              ? Colors.amber.withOpacity(0.1)
-                              : Colors.blue.withOpacity(0.1),
+                              ? Colors.amber.withValues(alpha: 0.1)
+                              : Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -367,59 +366,59 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
     late String label;
     switch (status) {
       case 'pending':
-        bg = Colors.orange.withOpacity(0.12);
+        bg = Colors.orange.withValues(alpha: 0.12);
         textColor = Colors.orange.shade800;
         label = 'PENDING';
         break;
       case 'accepted':
-        bg = Colors.blue.withOpacity(0.12);
+        bg = Colors.blue.withValues(alpha: 0.12);
         textColor = Colors.blue.shade800;
         label = 'ACCEPTED';
         break;
       case 'on_the_way':
       case 'navigating':
-        bg = Colors.purple.withOpacity(0.12);
+        bg = Colors.purple.withValues(alpha: 0.12);
         textColor = Colors.purple.shade800;
         label = 'ON THE WAY';
         break;
       case 'arrived':
-        bg = Colors.deepPurple.withOpacity(0.12);
+        bg = Colors.deepPurple.withValues(alpha: 0.12);
         textColor = Colors.deepPurple.shade800;
         label = 'ARRIVED';
         break;
       case 'quote_sent':
-        bg = Colors.orange.withOpacity(0.12);
+        bg = Colors.orange.withValues(alpha: 0.12);
         textColor = Colors.orange.shade800;
         label = 'QUOTE SENT';
         break;
       case 'work_started':
-        bg = Colors.amber.withOpacity(0.12);
+        bg = Colors.amber.withValues(alpha: 0.12);
         textColor = Colors.amber.shade900;
         label = 'IN PROGRESS';
         break;
       case 'work_completed':
-        bg = Colors.teal.withOpacity(0.12);
+        bg = Colors.teal.withValues(alpha: 0.12);
         textColor = Colors.teal.shade800;
         label = 'WORK COMPLETED';
         break;
       case 'payment_completed':
-        bg = Colors.green.withOpacity(0.12);
+        bg = Colors.green.withValues(alpha: 0.12);
         textColor = Colors.green.shade800;
         label = 'PAYMENT COMPLETED';
         break;
       case 'closed':
       case 'completed':
-        bg = Colors.green.withOpacity(0.12);
+        bg = Colors.green.withValues(alpha: 0.12);
         textColor = Colors.green.shade800;
         label = 'COMPLETED';
         break;
       case 'rejected':
-        bg = Colors.red.withOpacity(0.12);
+        bg = Colors.red.withValues(alpha: 0.12);
         textColor = Colors.red.shade800;
         label = 'REJECTED';
         break;
       default:
-        bg = Colors.grey.withOpacity(0.12);
+        bg = Colors.grey.withValues(alpha: 0.12);
         textColor = Colors.grey.shade700;
         label = 'CANCELLED';
     }

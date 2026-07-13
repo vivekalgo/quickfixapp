@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickfix/shared/themes/app_colors.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
-import 'package:quickfix/core/services/dio_client.dart';
 import 'package:quickfix/core/providers/network_providers.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/features/booking/providers/cart_provider.dart';
@@ -135,8 +134,8 @@ class OffersAndCouponsPanel extends ConsumerWidget {
                   height: 40,
                   decoration: BoxDecoration(
                     color: appliedCoupon != null
-                        ? AppColors.success.withOpacity(0.12)
-                        : AppColors.primary.withOpacity(0.10),
+                        ? AppColors.success.withValues(alpha: 0.12)
+                        : AppColors.primary.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -217,7 +216,7 @@ class OffersAndCouponsPanel extends ConsumerWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.10),
+                    color: AppColors.error.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -435,7 +434,7 @@ class _OffersBottomSheetState extends ConsumerState<_OffersBottomSheet> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(
+                        const Text(
                           'Check back soon for exciting deals!',
                           style: TextStyle(
                             fontSize: 13,
@@ -497,8 +496,8 @@ class _OffersBottomSheetState extends ConsumerState<_OffersBottomSheet> {
                                               horizontal: 8, vertical: 3),
                                           decoration: BoxDecoration(
                                             color: isApplied
-                                                ? AppColors.success.withOpacity(0.12)
-                                                : baseColor.withOpacity(0.10),
+                                                ? AppColors.success.withValues(alpha: 0.12)
+                                                : baseColor.withValues(alpha: 0.10),
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
@@ -532,7 +531,7 @@ class _OffersBottomSheetState extends ConsumerState<_OffersBottomSheet> {
                                     const SizedBox(height: 3),
                                     Text(
                                       description,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 12,
                                         color: AppColors.textSecondaryLight,
                                       ),
@@ -569,7 +568,7 @@ class _OffersBottomSheetState extends ConsumerState<_OffersBottomSheet> {
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 12, vertical: 6),
                                             decoration: BoxDecoration(
-                                              color: AppColors.error.withOpacity(0.10),
+                                              color: AppColors.error.withValues(alpha: 0.10),
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             child: const Text(
@@ -588,10 +587,10 @@ class _OffersBottomSheetState extends ConsumerState<_OffersBottomSheet> {
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 12, vertical: 6),
                                             decoration: BoxDecoration(
-                                              color: AppColors.primary.withOpacity(0.10),
+                                              color: AppColors.primary.withValues(alpha: 0.10),
                                               borderRadius: BorderRadius.circular(8),
                                               border: Border.all(
-                                                  color: AppColors.primary.withOpacity(0.3)),
+                                                  color: AppColors.primary.withValues(alpha: 0.3)),
                                             ),
                                             child: const Text(
                                               'Apply',

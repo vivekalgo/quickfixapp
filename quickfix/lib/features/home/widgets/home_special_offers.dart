@@ -42,8 +42,9 @@ class HomeSpecialForYou extends ConsumerWidget {
                   }
 
                   IconData iconData = Icons.star_outline;
-                  if (item.icon == 'water_drop_outlined') iconData = Icons.water_drop_outlined;
-                  else if (item.icon == 'flash_on_outlined') iconData = Icons.flash_on_outlined;
+                  if (item.icon == 'water_drop_outlined') {
+                    iconData = Icons.water_drop_outlined;
+                  } else if (item.icon == 'flash_on_outlined') iconData = Icons.flash_on_outlined;
                   else if (item.icon == 'discount_outlined') iconData = Icons.discount_outlined;
                   else if (item.icon == 'cleaning_services_outlined') iconData = Icons.cleaning_services_outlined;
                   else if (item.icon == 'plumbing_outlined') iconData = Icons.plumbing_outlined;

@@ -93,7 +93,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
                 child: const Icon(Icons.camera_alt_outlined, color: AppColors.primary),
               ),
               title: const Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -105,7 +105,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.info.withOpacity(0.1), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.info.withValues(alpha: 0.1), shape: BoxShape.circle),
                 child: const Icon(Icons.photo_library_outlined, color: AppColors.info),
               ),
               title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -118,7 +118,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
                   child: const Icon(Icons.delete_outline, color: Colors.red),
                 ),
                 title: const Text('Remove Photo', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
@@ -290,9 +290,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.1),
+                        color: AppColors.success.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.success.withOpacity(0.4)),
+                        border: Border.all(color: AppColors.success.withValues(alpha: 0.4)),
                       ),
                       child: const Row(mainAxisSize: MainAxisSize.min, children: [
                         Icon(Icons.verified, size: 12, color: AppColors.success),
@@ -494,7 +494,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ? name.trim().split(' ').take(2).map((w) => w.isNotEmpty ? w[0].toUpperCase() : '').join()
         : '?';
     return Container(
-      color: AppColors.primary.withOpacity(0.15),
+      color: AppColors.primary.withValues(alpha: 0.15),
       child: Center(child: Text(initials, style: const TextStyle(color: AppColors.primary, fontSize: 32, fontWeight: FontWeight.bold))),
     );
   }

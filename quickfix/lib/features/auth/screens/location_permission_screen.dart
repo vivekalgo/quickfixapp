@@ -86,7 +86,7 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
               Container(
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.08),
+                  color: AppColors.primary.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -127,13 +127,13 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
                       minimumSize: const Size(double.infinity, 52),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: 4,
-                      shadowColor: AppColors.primary.withOpacity(0.25),
+                      shadowColor: AppColors.primary.withValues(alpha: 0.25),
                     ),
                     child: _isLoading
                         ? const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(Colors.white))
-                        : Row(
+                        : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
+                            children: [
                               Icon(Icons.gps_fixed, size: 18),
                               SizedBox(width: 8),
                               Text('Continue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),

@@ -112,7 +112,7 @@ class AllServicesScreen extends ConsumerWidget {
                             : const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? cat.iconColor.withOpacity(0.15)
+                              ? cat.iconColor.withValues(alpha: 0.15)
                               : (cat.iconUrl == null || cat.iconUrl!.trim().isEmpty
                                   ? Colors.white
                                   : Colors.transparent),

@@ -227,7 +227,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                                  color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                                   blurRadius: 16,
                                   offset: const Offset(0, 8),
                                 ),
@@ -283,7 +283,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                             borderRadius: BorderRadius.circular(12),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(0.1),
+                                                color: Colors.black.withValues(alpha: 0.1),
                                                 blurRadius: 4,
                                               ),
                                             ],
@@ -305,7 +305,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                                 const SizedBox(width: 3),
                                                 Text(
                                                   '(${shop.reviewsCount})',
-                                                  style: TextStyle(
+                                                  style: const TextStyle(
                                                     color: AppColors.textSecondaryLight,
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w600,
@@ -339,7 +339,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                           child: Container(
                                             padding: const EdgeInsets.all(6),
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(0.35),
+                                              color: Colors.black.withValues(alpha: 0.35),
                                               shape: BoxShape.circle,
                                             ),
                                             child: Icon(
@@ -375,7 +375,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                                           children: shop.categories.map((c) => Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                             decoration: BoxDecoration(
-                                              color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade100,
+                                              color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
                                               borderRadius: BorderRadius.circular(6),
                                               border: Border.all(
                                                 color: isDark ? AppColors.borderDark : AppColors.borderLight,

@@ -276,10 +276,10 @@ class _BannerCard extends StatelessWidget {
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Row(
+                                child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Book Now',
                                       style: TextStyle(
                                         color: AppColors.primary,
@@ -287,7 +287,7 @@ class _BannerCard extends StatelessWidget {
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
-                                    const Icon(
+                                    Icon(
                                       Icons.chevron_right_rounded,
                                       size: 12,
                                       color: AppColors.primary,

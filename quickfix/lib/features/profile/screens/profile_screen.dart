@@ -113,7 +113,7 @@ class ProfileScreen extends ConsumerWidget {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       border: Border.all(color: Colors.white, width: 2.5),
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                     ),
                                     child: ClipOval(
                                       child: Image.network(
@@ -165,9 +165,9 @@ class ProfileScreen extends ConsumerWidget {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: AppColors.success.withOpacity(0.2),
+                                            color: AppColors.success.withValues(alpha: 0.2),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: AppColors.success.withOpacity(0.5)),
+                                            border: Border.all(color: AppColors.success.withValues(alpha: 0.5)),
                                           ),
                                           child: const Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -196,7 +196,7 @@ class ProfileScreen extends ConsumerWidget {
                                         Text(
                                           email.isNotEmpty ? email : 'Add Email Address',
                                           style: TextStyle(
-                                            color: email.isNotEmpty ? Colors.white70 : Colors.white.withOpacity(0.5),
+                                            color: email.isNotEmpty ? Colors.white70 : Colors.white.withValues(alpha: 0.5),
                                             fontSize: 12,
                                             fontStyle: email.isEmpty ? FontStyle.italic : null,
                                           ),
@@ -257,7 +257,7 @@ class ProfileScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                           blurRadius: 16,
                           offset: const Offset(0, 8),
                         ),
@@ -310,8 +310,8 @@ class ProfileScreen extends ConsumerWidget {
                   _buildTileGroup(
                     isDark: isDark,
                     tiles: [
-                      _ProfileTile(icon: Icons.person_outline, label: 'Edit Profile', subtitle: 'Name, photo, gender, DOB', color: AppColors.primary, route: '/edit-profile'),
-                      _ProfileTile(icon: Icons.location_on_outlined, label: 'Saved Addresses', subtitle: 'Manage home, work & other', color: AppColors.catPlumbingIcon, route: '/addresses'),
+                      const _ProfileTile(icon: Icons.person_outline, label: 'Edit Profile', subtitle: 'Name, photo, gender, DOB', color: AppColors.primary, route: '/edit-profile'),
+                      const _ProfileTile(icon: Icons.location_on_outlined, label: 'Saved Addresses', subtitle: 'Manage home, work & other', color: AppColors.catPlumbingIcon, route: '/addresses'),
                     ],
                     context: context,
                     ref: ref,
@@ -325,9 +325,9 @@ class ProfileScreen extends ConsumerWidget {
                   _buildTileGroup(
                     isDark: isDark,
                     tiles: [
-                      _ProfileTile(icon: Icons.history_outlined, label: 'Order History', subtitle: 'Track past & current jobs', color: AppColors.info, route: '/orders', isNavTab: true),
-                      _ProfileTile(icon: Icons.local_offer_outlined, label: 'Coupons & Offers', subtitle: 'Exclusive deals & discounts', color: AppColors.catElectricianIcon, route: '/offers', isNavTab: true),
-                      _ProfileTile(icon: Icons.notifications_outlined, label: 'Notifications', subtitle: 'Alerts & updates', color: AppColors.catCleaningIcon, route: '/notifications'),
+                      const _ProfileTile(icon: Icons.history_outlined, label: 'Order History', subtitle: 'Track past & current jobs', color: AppColors.info, route: '/orders', isNavTab: true),
+                      const _ProfileTile(icon: Icons.local_offer_outlined, label: 'Coupons & Offers', subtitle: 'Exclusive deals & discounts', color: AppColors.catElectricianIcon, route: '/offers', isNavTab: true),
+                      const _ProfileTile(icon: Icons.notifications_outlined, label: 'Notifications', subtitle: 'Alerts & updates', color: AppColors.catCleaningIcon, route: '/notifications'),
                     ],
                     context: context,
                     ref: ref,
@@ -341,7 +341,7 @@ class ProfileScreen extends ConsumerWidget {
                   _buildTileGroup(
                     isDark: isDark,
                     tiles: [
-                      _ProfileTile(icon: Icons.share_outlined, label: 'Refer & Earn', subtitle: 'Earn ₹100 per friend invited', color: Colors.purple, route: '/refer-earn'),
+                      const _ProfileTile(icon: Icons.share_outlined, label: 'Refer & Earn', subtitle: 'Earn ₹100 per friend invited', color: Colors.purple, route: '/refer-earn'),
                       _ProfileTile(icon: Icons.stars_outlined, label: 'Membership', subtitle: '${membership.toUpperCase()} plan • Manage & upgrade', color: AppColors.accent, route: '/refer-earn'),
                     ],
                     context: context,
@@ -356,9 +356,9 @@ class ProfileScreen extends ConsumerWidget {
                   _buildTileGroup(
                     isDark: isDark,
                     tiles: [
-                      _ProfileTile(icon: Icons.support_agent_outlined, label: 'Help & Support', subtitle: 'Live chat • 24×7 helpdesk', color: AppColors.catCarpentryIcon, route: '/support'),
-                      _ProfileTile(icon: Icons.star_rate_outlined, label: 'Rate the App', subtitle: 'Share feedback on Play Store', color: AppColors.warning, route: ''),
-                      _ProfileTile(icon: Icons.share_outlined, label: 'Share App', subtitle: 'Invite friends to QuickFix', color: Colors.teal, route: ''),
+                      const _ProfileTile(icon: Icons.support_agent_outlined, label: 'Help & Support', subtitle: 'Live chat • 24×7 helpdesk', color: AppColors.catCarpentryIcon, route: '/support'),
+                      const _ProfileTile(icon: Icons.star_rate_outlined, label: 'Rate the App', subtitle: 'Share feedback on Play Store', color: AppColors.warning, route: ''),
+                      const _ProfileTile(icon: Icons.share_outlined, label: 'Share App', subtitle: 'Invite friends to QuickFix', color: Colors.teal, route: ''),
                     ],
                     context: context,
                     ref: ref,
@@ -372,8 +372,8 @@ class ProfileScreen extends ConsumerWidget {
                   _buildTileGroup(
                     isDark: isDark,
                     tiles: [
-                      _ProfileTile(icon: Icons.security_outlined, label: 'Privacy & Data', subtitle: 'Account settings & permissions', color: AppColors.textSecondaryLight, route: '/settings'),
-                      _ProfileTile(icon: Icons.delete_outline, label: 'Delete Account', subtitle: 'Permanently remove your data', color: AppColors.error, route: ''),
+                      const _ProfileTile(icon: Icons.security_outlined, label: 'Privacy & Data', subtitle: 'Account settings & permissions', color: AppColors.textSecondaryLight, route: '/settings'),
+                      const _ProfileTile(icon: Icons.delete_outline, label: 'Delete Account', subtitle: 'Permanently remove your data', color: AppColors.error, route: ''),
                     ],
                     context: context,
                     ref: ref,
@@ -426,7 +426,7 @@ class ProfileScreen extends ConsumerWidget {
         ? name.trim().split(' ').take(2).map((w) => w.isNotEmpty ? w[0].toUpperCase() : '').join()
         : '?';
     return Container(
-      color: AppColors.primary.withOpacity(0.15),
+      color: AppColors.primary.withValues(alpha: 0.15),
       child: Center(
         child: Text(
           initials,
@@ -454,7 +454,7 @@ class ProfileScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 20),
@@ -503,7 +503,7 @@ class ProfileScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -567,7 +567,7 @@ class ProfileScreen extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: tile.color.withOpacity(0.1),
+                          color: tile.color.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(tile.icon, color: tile.color, size: 20),

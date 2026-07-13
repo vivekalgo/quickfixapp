@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../providers/bookings_provider.dart';
@@ -22,13 +21,13 @@ class BookingsScreen extends ConsumerWidget {
         appBar: AppBar(
           title: const Text('My Booking Orders'),
           centerTitle: true,
-          bottom: TabBar(
+          bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             labelColor: AppColors.primary,
             unselectedLabelColor: Colors.white54,
             indicatorColor: AppColors.primary,
-            tabs: const [
+            tabs: [
               Tab(text: 'Ongoing'),
               Tab(text: 'New Request'),
               Tab(text: 'Completed'),
@@ -78,12 +77,12 @@ class BookingsScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.assignment_late_rounded, size: 48, color: Colors.white.withOpacity(0.2)),
+              Icon(Icons.assignment_late_rounded, size: 48, color: Colors.white.withValues(alpha: 0.2)),
               const SizedBox(height: 12),
               Text(
                 emptyLabel,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13.5),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13.5),
               ),
             ],
           ),
@@ -171,7 +170,7 @@ class BookingsScreen extends ConsumerWidget {
                   children: [
                     Text(
                       booking.approxAddress,
-                      style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                     ),
                     Text(
                       CurrencyFormatter.format(booking.amount),

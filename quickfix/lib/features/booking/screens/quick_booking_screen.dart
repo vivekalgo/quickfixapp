@@ -331,7 +331,7 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: isSelected 
-                            ? AppColors.primary.withOpacity(0.1) 
+                            ? AppColors.primary.withValues(alpha: 0.1) 
                             : (isDark ? AppColors.surfaceDark : Colors.white),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
@@ -409,7 +409,7 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Total Inspection Deposit', style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14)),
-                      Text('₹${inspectionFee.toInt()}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      Text('₹${inspectionFee.toInt()}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
                     ],
                   ),
                 ],
@@ -434,9 +434,9 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: Row(
+            child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Text('Book Inspection Instantly', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 SizedBox(width: 8),
                 Icon(Icons.lock, size: 16),

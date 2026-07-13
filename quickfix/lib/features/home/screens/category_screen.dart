@@ -7,7 +7,6 @@ import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
-import 'package:quickfix/core/services/dio_client.dart';
 import 'package:quickfix/shared/widgets/notify_me_dialog.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
@@ -108,7 +107,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF2E2E3A) : const Color(0xFFFFF1F0),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.red.withOpacity(0.15), width: 1.5),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.15), width: 1.5),
               ),
               child: const Icon(
                 Icons.construction,
@@ -258,7 +257,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.03),
+                                color: Colors.black.withValues(alpha: 0.03),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -297,9 +296,9 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.65),
+                                          color: Colors.black.withValues(alpha: 0.65),
                                           borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(color: AppColors.success.withOpacity(0.6), width: 1),
+                                          border: Border.all(color: AppColors.success.withValues(alpha: 0.6), width: 1),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -319,7 +318,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                                               Text(
                                                 '(${shop.reviewsCount})',
                                                 style: TextStyle(
-                                                  color: Colors.white.withOpacity(0.8),
+                                                  color: Colors.white.withValues(alpha: 0.8),
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.w400,
                                                 ),
@@ -352,7 +351,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                                         child: Container(
                                           padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(0.4),
+                                            color: Colors.black.withValues(alpha: 0.4),
                                             shape: BoxShape.circle,
                                           ),
                                           child: Icon(
@@ -384,7 +383,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                                         children: shop.categories.map((c) => Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                           decoration: BoxDecoration(
-                                            color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade100,
+                                            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(

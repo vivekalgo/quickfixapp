@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/currency_formatter.dart';
@@ -76,9 +75,9 @@ class DashboardScreen extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Switch(
                           value: dashboardState.stats.isOnline,
-                          activeColor: AppColors.success,
+                          activeThumbColor: AppColors.success,
                           inactiveThumbColor: AppColors.danger,
-                          inactiveTrackColor: AppColors.danger.withOpacity(0.2),
+                          inactiveTrackColor: AppColors.danger.withValues(alpha: 0.2),
                           onChanged: (val) {
                             ref.read(dashboardProvider.notifier).toggleOnlineStatus(val);
                           },
@@ -97,7 +96,7 @@ class DashboardScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
+                        color: AppColors.primary.withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       )
@@ -109,7 +108,7 @@ class DashboardScreen extends ConsumerWidget {
                       Text(
                         'TODAY\'S REVENUE',
                         style: AppTextStyles.badgeText.copyWith(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                           letterSpacing: 1.0,
                         ),
                       ),
@@ -132,7 +131,7 @@ class DashboardScreen extends ConsumerWidget {
                             children: [
                               Text(
                                 'Wallet Balance',
-                                style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -146,7 +145,7 @@ class DashboardScreen extends ConsumerWidget {
                             children: [
                               Text(
                                 'Rating',
-                                style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
                               ),
                               const SizedBox(height: 2),
                               Row(
@@ -207,7 +206,7 @@ class DashboardScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.15),
+                        color: AppColors.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -229,7 +228,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     child: Column(
                       children: [
-                        Icon(Icons.wifi_off_rounded, size: 48, color: Colors.white.withOpacity(0.3)),
+                        Icon(Icons.wifi_off_rounded, size: 48, color: Colors.white.withValues(alpha: 0.3)),
                         const SizedBox(height: 12),
                         const Text(
                           'No active requests in your area',
@@ -240,7 +239,7 @@ class DashboardScreen extends ConsumerWidget {
                         Text(
                           'Ensure your switch is ONLINE to start receiving nearby hyperlocal bookings instantly.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
                         ),
                       ],
                     ),
@@ -272,7 +271,7 @@ class DashboardScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -338,7 +337,7 @@ class DashboardScreen extends ConsumerWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -357,7 +356,7 @@ class DashboardScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.15),
+                  color: AppColors.warning.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(

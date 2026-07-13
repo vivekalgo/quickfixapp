@@ -124,7 +124,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         Container(
                           padding: const EdgeInsets.all(28),
                           decoration: BoxDecoration(
-                            color: p.color.withOpacity(0.08),
+                            color: p.color.withValues(alpha: 0.08),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(

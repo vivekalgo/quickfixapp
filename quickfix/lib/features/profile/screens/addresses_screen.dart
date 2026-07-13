@@ -18,7 +18,7 @@ class AddressesScreen extends ConsumerStatefulWidget {
 }
 
 class _AddressesScreenState extends ConsumerState<AddressesScreen> {
-  bool _isLocating = false;
+  final bool _isLocating = false;
 
   IconData _getIconForLabel(String label) {
     final lower = label.toLowerCase();
@@ -201,7 +201,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                           Container(
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
+                              color: AppColors.primary.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -250,7 +250,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
+                              color: Colors.black.withValues(alpha: 0.02),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -267,7 +267,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: (isDefault ? AppColors.primary : AppColors.textSecondaryLight).withOpacity(0.1),
+                                    color: (isDefault ? AppColors.primary : AppColors.textSecondaryLight).withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
@@ -294,7 +294,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: AppColors.primary.withOpacity(0.1),
+                                                color: AppColors.primary.withValues(alpha: 0.1),
                                                 borderRadius: BorderRadius.circular(6),
                                               ),
                                               child: const Text(

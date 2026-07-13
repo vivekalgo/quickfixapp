@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/storage/hive_service.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -153,7 +152,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 36,
-                    backgroundColor: AppColors.primary.withOpacity(0.2),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
                     backgroundImage: const NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'),
                   ),
                   const SizedBox(width: 16),
@@ -249,7 +248,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     secondary: const Icon(Icons.notifications_active_outlined, color: Colors.blue),
                     title: const Text('Push Booking Alerts', style: TextStyle(fontSize: 13.5)),
                     value: _notificationsEnabled,
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                     onChanged: (val) {
                       setState(() {
                         _notificationsEnabled = val;
@@ -309,7 +308,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.danger.withOpacity(0.15),
+                backgroundColor: AppColors.danger.withValues(alpha: 0.15),
                 foregroundColor: AppColors.danger,
                 side: const BorderSide(color: AppColors.danger, width: 1),
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -334,7 +333,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildDetailRow(String label, String value, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: AppColors.primary.withOpacity(0.8)),
+        Icon(icon, size: 20, color: AppColors.primary.withValues(alpha: 0.8)),
         const SizedBox(width: 14),
         Expanded(
           child: Column(

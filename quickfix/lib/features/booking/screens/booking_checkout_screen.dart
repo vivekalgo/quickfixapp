@@ -8,7 +8,6 @@ import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/features/booking/providers/cart_provider.dart';
-import 'package:quickfix/core/services/dio_client.dart';
 import 'package:quickfix/core/providers/network_providers.dart';
 import 'package:quickfix/features/auth/providers/auth_providers.dart';
 import 'package:quickfix/features/booking/widgets/checkout_offers_sheet.dart';
@@ -313,12 +312,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: item.pricingType == 'inspection'
-                                          ? Colors.orange.withOpacity(0.1)
+                                          ? Colors.orange.withValues(alpha: 0.1)
                                           : item.pricingType == 'starting'
-                                              ? Colors.amber.withOpacity(0.1)
+                                              ? Colors.amber.withValues(alpha: 0.1)
                                               : item.pricingType == 'range'
-                                                  ? Colors.blue.withOpacity(0.1)
-                                                  : Colors.green.withOpacity(0.1),
+                                                  ? Colors.blue.withValues(alpha: 0.1)
+                                                  : Colors.green.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -450,7 +449,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected 
-                          ? AppColors.primary.withOpacity(0.1) 
+                          ? AppColors.primary.withValues(alpha: 0.1) 
                           : (isDark ? AppColors.surfaceDark : Colors.white),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
@@ -638,7 +637,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                         padding: const EdgeInsets.only(bottom: 8.0),
                         child: _buildBillRow(label, val, isDark, isGreen: isGreen),
                       );
-                    }).toList(),
+                    }),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12.0),
                       child: Divider(),
@@ -654,9 +653,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.08),
+                  color: Colors.red.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.withOpacity(0.2)),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
@@ -774,9 +773,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
                     Text('Place Order', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     SizedBox(width: 8),
                     Icon(Icons.lock, size: 16),
@@ -805,7 +804,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
           blurRadius: 16,
           offset: const Offset(0, 8),
         ),

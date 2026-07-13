@@ -140,7 +140,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -207,7 +207,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                      color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                       blurRadius: 16,
                       offset: const Offset(0, 8),
                     ),
@@ -218,7 +218,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                   children: [
                     Icon(
                       Icons.lock_rounded,
-                      color: isDark ? Colors.white.withOpacity(0.3) : Colors.black.withOpacity(0.2),
+                      color: isDark ? Colors.white.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.2),
                       size: 36,
                     ),
                     const SizedBox(width: 16),
@@ -257,7 +257,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                      color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                       blurRadius: 16,
                       offset: const Offset(0, 8),
                     ),
@@ -284,7 +284,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                               onPressed: () => _makeCall(booking.customerPhone),
                               icon: const Icon(Icons.phone, color: AppColors.success),
                               style: IconButton.styleFrom(
-                                backgroundColor: AppColors.success.withOpacity(0.15),
+                                backgroundColor: AppColors.success.withValues(alpha: 0.15),
                                 shape: const CircleBorder(),
                               ),
                             ),
@@ -294,7 +294,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                                 onPressed: () => _launchMaps(booking.customerLat!, booking.customerLng!),
                                 icon: const Icon(Icons.navigation_rounded, color: AppColors.primary),
                                 style: IconButton.styleFrom(
-                                  backgroundColor: AppColors.primary.withOpacity(0.15),
+                                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                                   shape: const CircleBorder(),
                                 ),
                               ),
@@ -339,14 +339,14 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                           decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.map_rounded, color: AppColors.primary, size: 18),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               Text(
                                 'Open Google Maps Turn-By-Turn',
                                 style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12),
@@ -378,7 +378,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -411,9 +411,9 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                 ),
                 child: const Row(
                   children: [
@@ -770,11 +770,11 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : (hasQuote ? Colors.white : Colors.amber.shade50.withOpacity(0.3)),
+        color: isDark ? AppColors.surfaceDark : (hasQuote ? Colors.white : Colors.amber.shade50.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -830,10 +830,10 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: quote['status'] == 'accepted'
-                        ? Colors.green.withOpacity(0.2)
+                        ? Colors.green.withValues(alpha: 0.2)
                         : quote['status'] == 'rejected'
-                            ? Colors.red.withOpacity(0.2)
-                            : Colors.orange.withOpacity(0.2),
+                            ? Colors.red.withValues(alpha: 0.2)
+                            : Colors.orange.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(

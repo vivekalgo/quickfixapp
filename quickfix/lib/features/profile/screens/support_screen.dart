@@ -237,7 +237,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.surfaceDark : Colors.white,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                       ),
                       child: Text(
                         preset,

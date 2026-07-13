@@ -9,7 +9,6 @@ import 'package:quickfix/shared/themes/app_colors.dart';
 import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
-import 'package:quickfix/core/services/dio_client.dart';
 import 'package:quickfix/core/providers/network_providers.dart';
 
 class LiveTrackingScreen extends ConsumerStatefulWidget {
@@ -28,8 +27,8 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
   LatLng _driverPosition = const LatLng(26.4912, 80.3156);
   LatLng _customerPosition = const LatLng(26.4912, 80.3156);
   String _providerName = 'Assigning Expert...';
-  String _providerPhone = '';
-  String _providerAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+  final String _providerPhone = '';
+  final String _providerAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
   String _bookingStatus = 'pending';
   Timer? _pollingTimer;
   bool _isLoading = true;
@@ -234,7 +233,7 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 16,
                     offset: const Offset(0, -6),
                   ),
@@ -380,8 +379,8 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.gpp_maybe, color: AppColors.error),
             SizedBox(width: 8),
             Text('QuickFix SOS Safety', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
@@ -401,8 +400,8 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
               AppHaptics.heavyTap();
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('SOS Safety Alert Activated. Assistance is on the way.'),
+                const SnackBar(
+                  content: Text('SOS Safety Alert Activated. Assistance is on the way.'),
                   backgroundColor: AppColors.error,
                   behavior: SnackBarBehavior.floating,
                 ),
@@ -494,7 +493,7 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : Colors.orange.shade50.withOpacity(0.3),
+          color: isDark ? AppColors.surfaceDark : Colors.orange.shade50.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.orange.shade300),
         ),
@@ -521,7 +520,7 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.orange.shade50.withOpacity(0.4),
+        color: isDark ? AppColors.surfaceDark : Colors.orange.shade50.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.orange.shade300),
       ),
@@ -546,10 +545,10 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: status == 'accepted'
-                      ? Colors.green.withOpacity(0.15)
+                      ? Colors.green.withValues(alpha: 0.15)
                       : status == 'rejected'
-                          ? Colors.red.withOpacity(0.15)
-                          : Colors.orange.withOpacity(0.15),
+                          ? Colors.red.withValues(alpha: 0.15)
+                          : Colors.orange.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(

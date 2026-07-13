@@ -279,7 +279,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                         color: Colors.white10,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: AppColors.primary.withOpacity(0.5)),
+                            color: AppColors.primary.withValues(alpha: 0.5)),
                       ),
                       child: isUploading
                           ? const Center(
@@ -315,7 +315,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: pricingType,
+                    initialValue: pricingType,
                     decoration:
                         const InputDecoration(labelText: 'Pricing Model'),
                     items: const [
@@ -570,7 +570,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                       color: Colors.white10,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: AppColors.primary.withOpacity(0.5)),
+                          color: AppColors.primary.withValues(alpha: 0.5)),
                     ),
                     child: isUploading
                         ? const Center(
@@ -597,7 +597,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                   ),
                 ),
                 DropdownButtonFormField<String>(
-                  value: pricingType,
+                  initialValue: pricingType,
                   decoration: const InputDecoration(labelText: 'Pricing Model'),
                   items: const [
                     DropdownMenuItem(value: 'fixed', child: Text('🟢 Fixed Price')),
@@ -762,7 +762,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                           blurRadius: 16,
                           offset: const Offset(0, 8),
                         ),
@@ -798,7 +798,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                                           shop.imagePath,
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, __, ___) => Container(
-                                            color: AppColors.primary.withOpacity(0.15),
+                                            color: AppColors.primary.withValues(alpha: 0.15),
                                             child: const Icon(Icons.store, color: AppColors.primary, size: 40),
                                           ),
                                         ),
@@ -826,7 +826,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
 
                         // Estimated Service Time dropdown
                         DropdownButtonFormField<String>(
-                          value: _estimatedServiceTime,
+                          initialValue: _estimatedServiceTime,
                           decoration: const InputDecoration(
                             labelText: 'Estimated Service Time',
                             prefixIcon: Icon(Icons.timer_outlined),
@@ -850,7 +850,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
 
                         // Price Level dropdown
                         DropdownButtonFormField<String>(
-                          value: _priceRange,
+                          initialValue: _priceRange,
                           decoration: const InputDecoration(
                             labelText: 'Price Level',
                             prefixIcon: Icon(Icons.currency_rupee),
@@ -899,7 +899,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                           blurRadius: 16,
                           offset: const Offset(0, 8),
                         ),
@@ -980,7 +980,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                             ),
                             Switch(
                               value: _emergencyAvailable,
-                              activeColor: AppColors.primary,
+                              activeThumbColor: AppColors.primary,
                               onChanged: (val) {
                                 setState(() {
                                   _emergencyAvailable = val;
@@ -1003,7 +1003,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                           blurRadius: 16,
                           offset: const Offset(0, 8),
                         ),
@@ -1051,7 +1051,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                               ],
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ),
@@ -1065,7 +1065,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                           blurRadius: 16,
                           offset: const Offset(0, 8),
                         ),
@@ -1173,7 +1173,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
                                 blurRadius: 16,
                                 offset: const Offset(0, 8),
                               ),
@@ -1233,7 +1233,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                               ),
                               Switch(
                                 value: isEnabled,
-                                activeColor: AppColors.primary,
+                                activeThumbColor: AppColors.primary,
                                 onChanged: (val) {
                                   ref.read(shopManagementProvider.notifier).toggleService(serviceId, val);
                                 },

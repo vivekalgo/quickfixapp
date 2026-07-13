@@ -7,7 +7,6 @@ import 'package:shimmer/shimmer.dart';
 import 'package:quickfix/shared/themes/app_colors.dart';
 import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
-import 'package:quickfix/core/services/dio_client.dart';
 import 'package:quickfix/core/providers/network_providers.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/core/network/error_handler.dart';
@@ -51,8 +50,9 @@ class OffersScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             AppHaptics.lightTap();
-            if (context.canPop()) context.pop();
-            else { ref.read(currentNavIndexProvider.notifier).state = 0; context.go('/home'); }
+            if (context.canPop()) {
+              context.pop();
+            } else { ref.read(currentNavIndexProvider.notifier).state = 0; context.go('/home'); }
           },
         ),
         actions: [
@@ -115,7 +115,7 @@ class OffersScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             color: isDark ? AppColors.surfaceDark : Colors.white,
             border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
           ),
           child: Row(
             children: [
@@ -125,7 +125,7 @@ class OffersScreen extends ConsumerWidget {
                 height: double.infinity,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [baseColor, baseColor.withOpacity(0.85)],
+                    colors: [baseColor, baseColor.withValues(alpha: 0.85)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -179,7 +179,7 @@ class OffersScreen extends ConsumerWidget {
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: baseColor.withOpacity(0.1),
+                              backgroundColor: baseColor.withValues(alpha: 0.1),
                               foregroundColor: baseColor,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
