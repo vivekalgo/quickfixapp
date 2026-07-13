@@ -177,13 +177,38 @@ class LocationNotifier extends StateNotifier<UserLocation> {
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
-        Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-        );
-        await updateAddressFromCoordinates(position.latitude, position.longitude);
+        // Try last known location first for instant update
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          await updateAddressFromCoordinates(lastKnown.latitude, lastKnown.longitude);
+        }
+
+        // Fetch current position with fallback to balanced/low accuracy to avoid hanging
+        Position? position;
+        try {
+          position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.balanced,
+            timeLimit: const Duration(seconds: 5),
+          );
+        } catch (_) {
+          try {
+            position = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.low,
+              timeLimit: const Duration(seconds: 4),
+            );
+          } catch (_) {
+            if (lastKnown == null) {
+              position = await Geolocator.getLastKnownPosition();
+            }
+          }
+        }
+
+        if (position != null) {
+          await updateAddressFromCoordinates(position.latitude, position.longitude);
+        }
       }
     } catch (e) {
-      // Fail silently if permission is missing or GPS is turned off
+      // Fail silently
     }
   }
 
@@ -203,12 +228,35 @@ class LocationNotifier extends StateNotifier<UserLocation> {
         return false;
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 8),
-      );
-      await updateAddressFromCoordinates(position.latitude, position.longitude);
-      return true;
+      // Try last known location first for speed
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        updateAddressFromCoordinates(lastKnown.latitude, lastKnown.longitude);
+      }
+
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.balanced,
+          timeLimit: const Duration(seconds: 8),
+        );
+      } catch (_) {
+        try {
+          position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.low,
+            timeLimit: const Duration(seconds: 5),
+          );
+        } catch (_) {
+          position = lastKnown ?? await Geolocator.getLastKnownPosition();
+        }
+      }
+
+      if (position != null) {
+        await updateAddressFromCoordinates(position.latitude, position.longitude);
+        return true;
+      }
+      
+      return lastKnown != null;
     } catch (e) {
       return false;
     }
