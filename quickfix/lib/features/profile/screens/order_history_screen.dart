@@ -334,7 +334,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
-                    onPressed: () => _showRatingBottomSheet(context, order.title, isDark),
+                    onPressed: () => _showRatingBottomSheet(context, order, isDark),
                     icon: const Icon(Icons.star_outline, size: 14, color: Colors.white),
                     label: const Text('Rate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
                     style: ElevatedButton.styleFrom(
@@ -513,9 +513,12 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
     );
   }
 
-  void _showRatingBottomSheet(BuildContext context, String serviceTitle, bool isDark) {
+  void _showRatingBottomSheet(BuildContext context, OrderItem order, bool isDark) {
     AppHaptics.mediumTap();
     int currentRating = 5;
+    final commentController = TextEditingController();
+    bool isSubmitting = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -531,7 +534,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
               const SizedBox(height: 20),
               Text('Rate Your Experience', style: AppTextStyles.headingMedium(isDark)),
               const SizedBox(height: 6),
-              Text(serviceTitle, style: AppTextStyles.bodyMedium(isDark)),
+              Text(order.title, style: AppTextStyles.bodyMedium(isDark)),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -545,6 +548,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.amber.shade700)),
               const SizedBox(height: 16),
               TextField(
+                controller: commentController,
                 decoration: InputDecoration(
                   hintText: 'Share your experience (optional)...',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -556,20 +560,68 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
-                  AppHaptics.heavyTap();
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Thank you for your feedback! ⭐'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.success),
-                  );
-                },
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        AppHaptics.heavyTap();
+                        setModalState(() => isSubmitting = true);
+                        try {
+                          final user = ref.read(authProvider).user;
+                          final userName = user?['name']?.toString() ?? 'Customer';
+                          final userAvatar = user?['avatarUrl']?.toString() ?? '';
+                          
+                          final client = ref.read(dioClientProvider);
+                          await client.post('/reviews', data: {
+                            'userName': userName,
+                            'userAvatar': userAvatar,
+                            'rating': currentRating.toDouble(),
+                            'comment': commentController.text.trim(),
+                            'serviceName': order.title,
+                            'providerName': order.providerName,
+                            'shopId': order.shopId,
+                            'status': 'pending', // Send as pending for admin approval!
+                          });
+                          
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Thank you for your feedback! ⭐'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Failed to submit review. Please try again.'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        } finally {
+                          setModalState(() => isSubmitting = false);
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.success,
                   minimumSize: const Size(double.infinity, 52),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
                 ),
-                child: const Text('Submit Review', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Submit Review',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
               ),
             ],
           ),

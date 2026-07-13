@@ -40,7 +40,7 @@ class HomeNearbyShops extends ConsumerWidget {
               return _buildComingSoonCard(context, ref, isDark);
             }
             return SizedBox(
-              height: 258,
+              height: 270,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -61,13 +61,13 @@ class HomeNearbyShops extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-                            blurRadius: 16,
+                            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.04),
+                            blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
                         ],
                         border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          color: isDark ? AppColors.borderDark : const Color(0xFFF1F5F9),
                           width: 1,
                         ),
                       ),
@@ -80,48 +80,45 @@ class HomeNearbyShops extends ConsumerWidget {
                                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                                 child: Image.network(
                                   shop.imagePath,
-                                  height: 130,
+                                  height: 140,
                                   width: double.infinity,
                                   fit: BoxFit.cover,
                                   cacheWidth: 520,
-                                ),
-                              ),
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                                    gradient: LinearGradient(
-                                      colors: [Colors.black54, Colors.transparent],
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                    ),
-                                  ),
                                 ),
                               ),
                               Positioned(
                                 top: 12,
                                 right: 12,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
+                                    color: isDark 
+                                        ? AppColors.surfaceDark.withValues(alpha: 0.9) 
+                                        : Colors.white.withValues(alpha: 0.95),
+                                    borderRadius: BorderRadius.circular(10),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.1),
+                                        color: Colors.black.withValues(alpha: 0.06),
                                         blurRadius: 4,
+                                        offset: const Offset(0, 2),
                                       ),
                                     ],
+                                    border: Border.all(
+                                      color: isDark 
+                                          ? Colors.white.withValues(alpha: 0.08) 
+                                          : const Color(0xFFEFF2F5),
+                                      width: 1,
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 14),
-                                      const SizedBox(width: 3),
+                                      const SizedBox(width: 4),
                                       Text(
                                         shop.rating.toStringAsFixed(1),
-                                        style: const TextStyle(
-                                          color: AppColors.secondary,
+                                        style: TextStyle(
+                                          color: isDark ? Colors.white : AppColors.secondary,
                                           fontSize: 11,
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -130,8 +127,8 @@ class HomeNearbyShops extends ConsumerWidget {
                                         const SizedBox(width: 3),
                                         Text(
                                           '(${shop.reviewsCount})',
-                                          style: const TextStyle(
-                                            color: AppColors.textSecondaryLight,
+                                          style: TextStyle(
+                                            color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -162,18 +159,26 @@ class HomeNearbyShops extends ConsumerWidget {
                                     );
                                   },
                                   child: Container(
-                                    padding: const EdgeInsets.all(6),
+                                    padding: const EdgeInsets.all(7),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.35),
+                                      color: isDark 
+                                          ? Colors.black.withValues(alpha: 0.5) 
+                                          : Colors.white.withValues(alpha: 0.85),
                                       shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isDark 
+                                            ? Colors.white.withValues(alpha: 0.1) 
+                                            : Colors.black.withValues(alpha: 0.05),
+                                        width: 1,
+                                      ),
                                     ),
                                     child: Icon(
                                       ref.watch(wishlistProvider).contains(shop.id)
                                           ? Icons.favorite
                                           : Icons.favorite_border,
                                       color: ref.watch(wishlistProvider).contains(shop.id)
-                                          ? Colors.red
-                                          : Colors.white,
+                                          ? const Color(0xFFFF4E36)
+                                          : (isDark ? Colors.white : AppColors.secondary),
                                       size: 16,
                                     ),
                                   ),
@@ -182,7 +187,7 @@ class HomeNearbyShops extends ConsumerWidget {
                             ],
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(12.0),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -190,45 +195,44 @@ class HomeNearbyShops extends ConsumerWidget {
                                   shop.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14),
+                                  style: AppTextStyles.headingSmall(isDark).copyWith(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.2,
+                                  ),
                                 ),
-                                const SizedBox(height: 3),
+                                const SizedBox(height: 2),
                                 Text(
                                   shop.categories.join(', '),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 11),
+                                  style: AppTextStyles.bodySmall(isDark).copyWith(
+                                    fontSize: 11,
+                                    color: isDark ? AppColors.textSecondaryDark : const Color(0xFF6B7280),
+                                  ),
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 12),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        Icon(Icons.access_time_filled_rounded, size: 14, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          shop.estimatedTimeDisplay,
-                                          style: AppTextStyles.bodySmall(isDark).copyWith(fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
+                                    _buildInfoPill(
+                                      icon: Icons.access_time_filled_rounded,
+                                      label: shop.estimatedTimeDisplay,
+                                      isDark: isDark,
                                     ),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.near_me_rounded, size: 14, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${shop.distanceKm} km',
-                                          style: AppTextStyles.bodySmall(isDark).copyWith(fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
+                                    const SizedBox(width: 8),
+                                    _buildInfoPill(
+                                      icon: Icons.near_me_rounded,
+                                      label: '${shop.distanceKm} km',
+                                      isDark: isDark,
                                     ),
+                                    const Spacer(),
                                     Text(
                                       shop.priceRange,
-                                      style: TextStyle(
-                                        color: isDark ? Colors.white70 : AppColors.secondary,
+                                      style: const TextStyle(
+                                        color: AppColors.primary,
                                         fontWeight: FontWeight.w800,
-                                        fontSize: 13,
+                                        fontSize: 12.5,
+                                        letterSpacing: -0.2,
                                       ),
                                     ),
                                   ],
@@ -239,7 +243,9 @@ class HomeNearbyShops extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  );
+                  ).animate(delay: (index * 80).ms)
+                   .fadeIn(duration: 400.ms, curve: Curves.easeOutCubic)
+                   .slideY(begin: 0.15, end: 0, duration: 450.ms, curve: Curves.easeOutCubic);
                 },
               ),
             );
@@ -415,6 +421,37 @@ class HomeNearbyShops extends ConsumerWidget {
       builder: (ctx) => NotifyMeDialog(
         isDark: isDark,
         currentLoc: currentLoc,
+      ),
+    );
+  }
+
+  Widget _buildInfoPill({required IconData icon, required String label, required bool isDark}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+      decoration: BoxDecoration(
+        color: isDark 
+            ? const Color(0xFF2A2A38) 
+            : const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 12,
+            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
