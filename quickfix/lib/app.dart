@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/router/app_router.dart';
-import 'core/theme/app_theme.dart';
-import 'features/home/presentation/providers/home_providers.dart';
+import 'package:quickfix/core/router/app_router.dart';
+import 'package:quickfix/shared/themes/app_theme.dart';
+import 'package:quickfix/features/home/providers/home_providers.dart';
 
 class QuickFixApp extends ConsumerWidget {
   const QuickFixApp({super.key});
