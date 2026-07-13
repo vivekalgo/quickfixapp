@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCmsEvents();
   setupCmsForms();
   setupCategoryImageUpload();
+  setupBannerImageUpload();
   
   // Custom Filters & Dropdowns
   const statusFilter = document.getElementById('booking-filter-status');
@@ -153,6 +154,17 @@ function setupModals() {
     document.getElementById('banner-modal-title').textContent = "Create Carousel Banner";
     document.getElementById('edit-banner-id').value = "";
     document.getElementById('banner-form').reset();
+    
+    // Clear banner file input and preview
+    const fileInput = document.getElementById('banner-image-file');
+    if (fileInput) fileInput.value = '';
+    const fileNameSpan = document.getElementById('banner-image-file-name');
+    if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+    const previewImg = document.getElementById('banner-image-preview');
+    if (previewImg) previewImg.src = '';
+    const previewContainer = document.getElementById('banner-image-preview-container');
+    if (previewContainer) previewContainer.style.display = 'none';
+    
     document.getElementById('banner-modal').classList.add('active');
   });
   
@@ -628,11 +640,43 @@ function setupForms() {
     e.preventDefault();
     const bannerIdVal = document.getElementById('edit-banner-id').value;
     
+    const fileInput = document.getElementById('banner-image-file');
+    let imageUrl = document.getElementById('banner-image').value;
+    
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      const file = fileInput.files[0];
+      showToast('Uploading banner image...', 'warning');
+      try {
+        const base64Data = await convertFileToBase64(file);
+        const uploadRes = await fetch(`${API_URL}/banners/upload-image`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base64Image: base64Data.base64,
+            mimeType: file.type
+          })
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success) {
+          imageUrl = uploadData.imageUrl;
+          document.getElementById('banner-image').value = imageUrl;
+          showToast('Banner image uploaded successfully', 'success');
+        } else {
+          showToast('Failed to upload banner image: ' + (uploadData.error || 'Unknown error'), 'error');
+          return;
+        }
+      } catch (uploadErr) {
+        console.error('Banner image upload failed:', uploadErr);
+        showToast('Image upload failed', 'error');
+        return;
+      }
+    }
+    
     const bodyData = {
       title: document.getElementById('banner-title').value,
       code: document.getElementById('banner-code').value,
       percent: document.getElementById('banner-percent').value,
-      imageUrl: document.getElementById('banner-image').value,
+      imageUrl: imageUrl,
       redirectUrl: document.getElementById('banner-redirect').value,
       priority: parseInt(document.getElementById('banner-priority').value) || 0,
       expiryDate: document.getElementById('banner-expiry').value
@@ -667,6 +711,17 @@ function setupForms() {
       
       document.getElementById('banner-modal').classList.remove('active');
       document.getElementById('banner-form').reset();
+      
+      // Clear file inputs & previews
+      const fileInputObj = document.getElementById('banner-image-file');
+      if (fileInputObj) fileInputObj.value = '';
+      const fileNameSpan = document.getElementById('banner-image-file-name');
+      if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+      const previewImg = document.getElementById('banner-image-preview');
+      if (previewImg) previewImg.src = '';
+      const previewContainer = document.getElementById('banner-image-preview-container');
+      if (previewContainer) previewContainer.style.display = 'none';
+      
       refreshAllData();
     } catch (err) {
       console.error('Error saving banner:', err);
@@ -1051,6 +1106,21 @@ function editBanner(id) {
   document.getElementById('banner-redirect').value = banner.redirectUrl || '';
   document.getElementById('banner-priority').value = banner.priority || 0;
   document.getElementById('banner-expiry').value = banner.expiryDate || '';
+  
+  // Set preview for existing image
+  const previewImg = document.getElementById('banner-image-preview');
+  const previewContainer = document.getElementById('banner-image-preview-container');
+  const fileNameSpan = document.getElementById('banner-image-file-name');
+  
+  if (banner.imageUrl) {
+    previewImg.src = banner.imageUrl;
+    previewContainer.style.display = 'flex';
+    fileNameSpan.textContent = 'Existing image';
+  } else {
+    previewImg.src = '';
+    previewContainer.style.display = 'none';
+    fileNameSpan.textContent = 'No file chosen';
+  }
   
   document.getElementById('banner-modal').classList.add('active');
 }
@@ -1714,6 +1784,42 @@ function setupCategoryImageUpload() {
       document.getElementById('cat-icon-preview').src = '';
       document.getElementById('cat-icon-preview-container').style.display = 'none';
       document.getElementById('cat-icon-url').value = '';
+    });
+  }
+}
+
+function setupBannerImageUpload() {
+  const fileInput = document.getElementById('banner-image-file');
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const previewImg = document.getElementById('banner-image-preview');
+      const previewContainer = document.getElementById('banner-image-preview-container');
+      const fileNameSpan = document.getElementById('banner-image-file-name');
+      
+      if (file) {
+        fileNameSpan.textContent = file.name;
+        previewImg.src = URL.createObjectURL(file);
+        previewContainer.style.display = 'flex';
+      } else {
+        if (!document.getElementById('banner-image').value) {
+          fileNameSpan.textContent = 'No file chosen';
+          previewImg.src = '';
+          previewContainer.style.display = 'none';
+        }
+      }
+    });
+  }
+
+  const removeBtn = document.getElementById('btn-remove-banner-image');
+  if (removeBtn) {
+    removeBtn.addEventListener('click', () => {
+      const fileInput = document.getElementById('banner-image-file');
+      if (fileInput) fileInput.value = '';
+      document.getElementById('banner-image-file-name').textContent = 'No file chosen';
+      document.getElementById('banner-image-preview').src = '';
+      document.getElementById('banner-image-preview-container').style.display = 'none';
+      document.getElementById('banner-image').value = '';
     });
   }
 }

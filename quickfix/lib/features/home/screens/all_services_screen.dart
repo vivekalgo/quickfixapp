@@ -107,11 +107,15 @@ class AllServicesScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: cat.iconUrl == null || cat.iconUrl!.trim().isEmpty
+                            ? const EdgeInsets.all(10)
+                            : const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: isDark
                               ? cat.iconColor.withOpacity(0.15)
-                              : Colors.white,
+                              : (cat.iconUrl == null || cat.iconUrl!.trim().isEmpty
+                                  ? Colors.white
+                                  : Colors.transparent),
                           shape: BoxShape.circle,
                         ),
                         child: cat.iconUrl == null || cat.iconUrl!.trim().isEmpty
@@ -126,8 +130,8 @@ class AllServicesScreen extends ConsumerWidget {
                                     cat.iconUrl!.trim().startsWith('http://')
                                         ? cat.iconUrl!.trim().replaceFirst('http://', 'https://')
                                         : cat.iconUrl!.trim(),
-                                    width: 26,
-                                    height: 26,
+                                    width: 38,
+                                    height: 38,
                                     fit: BoxFit.contain,
                                     placeholderBuilder: (context) => Icon(
                                       cat.icon,
@@ -136,15 +140,15 @@ class AllServicesScreen extends ConsumerWidget {
                                     ),
                                   )
                                 : ClipRRect(
-                                    borderRadius: BorderRadius.circular(13),
+                                    borderRadius: BorderRadius.circular(19),
                                     child: Image.network(
                                       cat.iconUrl!.trim().startsWith('http://')
                                           ? cat.iconUrl!.trim().replaceFirst('http://', 'https://')
                                           : cat.iconUrl!.trim(),
-                                      width: 26,
-                                      height: 26,
+                                      width: 38,
+                                      height: 38,
                                       fit: BoxFit.contain,
-                                      cacheWidth: 80,
+                                      cacheWidth: 100,
                                       errorBuilder: (context, error, stackTrace) => Icon(
                                         cat.icon,
                                         color: cat.iconColor,

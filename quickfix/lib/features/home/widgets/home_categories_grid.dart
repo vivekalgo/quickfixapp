@@ -194,11 +194,13 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
     final isSvg = url.toLowerCase().contains('.svg') ||
         url.toLowerCase().contains('format=svg');
 
+    const double imageSize = 46.0;
+
     if (isSvg) {
       return SvgPicture.network(
         url,
-        width: 30,
-        height: 30,
+        width: imageSize,
+        height: imageSize,
         fit: BoxFit.contain,
         placeholderBuilder: (_) =>
             Icon(cat.icon, color: cat.iconColor, size: 30),
@@ -209,10 +211,10 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
       borderRadius: BorderRadius.circular(10),
       child: Image.network(
         url,
-        width: 30,
-        height: 30,
+        width: imageSize,
+        height: imageSize,
         fit: BoxFit.contain,
-        cacheWidth: 80,
+        cacheWidth: 120,
         errorBuilder: (_, __, ___) =>
             Icon(cat.icon, color: cat.iconColor, size: 30),
       ),

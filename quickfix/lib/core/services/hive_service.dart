@@ -7,11 +7,11 @@ class HiveService {
 
   static List<int> _getEncryptionKey() {
     // Dynamically derive the 32-byte key from obfuscated segments to prevent static string extraction.
-    final part1 = 'UXVpY2tGaXhBcHBT'; // "QuickFixAppS" in base64
-    final part2 = 'ZWN1cmVMb2NhbFM='; // "ecureLocalS" in base64
-    final part3 = 'dG9yYWdlU2FsdDIwMjY='; // "torageSalt2026" in base64
+    final part1 = base64.decode('UXVpY2tGaXhBcHBT'); // "QuickFixAppS" in base64
+    final part2 = base64.decode('ZWN1cmVMb2NhbFM='); // "ecureLocalS" in base64
+    final part3 = base64.decode('dG9yYWdlU2FsdDIwMjY='); // "torageSalt2026" in base64
     
-    final decoded = base64.decode('$part1$part2$part3');
+    final decoded = [...part1, ...part2, ...part3];
     final key = List<int>.filled(32, 0);
     for (int i = 0; i < decoded.length && i < 32; i++) {
       key[i] = decoded[i];

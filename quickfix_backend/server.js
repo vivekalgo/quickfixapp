@@ -2704,6 +2704,28 @@ app.post('/api/categories/upload-image', async (req, res) => {
   }
 });
 
+// Banner image upload — stores in Cloudinary and returns imageUrl
+app.post('/api/banners/upload-image', async (req, res) => {
+  try {
+    const { base64Image, mimeType } = req.body;
+    if (!base64Image) {
+      return res.status(400).json({ error: 'base64Image is required' });
+    }
+    const dataUri = `data:${mimeType || 'image/jpeg'};base64,${base64Image}`;
+    
+    const uploadResponse = await cloudinary.uploader.upload(dataUri, {
+      folder: 'quickfix_banners',
+      resource_type: 'image',
+    });
+
+    const imageUrl = uploadResponse.secure_url;
+    res.json({ success: true, imageUrl });
+  } catch (e) {
+    console.error('Cloudinary banner image upload error:', e.message || e);
+    res.status(500).json({ error: `Failed to upload banner image: ${e.message || e}` });
+  }
+});
+
 // Category creation & deletion
 app.post('/api/categories/create', async (req, res) => {
   const { id, name, iconUrl } = req.body;
