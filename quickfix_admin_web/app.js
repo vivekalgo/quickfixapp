@@ -641,9 +641,15 @@ function setupForms() {
     const bannerIdVal = document.getElementById('edit-banner-id').value;
     
     const fileInput = document.getElementById('banner-image-file');
-    let imageUrl = document.getElementById('banner-image').value;
+    let imageUrl = document.getElementById('banner-image').value.trim();
     
-    if (fileInput && fileInput.files && fileInput.files[0]) {
+    const hasFile = fileInput && fileInput.files && fileInput.files[0];
+    if (!hasFile && !imageUrl) {
+      showToast('Please upload a banner image file or provide an image URL', 'error');
+      return;
+    }
+    
+    if (hasFile) {
       const file = fileInput.files[0];
       showToast('Uploading banner image...', 'warning');
       try {
