@@ -111,230 +111,198 @@ class _BannerCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           boxShadow: AppShadows.elevated,
-          // Warm coral gradient background only if we have text overlays
-          gradient: showFullWidthImage
-              ? null
-              : const LinearGradient(
-                  colors: [Color(0xFFFF8E6E), Color(0xFFFF4E36)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: showFullWidthImage
-              ? Image.network(
-                  banner.imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  cacheWidth: 800,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: const Color(0xFFF1F5F9),
-                    child: const Center(
-                      child: Icon(Icons.image, color: Color(0xFF94A3B8), size: 40),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // ── Background Image: covers the entire card ──────────────
+              Image.network(
+                banner.imageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                cacheWidth: 800,
+                errorBuilder: (_, __, ___) => Container(
+                  color: const Color(0xFFF1F5F9),
+                  child: const Center(
+                    child: Icon(Icons.image, color: Color(0xFF94A3B8), size: 40),
+                  ),
+                ),
+              ),
+
+              // ── Gradient Overlay for Text Readability ────────────────
+              // (Only shown if we have text overlays, to make white text readable over any image)
+              if (!showFullWidthImage)
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withValues(alpha: 0.55),
+                        Colors.black.withValues(alpha: 0.15),
+                      ],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
                     ),
                   ),
-                )
-              : Stack(
-                  children: [
-                    // ── Right side: product image ──────────────────────────────
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      bottom: 0,
-                      // Image occupies right ~44% of card
-                      child: LayoutBuilder(
-                        builder: (ctx, constraints) {
-                          return SizedBox(
-                            width: MediaQuery.of(context).size.width * 0.92 * 0.44,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                // Product image
-                                Image.network(
-                                  banner.imageUrl,
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 400,
-                                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                                ),
-                                // Left feather — blends image into gradient
-                                Positioned(
-                                  left: 0,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    width: 52,
-                                    decoration: const BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [Color(0xFFFF4E36), Colors.transparent],
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                ),
 
-                    // ── Left side: text content ────────────────────────────────
-                    Positioned(
-                      left: 16,
-                      top: 14,
-                      right: MediaQuery.of(context).size.width * 0.92 * 0.40,
-                      bottom: 14,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // "Limited Time Offer" pill badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 9,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'Limited Time Offer',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                                letterSpacing: 0.1,
-                              ),
-                            ),
-                          ),
-
-                          // Main title — from admin panel
-                          if (banner.title.isNotEmpty)
-                            Text(
-                              banner.title,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                height: 1.22,
-                                letterSpacing: -0.3,
-                                shadows: [
-                                  Shadow(
-                                    color: Color(0x33000000),
-                                    blurRadius: 4,
-                                    offset: Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                          // Code + Book Now row
-                          Row(
-                            children: [
-                              // Use Code: pill — from admin panel (only if not empty)
-                              if (banner.code.isNotEmpty)
-                                Flexible(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.75),
-                                        width: 1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      'Use Code: ${banner.code}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.2,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-                              if (banner.code.isNotEmpty)
-                                const SizedBox(width: 7),
-                              // Book Now CTA
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Book Now',
-                                      style: TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.chevron_right_rounded,
-                                      size: 12,
-                                      color: AppColors.primary,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── Discount badge — top right corner ─────────────────────
-                    if (banner.percent.isNotEmpty)
-                      Positioned(
-                        top: 12,
-                        right: 14,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.12),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            banner.percent,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                            ),
+              // ── Text overlay on the left ──────────────────────────────
+              if (!showFullWidthImage)
+                Positioned(
+                  left: 16,
+                  top: 14,
+                  right: MediaQuery.of(context).size.width * 0.92 * 0.38,
+                  bottom: 14,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // "Limited Time Offer" pill badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Limited Time Offer',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                            letterSpacing: 0.1,
                           ),
                         ),
                       ),
-                  ],
+
+                      // Main Title
+                      if (banner.title.isNotEmpty)
+                        Text(
+                          banner.title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            height: 1.22,
+                            letterSpacing: -0.3,
+                            shadows: [
+                              Shadow(
+                                color: Color(0x66000000),
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Code + Book Now row
+                      Row(
+                        children: [
+                          // Use Code: pill (only if not empty)
+                          if (banner.code.isNotEmpty)
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.75),
+                                    width: 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Use Code: ${banner.code}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.2,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          if (banner.code.isNotEmpty)
+                            const SizedBox(width: 7),
+                          // Book Now CTA
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Book Now',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 12,
+                                  color: AppColors.primary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+
+              // ── Discount badge — top right corner ─────────────────────
+              if (!showFullWidthImage && banner.percent.isNotEmpty)
+                Positioned(
+                  top: 12,
+                  right: 14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      banner.percent,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
