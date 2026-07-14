@@ -144,7 +144,22 @@ class NotificationService {
         handleNotificationClick(message.data);
       });
 
-      // 7. Handle app launch from terminated state via notification click
+      // 7. Auto sync token refresh
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+        AppLogger.info('FCM Token refreshed: $newToken', tag: 'FCM');
+        await syncTokenWithBackend(newToken);
+      });
+
+      // 8. Handle app launch and subscribe to topics asynchronously to prevent startup blockage
+      _initTerminatedStateAndTopic();
+
+    } catch (e, s) {
+      AppLogger.error('Failed to initialize NotificationService', tag: 'FCM', error: e, stackTrace: s);
+    }
+  }
+
+  static Future<void> _initTerminatedStateAndTopic() async {
+    try {
       final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
       if (initialMessage != null) {
         AppLogger.info('App launched from terminated state via notification click: ${initialMessage.messageId}', tag: 'FCM');
@@ -153,18 +168,14 @@ class NotificationService {
           handleNotificationClick(initialMessage.data);
         });
       }
+    } catch (e) {
+      AppLogger.error('Failed to get initial message: $e', tag: 'FCM');
+    }
 
-      // 8. Auto sync token refresh
-      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-        AppLogger.info('FCM Token refreshed: $newToken', tag: 'FCM');
-        await syncTokenWithBackend(newToken);
-      });
-
-      // Default topic subscription for all customers
+    try {
       await subscribeToTopic('customers');
-
-    } catch (e, s) {
-      AppLogger.error('Failed to initialize NotificationService', tag: 'FCM', error: e, stackTrace: s);
+    } catch (e) {
+      AppLogger.error('Failed to auto-subscribe to customers topic: $e', tag: 'FCM');
     }
   }
 

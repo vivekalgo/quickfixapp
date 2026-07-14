@@ -51,8 +51,8 @@ void main() async {
     ]);
   });
 
-  // Initialize Notification Service
-  await NotificationService.init();
+  // Initialize Notification Service asynchronously to avoid blocking startup
+  NotificationService.init();
 
   runApp(
     const ProviderScope(

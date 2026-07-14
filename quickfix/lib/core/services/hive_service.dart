@@ -22,6 +22,7 @@ class HiveService {
   static Future<void> init() async {
     await Hive.initFlutter();
     await Hive.openBox(_settingsBox);
+    await Hive.openBox('local_notifications');
     await Hive.openBox(
       _cacheBox,
       encryptionCipher: HiveAesCipher(_getEncryptionKey()),
