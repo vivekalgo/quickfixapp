@@ -377,6 +377,9 @@ function renderShopsList() {
         <p>Owner: ${s.ownerName} • Phone: ${s.phone} • Email: ${s.email || 'N/A'}</p>
         <p style="font-size:11px;color:var(--primary-solid);margin-top:4px;">Coords: ${s.latitude}, ${s.longitude} • Radius: ${s.serviceRadius}km • Visiting Charges: ₹${s.visitingCharges}</p>
         <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">GST: ${s.gst || 'N/A'} • PAN: ${s.pan || 'N/A'} • Aadhaar: ${s.aadhaar || 'N/A'}</p>
+        <p style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Bank Acc: ${s.bankAccountNumber || 'N/A'} • IFSC: ${s.ifscCode || 'N/A'} • UPI ID: ${s.upiId || 'N/A'}</p>
+        <p style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Owner Phone: ${s.ownerPhone || 'N/A'} • Owner Email: ${s.ownerEmail || 'N/A'}</p>
+        <p style="font-size:11px;color:var(--text-primary);margin-top:2px;font-weight:600;">Wallet: ₹${(s.walletBalance || 0).toFixed(2)} • Commission: ${s.commissionRate !== undefined ? s.commissionRate : 15}% • Onboarding: ${s.isFirstLogin === false ? '✅ Completed' : '⏳ Pending'}</p>
         <p style="font-size:11px;color:var(--warning);margin-top:2px; font-family: monospace;">Login ID: ${s.shopDisplayId || 'N/A'} • Password: ${s.tempPassword || 'N/A'}</p>
         <p style="font-size:12px;color:var(--accent);margin-top:4px;font-weight:600;">⭐ ${(s.rating || 5.0).toFixed(1)} <span style="font-weight:400;color:var(--text-muted);">(${ (s.reviewsCount || 0)} reviews)</span></p>
       </div>
@@ -579,7 +582,14 @@ function setupForms() {
       estimatedServiceTime: document.getElementById('shop-estimated-time').value,
       priceRange: document.getElementById('shop-price-range').value,
       rating: parseFloat(document.getElementById('shop-rating').value) || 5.0,
-      reviewsCount: parseInt(document.getElementById('shop-reviews-count').value) || 0
+      reviewsCount: parseInt(document.getElementById('shop-reviews-count').value) || 0,
+      ownerPhone: document.getElementById('shop-owner-phone').value,
+      ownerEmail: document.getElementById('shop-owner-email').value,
+      bankAccountNumber: document.getElementById('shop-bank-number').value,
+      ifscCode: document.getElementById('shop-ifsc').value,
+      upiId: document.getElementById('shop-upi-id').value,
+      commissionRate: parseFloat(document.getElementById('shop-commission-rate').value) || 15.0,
+      walletBalance: parseFloat(document.getElementById('shop-wallet-balance').value) || 0.0
     };
     
     try {
@@ -1069,6 +1079,13 @@ function editShop(id) {
   document.getElementById('shop-gst').value = shop.gst || '';
   document.getElementById('shop-pan').value = shop.pan || '';
   document.getElementById('shop-aadhaar').value = shop.aadhaar || '';
+  document.getElementById('shop-owner-phone').value = shop.ownerPhone || '';
+  document.getElementById('shop-owner-email').value = shop.ownerEmail || '';
+  document.getElementById('shop-bank-number').value = shop.bankAccountNumber || '';
+  document.getElementById('shop-ifsc').value = shop.ifscCode || '';
+  document.getElementById('shop-upi-id').value = shop.upiId || '';
+  document.getElementById('shop-commission-rate').value = shop.commissionRate !== undefined ? shop.commissionRate : 15.0;
+  document.getElementById('shop-wallet-balance').value = shop.walletBalance !== undefined ? shop.walletBalance : 0.0;
   document.getElementById('shop-docs').value = (shop.verificationDocs || []).join('\n');
   document.getElementById('shop-estimated-time').value = shop.estimatedServiceTime || '20 mins';
   document.getElementById('shop-price-range').value = shop.priceRange || '₹₹';

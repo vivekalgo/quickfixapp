@@ -153,16 +153,16 @@ class NotificationService {
       // 8. Handle app launch and subscribe to topics asynchronously
       _initTerminatedStateAndTopic();
 
-      // If already logged in, request permissions and sync token
-      final token = HiveService.getAuthToken();
-      if (token != null) {
-        requestPermissions().then((_) async {
+      // Request permissions immediately on startup
+      requestPermissions().then((_) async {
+        final token = HiveService.getAuthToken();
+        if (token != null) {
           final fcmToken = await getToken();
           if (fcmToken != null) {
             await syncTokenWithBackend(fcmToken);
           }
-        });
-      }
+        }
+      });
 
     } catch (e) {
       debugPrint('[FCM]: Failed to initialize NotificationService: $e');

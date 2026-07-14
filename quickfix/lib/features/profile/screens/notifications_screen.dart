@@ -74,21 +74,28 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
     });
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          ref.read(currentNavIndexProvider.notifier).state = 0;
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
         backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        elevation: 0,
-        title: Text('Notifications', style: AppTextStyles.headingMedium(isDark)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            AppHaptics.lightTap();
-            if (context.canPop()) {
-              context.pop();
-            } else { ref.read(currentNavIndexProvider.notifier).state = 0; context.go('/home'); }
-          },
-        ),
+        appBar: AppBar(
+          backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+          elevation: 0,
+          title: Text('Notifications', style: AppTextStyles.headingMedium(isDark)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              AppHaptics.lightTap();
+              ref.read(currentNavIndexProvider.notifier).state = 0;
+              context.go('/home');
+            },
+          ),
         actions: [
           IconButton(
             icon: const Icon(Icons.done_all),
@@ -360,8 +367,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSkeleton(bool isDark) {
     final base = isDark ? AppColors.surfaceDark : Colors.grey.shade200;

@@ -27,8 +27,6 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
 
   // Step 2 Controllers
   final _mobileController = TextEditingController();
-  final _otpController = TextEditingController();
-  bool _otpSent = false;
   bool _mobileVerified = false;
 
   // Step 3 Controllers
@@ -46,7 +44,6 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     _mobileController.dispose();
-    _otpController.dispose();
     _bankAccountController.dispose();
     _ifscController.dispose();
     _upiIdController.dispose();
@@ -80,30 +77,15 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     }
   }
 
-  void _sendOtp() {
+  void _submitMobileNumber() {
     if (!_formKeyMobile.currentState!.validate()) return;
     setState(() {
-      _otpSent = true;
+      _mobileVerified = true;
+      _currentStep = 2;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Simulated OTP code "123456" sent successfully!'), backgroundColor: AppColors.info),
+      const SnackBar(content: Text('Mobile number saved successfully!'), backgroundColor: AppColors.success),
     );
-  }
-
-  void _verifyOtp() {
-    if (_otpController.text.trim() == '123456') {
-      setState(() {
-        _mobileVerified = true;
-        _currentStep = 2;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mobile number verified successfully!'), backgroundColor: AppColors.success),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid OTP code. Enter 123456'), backgroundColor: AppColors.danger),
-      );
-    }
   }
 
   Future<void> _submitBankDetails() async {
@@ -271,16 +253,15 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 12),
-          Text('Verify Contact Number', style: AppTextStyles.headingMedium(true)),
+          Text('Contact Number', style: AppTextStyles.headingMedium(true)),
           const SizedBox(height: 8),
-          Text('Enter your primary mobile number. We will send a confirmation OTP code.', style: AppTextStyles.bodyMedium(true)),
+          Text('Enter your primary contact mobile number to be associated with this shop.', style: AppTextStyles.bodyMedium(true)),
           const SizedBox(height: 24),
           TextFormField(
             controller: _mobileController,
             style: const TextStyle(color: Colors.white),
             keyboardType: TextInputType.phone,
             validator: Validators.validatePhone,
-            enabled: !_otpSent,
             decoration: InputDecoration(
               labelText: 'Mobile Number',
               labelStyle: const TextStyle(color: AppColors.textSecondaryDark),
@@ -291,56 +272,17 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
-          if (_otpSent) ...[
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _otpController,
-              style: const TextStyle(color: Colors.white),
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Enter OTP (Simulated: 123456)',
-                labelStyle: const TextStyle(color: AppColors.textSecondaryDark),
-                filled: true,
-                fillColor: AppColors.surfaceDark,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ],
           const SizedBox(height: 32),
-          if (!_otpSent)
-            ElevatedButton(
-              onPressed: _sendOtp,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text('Send Verification OTP', style: AppTextStyles.buttonText),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => setState(() => _otpSent = false),
-                    child: const Text('Change Number', style: TextStyle(color: AppColors.primary)),
-                  ),
-                ),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _verifyOtp,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text('Verify OTP', style: AppTextStyles.buttonText),
-                  ),
-                ),
-              ],
+          ElevatedButton(
+            onPressed: _submitMobileNumber,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
+            child: Text('Save & Continue', style: AppTextStyles.buttonText),
+          ),
         ],
       ),
     );

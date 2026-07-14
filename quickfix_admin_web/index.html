@@ -347,6 +347,45 @@
                 <label for="shop-aadhaar">Aadhaar Card ID</label>
                 <input type="text" id="shop-aadhaar" placeholder="e.g. 1234 5678 9012">
               </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-owner-phone">Owner Contact Phone</label>
+                  <input type="tel" id="shop-owner-phone" placeholder="e.g. 9876543211">
+                </div>
+                <div class="form-group">
+                  <label for="shop-owner-email">Owner Contact Email</label>
+                  <input type="email" id="shop-owner-email" placeholder="e.g. owner.personal@swaroop.com">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-bank-number">Bank Account Number</label>
+                  <input type="text" id="shop-bank-number" placeholder="e.g. 123456789012">
+                </div>
+                <div class="form-group">
+                  <label for="shop-ifsc">IFSC Code</label>
+                  <input type="text" id="shop-ifsc" placeholder="e.g. SBIN0001234">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-upi-id">Settlement UPI ID</label>
+                  <input type="text" id="shop-upi-id" placeholder="e.g. owner@upi">
+                </div>
+                <div class="form-group">
+                  <label for="shop-commission-rate">Commission Rate (%)</label>
+                  <input type="number" step="0.5" id="shop-commission-rate" value="15.0" min="0" max="100">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="shop-wallet-balance">Wallet Balance (₹)</label>
+                  <input type="number" step="any" id="shop-wallet-balance" value="0.0">
+                </div>
+                <div class="form-group">
+                  <!-- empty group for alignment -->
+                </div>
+              </div>
               <div class="form-group">
                 <label>Verification Documents URLs (one per line)</label>
                 <textarea id="shop-docs" rows="2" placeholder="https://s3.aws.com/doc-id1.jpg"></textarea>

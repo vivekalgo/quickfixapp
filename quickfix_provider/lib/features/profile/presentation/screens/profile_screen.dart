@@ -222,6 +222,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Bank Settlement Details
+            Text(
+              'BANK SETTLEMENT DETAILS',
+              style: AppTextStyles.headingSmall(isDark).copyWith(
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                fontSize: 11,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+              ),
+              child: Column(
+                children: [
+                  _buildDetailRow('Bank Account Number', shop.bankAccountNumber.isNotEmpty ? shop.bankAccountNumber : 'Not Provided', Icons.account_balance_rounded),
+                  const Divider(height: 24, color: Colors.white10),
+                  _buildDetailRow('IFSC Code', shop.ifscCode.isNotEmpty ? shop.ifscCode : 'Not Provided', Icons.gavel_rounded),
+                  const Divider(height: 24, color: Colors.white10),
+                  _buildDetailRow('UPI ID', shop.upiId.isNotEmpty ? shop.upiId : 'Not Provided', Icons.payments_rounded),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // Settings & Customization
             Text(
               'APP SETTINGS & UTILITIES',

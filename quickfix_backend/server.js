@@ -512,7 +512,13 @@ app.post('/api/wallet/add-money', requireAuth, async (req, res) => {
 
 // 2. Shop Partners (Registration, Login, Update, Delete)
 app.post('/api/shops/register', async (req, res) => {
-  const { name, ownerName, password, phone, latitude, longitude, categories, imagePath, email, gst, pan, aadhaar, verificationDocs, visitingCharges, serviceRadius, timings, verificationStatus, estimatedServiceTime, priceRange } = req.body;
+  const { 
+    name, ownerName, password, phone, latitude, longitude, categories, 
+    imagePath, email, gst, pan, aadhaar, verificationDocs, visitingCharges, 
+    serviceRadius, timings, verificationStatus, estimatedServiceTime, priceRange,
+    bankAccountNumber, ifscCode, upiId, ownerPhone, ownerEmail, commissionRate, walletBalance
+  } = req.body;
+  
   if (!name || !ownerName || !phone) {
     return res.status(400).json({ error: 'Shop name, Owner name, and Phone number are required' });
   }
@@ -575,7 +581,14 @@ app.post('/api/shops/register', async (req, res) => {
       pan: pan || '',
       aadhaar: aadhaar || '',
       verificationDocs: verificationDocs || [],
-      loginDisabled: false
+      loginDisabled: false,
+      bankAccountNumber: bankAccountNumber || '',
+      ifscCode: ifscCode || '',
+      upiId: upiId || '',
+      ownerPhone: ownerPhone || '',
+      ownerEmail: ownerEmail || '',
+      commissionRate: parseFloat(commissionRate) || 15.0,
+      walletBalance: parseFloat(walletBalance) || 0.0
     });
 
     await newShop.save();
@@ -933,7 +946,13 @@ app.post('/api/provider/update-services', requireAuth, async (req, res) => {
 });
 
 app.post('/api/provider/update-hours', requireAuth, async (req, res) => {
-  const { workingHours, holidays, serviceRadius, visitingCharges, emergencyAvailable, estimatedServiceTime, priceRange } = req.body;
+  const { 
+    workingHours, holidays, serviceRadius, visitingCharges, 
+    emergencyAvailable, estimatedServiceTime, priceRange,
+    gst, pan, aadhaar, bankAccountNumber, ifscCode, upiId,
+    isFirstLogin, ownerPhone, ownerEmail, walletBalance, walletTransactions
+  } = req.body;
+  
   try {
     const shop = await Shop.findById(req.user.id);
     if (!shop) {
@@ -947,6 +966,22 @@ app.post('/api/provider/update-hours', requireAuth, async (req, res) => {
     if (emergencyAvailable !== undefined) shop.emergencyAvailable = emergencyAvailable;
     if (estimatedServiceTime !== undefined) shop.estimatedServiceTime = estimatedServiceTime;
     if (priceRange !== undefined) shop.priceRange = priceRange;
+
+    // Document and Bank Details updates
+    if (gst !== undefined) shop.gst = gst;
+    if (pan !== undefined) shop.pan = pan;
+    if (aadhaar !== undefined) shop.aadhaar = aadhaar;
+    if (bankAccountNumber !== undefined) shop.bankAccountNumber = bankAccountNumber;
+    if (ifscCode !== undefined) shop.ifscCode = ifscCode;
+    if (upiId !== undefined) shop.upiId = upiId;
+    
+    // Auth & onboarding updates
+    if (isFirstLogin !== undefined) shop.isFirstLogin = isFirstLogin;
+    if (ownerPhone !== undefined) shop.ownerPhone = ownerPhone;
+    if (ownerEmail !== undefined) shop.ownerEmail = ownerEmail;
+    
+    if (walletBalance !== undefined) shop.walletBalance = parseFloat(walletBalance);
+    if (walletTransactions !== undefined) shop.walletTransactions = walletTransactions;
 
     await shop.save();
     res.json({ success: true, shop });
