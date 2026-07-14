@@ -353,16 +353,19 @@ final syncNotificationsProvider = FutureProvider<void>((ref) async {
     final data = res.data as List;
     final box = Hive.box('local_notifications');
     
+    final deletedIds = HiveService.getDeletedNotificationIds();
+    final readIds = HiveService.getReadNotificationIds();
+    
     for (final item in data) {
       final map = Map<String, dynamic>.from(item as Map);
       final id = map['id']?.toString() ?? '';
-      if (id.isNotEmpty && !box.containsKey(id)) {
+      if (id.isNotEmpty && !deletedIds.contains(id) && !box.containsKey(id)) {
         final localItem = {
           'id': id,
           'title': map['title'] ?? '',
           'body': map['body'] ?? '',
           'time': map['createdAt'] ?? map['time'] ?? DateTime.now().toIso8601String(),
-          'isRead': false,
+          'isRead': readIds.contains(id),
           'type': map['type'] ?? 'general',
           'bookingId': map['bookingId'] ?? '',
           'orderId': map['orderId'] ?? '',
@@ -432,6 +435,7 @@ class ReadNotificationsNotifier extends StateNotifier<Set<String>> {
   Future<void> deleteNotification(String id) async {
     state = state.where((item) => item != id).toSet();
     try {
+      await HiveService.markNotificationAsDeleted(id);
       final box = Hive.box('local_notifications');
       await box.delete(id);
     } catch (_) {}
@@ -441,6 +445,8 @@ class ReadNotificationsNotifier extends StateNotifier<Set<String>> {
     state = {};
     try {
       final box = Hive.box('local_notifications');
+      final ids = box.keys.map((e) => e.toString()).toList();
+      await HiveService.markMultipleNotificationsAsDeleted(ids);
       await box.clear();
     } catch (_) {}
   }

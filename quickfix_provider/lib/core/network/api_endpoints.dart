@@ -8,6 +8,7 @@ class ApiEndpoints {
   // Provider Auth
   static const String login = '/provider/login';
   static const String changePassword = '/provider/change-password';
+  static const String updateFcmToken = '/provider/update-fcm';
 
   // Dashboard
   static String dashboard(String shopId) => '/provider/dashboard/$shopId';

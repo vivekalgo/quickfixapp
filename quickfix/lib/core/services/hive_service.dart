@@ -210,4 +210,35 @@ class HiveService {
       await box.put('read_notifications', list);
     }
   }
+
+  // Deleted Notifications Cache
+  static List<String> getDeletedNotificationIds() {
+    final box = Hive.box(_cacheBox);
+    final list = box.get('deleted_notifications', defaultValue: <String>[]) as List;
+    return list.map((e) => e.toString()).toList();
+  }
+
+  static Future<void> markNotificationAsDeleted(String notificationId) async {
+    final box = Hive.box(_cacheBox);
+    final list = getDeletedNotificationIds();
+    if (!list.contains(notificationId)) {
+      list.add(notificationId);
+      await box.put('deleted_notifications', list);
+    }
+  }
+
+  static Future<void> markMultipleNotificationsAsDeleted(List<String> notificationIds) async {
+    final box = Hive.box(_cacheBox);
+    final list = getDeletedNotificationIds();
+    bool updated = false;
+    for (final id in notificationIds) {
+      if (!list.contains(id)) {
+        list.add(id);
+        updated = true;
+      }
+    }
+    if (updated) {
+      await box.put('deleted_notifications', list);
+    }
+  }
 }

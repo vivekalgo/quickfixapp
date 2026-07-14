@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "538543566048",
+    "project_id": "quickfixappflutter",
+    "storage_bucket": "quickfixappflutter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:538543566048:android:d4387f5258bf08b541b485",
+        "android_client_info": {
+          "package_name": "com.quickfix.app.quickfix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6EDYCEqlM9h3Y8aZduuqDjXreLxe62Mg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:538543566048:android:4455b4a233e7bd1941b485",
+        "android_client_info": {
+          "package_name": "com.quickfix.quickfix_provider"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6EDYCEqlM9h3Y8aZduuqDjXreLxe62Mg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

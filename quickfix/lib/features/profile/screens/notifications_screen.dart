@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:intl/intl.dart';
 import 'package:quickfix/shared/themes/app_colors.dart';
 import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
@@ -40,6 +41,25 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       case 'primary':  return AppColors.primary;
       default:         return AppColors.accent;
     }
+  }
+
+  String _formatDate(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final dateToCheck = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    
+    if (dateToCheck == today) {
+      return 'Today';
+    } else if (dateToCheck == yesterday) {
+      return 'Yesterday';
+    } else {
+      return DateFormat('dd MMM yyyy').format(dateTime);
+    }
+  }
+
+  String _formatTime(DateTime dateTime) {
+    return DateFormat('hh:mm a').format(dateTime);
   }
 
   @override
@@ -143,6 +163,23 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 final color = _colorForTag(iconColor, isDark);
                 final icon = _iconForColor(iconColor);
 
+                final timeVal = item['time']?.toString() ?? 'Just now';
+                String dateStr = 'Just now';
+                String timeStr = '';
+                
+                final parsedDate = DateTime.tryParse(timeVal);
+                if (parsedDate != null) {
+                  final localDate = parsedDate.toLocal();
+                  dateStr = _formatDate(localDate);
+                  timeStr = _formatTime(localDate);
+                } else {
+                  if (timeVal.toLowerCase().contains('just now')) {
+                    dateStr = 'Just now';
+                  } else {
+                    dateStr = timeVal;
+                  }
+                }
+
                 return Dismissible(
                   key: Key(id),
                   direction: DismissDirection.endToStart,
@@ -168,43 +205,156 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     },
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: isRead
                             ? (isDark ? AppColors.surfaceDark : Colors.white)
-                            : (isDark ? AppColors.surfaceDark.withValues(alpha: 0.8) : color.withValues(alpha: 0.04)),
+                            : (isDark ? AppColors.surfaceDark.withValues(alpha: 0.95) : Colors.white),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isRead
                               ? (isDark ? AppColors.borderDark : AppColors.borderLight)
-                              : color.withValues(alpha: 0.25),
+                              : color.withValues(alpha: 0.35),
+                          width: isRead ? 1 : 1.5,
                         ),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: isRead
+                                ? Colors.black.withValues(alpha: 0.01)
+                                : color.withValues(alpha: 0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
                       ),
-                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-                          child: Icon(icon, color: color, size: 20),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          children: [
+                            if (!isRead)
+                              Positioned(
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: 4,
+                                child: Container(
+                                  color: color,
+                                ),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(icon, color: color, size: 20),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                item['title']?.toString() ?? '',
+                                                style: AppTextStyles.headingSmall(isDark).copyWith(
+                                                  fontSize: 14,
+                                                  fontWeight: isRead ? FontWeight.w600 : FontWeight.w700,
+                                                  height: 1.2,
+                                                ),
+                                              ),
+                                            ),
+                                            if (!isRead)
+                                              Container(
+                                                margin: const EdgeInsets.only(left: 8, top: 4),
+                                                width: 8,
+                                                height: 8,
+                                                decoration: BoxDecoration(
+                                                  color: color,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          item['body']?.toString() ?? '',
+                                          style: AppTextStyles.bodySmall(isDark).copyWith(
+                                            fontSize: 12,
+                                            color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Divider(
+                                          height: 1,
+                                          thickness: 0.5,
+                                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.calendar_today_outlined,
+                                                  size: 11,
+                                                  color: isDark ? Colors.white38 : Colors.black38,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  dateStr,
+                                                  style: AppTextStyles.bodySmall(isDark).copyWith(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: isDark ? Colors.white38 : Colors.black54,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (timeStr.isNotEmpty)
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.access_time_rounded,
+                                                    size: 11,
+                                                    color: isDark ? Colors.white38 : Colors.black38,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    timeStr,
+                                                    style: AppTextStyles.bodySmall(isDark).copyWith(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: isDark ? Colors.white38 : Colors.black54,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Row(children: [
-                              Expanded(child: Text(item['title']?.toString() ?? '', style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14))),
-                              if (!isRead)
-                                Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
-                            ]),
-                            const SizedBox(height: 4),
-                            Text(item['body']?.toString() ?? '', style: AppTextStyles.bodySmall(isDark).copyWith(color: isDark ? Colors.white60 : AppColors.textSecondaryLight)),
-                            const SizedBox(height: 8),
-                            Text(item['time']?.toString() ?? 'Just now', style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
-                          ]),
-                        ),
-                      ]),
+                      ),
                     ),
-                  ).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.05, end: 0),
-                );
+                  ),
+                ).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.05, end: 0);
               },
             );
           },

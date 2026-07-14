@@ -787,6 +787,23 @@ app.post('/api/provider/change-password', requireAuth, async (req, res) => {
   }
 });
 
+// 2b. Update Provider FCM Token
+app.post('/api/provider/update-fcm', requireAuth, async (req, res) => {
+  const { fcmToken } = req.body;
+  try {
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+    shop.fcmToken = fcmToken || '';
+    await shop.save();
+    res.json({ success: true, message: 'FCM Token updated successfully' });
+  } catch (e) {
+    console.error('Update FCM Token error:', e);
+    res.status(500).json({ error: 'Failed to update FCM Token' });
+  }
+});
+
 // 3. Provider Dashboard Stats
 app.get('/api/provider/dashboard/:shopId', requireAuth, async (req, res) => {
   const { shopId } = req.params;
@@ -2210,6 +2227,19 @@ const placeBooking = async (req, res) => {
       }
     );
 
+    // Send Booking Created push notification to provider (shop)
+    sendFcmNotification(
+      shop.id,
+      'New Booking Request 📦',
+      `You have a new booking request for "${title}" on ${date || 'today'} during ${slot || 'your business hours'}.`,
+      {
+        type: 'booking',
+        bookingId: bookingId,
+        iconColor: 'info'
+      },
+      'partner'
+    );
+
     res.json({ 
       success: true, 
       bookingId, 
@@ -2351,6 +2381,19 @@ app.post('/api/bookings/cancel', async (req, res) => {
         bookingId: id,
         iconColor: 'error'
       }
+    );
+
+    // Notify provider (shop)
+    sendFcmNotification(
+      booking.shopId,
+      'Booking Cancelled ❌',
+      `The booking QF-${id} for "${booking.title}" has been cancelled by the customer.`,
+      {
+        type: 'booking',
+        bookingId: id,
+        iconColor: 'error'
+      },
+      'partner'
     );
 
     res.json({ success: true, booking });

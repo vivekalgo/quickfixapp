@@ -3,6 +3,7 @@ import 'package:quickfix_provider/core/network/api_endpoints.dart';
 import 'package:quickfix_provider/core/network/network_providers.dart';
 import 'package:quickfix_provider/core/storage/hive_service.dart';
 import 'package:quickfix_provider/features/auth/data/models/shop_model.dart';
+import 'package:quickfix_provider/core/services/notification_service.dart';
 
 class AuthState {
   final bool isLoading;
@@ -75,6 +76,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isAuthenticated: true,
           shop: shop,
         );
+
+        // Request permissions and sync FCM token with backend
+        NotificationService.requestPermissions().then((_) async {
+          final fcmToken = await NotificationService.getToken();
+          if (fcmToken != null) {
+            await NotificationService.syncTokenWithBackend(fcmToken);
+          }
+        });
+
         return true;
       } else {
         state = state.copyWith(
