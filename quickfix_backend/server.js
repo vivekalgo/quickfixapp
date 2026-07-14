@@ -116,49 +116,74 @@ async function sendFcmNotification(targetId, title, body, data = {}, targetType 
 
     let token = '';
     if (targetType === 'user') {
-      const user = await User.findById(targetId);
-      token = user ? user.fcmToken : '';
+      // Try findById first (MongoDB), then fallback to findOne with id or _id (local JSON DB)
+      let user = null;
+      try { user = await User.findById(targetId); } catch (_) {}
+      if (!user) user = await User.findOne({ id: targetId });
+      if (!user) user = await User.findOne({ _id: targetId });
+      token = user ? (user.fcmToken || '') : '';
     } else {
+      // Shop/Provider — always keyed by custom `id` field
       const shop = await Shop.findOne({ id: targetId });
-      token = shop ? shop.fcmToken : '';
+      token = shop ? (shop.fcmToken || '') : '';
     }
 
-    if (!token) {
-      console.log(`FCM NOT SENT: No token registered for ${targetType} ${targetId}`);
+    if (!token || token.trim() === '') {
+      console.log(`FCM NOT SENT: No FCM token registered for ${targetType} ${targetId}`);
       return false;
     }
 
-    const isPartner = targetType === 'partner';
+    const isPartner = targetType === 'partner' || targetType === 'shop';
     const channelId = isPartner ? 'booking_alert_channel' : 'high_importance_channel';
     const sound = isPartner ? 'alert_ring' : 'default';
 
+    // FCM requires ALL data values to be strings
+    const stringifiedData = {};
+    for (const [k, v] of Object.entries(data)) {
+      stringifiedData[k] = String(v);
+    }
+    stringifiedData['click_action'] = 'FLUTTER_NOTIFICATION_CLICK';
+
     const message = {
-      notification: {
-        title,
-        body,
-        sound: sound,
-      },
+      notification: { title, body },
       token: token,
-      data: {
-        ...data,
-        click_action: 'FLUTTER_NOTIFICATION_CLICK'
-      },
+      data: stringifiedData,
       android: {
         priority: 'high',
+        ttl: 3600000, // 1 hour TTL in ms
         notification: {
           sound: sound,
           clickAction: 'FLUTTER_NOTIFICATION_CLICK',
           channelId: channelId,
-          icon: 'ic_notification'
+          icon: 'ic_notification',
+          priority: 'max',
+          defaultSound: !isPartner,
+          defaultVibrateTimings: true,
+          notificationCount: 1,
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: sound === 'default' ? 'default' : `${sound}.wav`,
+            badge: 1,
+            contentAvailable: true,
+          }
         }
       }
     };
 
     const response = await admin.messaging().send(message);
-    console.log(`Successfully sent FCM message: ${response} to ${targetType} ${targetId}`);
+    console.log(`✅ FCM sent to ${targetType} ${targetId}: ${response}`);
     return true;
   } catch (error) {
-    console.error(`Error sending FCM notification to ${targetType} ${targetId}:`, error.message || error);
+    // If token is invalid/expired, log it clearly
+    if (error.code === 'messaging/registration-token-not-registered' ||
+        error.code === 'messaging/invalid-registration-token') {
+      console.error(`⚠️ FCM: Invalid/expired token for ${targetType} ${targetId}. Token needs refresh.`);
+    } else {
+      console.error(`❌ FCM error for ${targetType} ${targetId}:`, error.message || error);
+    }
     return false;
   }
 }
@@ -174,33 +199,45 @@ async function sendFcmTopicNotification(topic, title, body, data = {}) {
     const channelId = isPartner ? 'booking_alert_channel' : 'high_importance_channel';
     const sound = isPartner ? 'alert_ring' : 'default';
 
+    // FCM requires ALL data values to be strings
+    const stringifiedData = {};
+    for (const [k, v] of Object.entries(data)) {
+      stringifiedData[k] = String(v);
+    }
+    stringifiedData['click_action'] = 'FLUTTER_NOTIFICATION_CLICK';
+
     const message = {
-      notification: {
-        title,
-        body,
-        sound: sound,
-      },
+      notification: { title, body },
       topic: topic,
-      data: {
-        ...data,
-        click_action: 'FLUTTER_NOTIFICATION_CLICK'
-      },
+      data: stringifiedData,
       android: {
         priority: 'high',
+        ttl: 3600000,
         notification: {
           sound: sound,
           clickAction: 'FLUTTER_NOTIFICATION_CLICK',
           channelId: channelId,
-          icon: 'ic_notification'
+          icon: 'ic_notification',
+          priority: 'max',
+          defaultVibrateTimings: true,
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: sound === 'default' ? 'default' : `${sound}.wav`,
+            badge: 1,
+            contentAvailable: true,
+          }
         }
       }
     };
 
     const response = await admin.messaging().send(message);
-    console.log(`Successfully sent FCM topic message: ${response} to topic ${topic}`);
+    console.log(`✅ FCM topic sent to '${topic}': ${response}`);
     return true;
   } catch (error) {
-    console.error(`Error sending FCM topic notification to topic ${topic}:`, error.message || error);
+    console.error(`❌ FCM topic error for '${topic}':`, error.message || error);
     return false;
   }
 }
@@ -257,6 +294,25 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }
 }
+
+async function requireAdmin(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: Missing admin token' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Admin access only' });
+    }
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid admin token' });
+  }
+}
+
 
 // --- ENDPOINTS ---
 
@@ -878,6 +934,9 @@ app.post('/api/provider/update-fcm', requireAuth, async (req, res) => {
 app.get('/api/provider/dashboard/:shopId', requireAuth, async (req, res) => {
   const { shopId } = req.params;
   try {
+    if (req.user.role !== 'admin' && req.user.shopId !== shopId && String(req.user.id) !== shopId) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to this shop\'s dashboard' });
+    }
     const shop = await Shop.findOne({ id: shopId });
     if (!shop) {
       return res.status(404).json({ error: 'Shop not found' });
@@ -1063,6 +1122,9 @@ app.post('/api/provider/update-hours', requireAuth, async (req, res) => {
 app.get('/api/provider/earnings/:shopId', requireAuth, async (req, res) => {
   const { shopId } = req.params;
   try {
+    if (req.user.role !== 'admin' && req.user.shopId !== shopId && String(req.user.id) !== shopId) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to this shop\'s earnings' });
+    }
     const shop = await Shop.findOne({ id: shopId });
     if (!shop) {
       return res.status(404).json({ error: 'Shop not found' });
@@ -1091,11 +1153,14 @@ app.post('/api/provider/reply-review', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Review not found' });
     }
 
+    const shop = await Shop.findById(req.user.id);
+    if (!shop || (review.shopId !== shop.id && review.shopId !== String(shop._id))) {
+      return res.status(403).json({ error: 'Forbidden: You cannot reply to a review belonging to another shop' });
+    }
+
     review.reply = replyText;
     await review.save();
 
-    // Also track in shop replies map
-    const shop = await Shop.findById(req.user.id);
     if (shop) {
       if (!shop.reviewReplies) shop.reviewReplies = {};
       shop.reviewReplies.set(reviewId, replyText);
@@ -2276,6 +2341,25 @@ const placeBooking = async (req, res) => {
       bookingPricingType = calc.pricingType;
     }
 
+    if (paymentMethod === 'Razorpay') {
+      const { paymentDetails } = req.body;
+      if (!paymentDetails || !paymentDetails.paymentId || !paymentDetails.signature || !paymentDetails.orderId) {
+        return res.status(400).json({ error: 'Missing Razorpay payment details' });
+      }
+      const secret = process.env.RAZORPAY_KEY_SECRET;
+      if (secret) {
+        const generatedSignature = crypto
+          .createHmac('sha256', secret)
+          .update(paymentDetails.orderId + "|" + paymentDetails.paymentId)
+          .digest('hex');
+        if (generatedSignature !== paymentDetails.signature) {
+          return res.status(400).json({ error: 'Razorpay cryptographic signature verification failed' });
+        }
+      } else {
+        console.warn("WARNING: RAZORPAY_KEY_SECRET is not configured. Signature validation was bypassed.");
+      }
+    }
+
     if (paymentMethod === 'Wallet') {
       if (!user) {
         return res.status(401).json({ error: 'Unauthorized: Authentication required for wallet payment' });
@@ -2873,56 +2957,61 @@ app.post('/api/notifications/send', async (req, res) => {
 
 // --- ADMIN AND ENTERPRISE MANAGEMENT SYSTEM ENDPOINTS ---
 
+// Admin Login
+app.post('/api/admin/login', async (req, res) => {
+  const { password } = req.body;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'quickfix_admin_secret_9988';
+  if (password === adminPassword) {
+    const token = jwt.sign({ id: 'super-admin', role: 'admin' }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ success: true, token });
+  } else {
+    res.status(401).json({ error: 'Invalid admin credentials' });
+  }
+});
+
 // Admin system stats
-app.get('/api/admin/stats', async (req, res) => {
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
   try {
-    const users = await User.find({});
-    const shops = await Shop.find({});
-    const bookings = await Booking.find({});
-    const offers = await Offer.find({});
-    const alerts = await Notification.find({});
+    const totalCustomers = await User.countDocuments({ accountStatus: { $ne: 'deleted' } });
+    const totalShops = await Shop.countDocuments({});
+    const totalProviders = await Shop.countDocuments({ verificationStatus: 'approved' });
 
-    const totalCustomers = users.filter(u => u.accountStatus !== 'deleted').length;
-    const totalShops = shops.length;
-    const totalProviders = shops.filter(s => s.verificationStatus === 'approved').length;
+    const pendingBookings = await Booking.countDocuments({ status: 'pending' });
+    const activeBookings = await Booking.countDocuments({ status: { $in: ['accepted', 'on_the_way', 'navigating', 'arrived', 'quote_sent', 'work_started'] } });
+    const completedBookings = await Booking.countDocuments({ status: 'completed' });
+    const cancelledBookings = await Booking.countDocuments({ status: 'cancelled' });
 
-    const pendingBookings = bookings.filter(b => b.status === 'pending').length;
-    const activeBookings = bookings.filter(b => b.status === 'accepted' || b.status === 'on_the_way').length;
-    const completedBookings = bookings.filter(b => b.status === 'completed').length;
-    const cancelledBookings = bookings.filter(b => b.status === 'cancelled').length;
+    // Aggregate revenue
+    const revenueResult = await Booking.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const revenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
 
-    let revenue = 0;
-    bookings.forEach(b => {
-      if (b.status === 'completed') {
-        revenue += (parseFloat(b.amount) || 0);
-      }
-    });
+    // Aggregate walletBalance
+    const walletResult = await User.aggregate([
+      { $match: { accountStatus: { $ne: 'deleted' } } },
+      { $group: { _id: null, total: { $sum: '$walletBalance' } } }
+    ]);
+    const walletBalance = walletResult.length > 0 ? walletResult[0].total : 0;
 
-    let walletBalance = 0;
-    users.forEach(u => {
-      walletBalance += (parseFloat(u.walletBalance) || 0);
-    });
-
-    const onlineShops = shops.filter(s => s.isOnline && s.verificationStatus === 'approved' && s.status === 'active').length;
+    const onlineShops = await Shop.countDocuments({ isOnline: true, verificationStatus: 'approved', status: 'active' });
     const offlineShops = totalShops - onlineShops;
 
-    let totalServices = 0;
-    shops.forEach(s => {
-      if (s.services) {
-        totalServices += s.services.length;
-      }
-    });
+    // Aggregate totalServices
+    const servicesResult = await Shop.aggregate([
+      { $project: { numberOfServices: { $cond: { if: { $isArray: "$services" }, then: { $size: "$services" }, else: 0 } } } },
+      { $group: { _id: null, total: { $sum: "$numberOfServices" } } }
+    ]);
+    const totalServices = servicesResult.length > 0 ? servicesResult[0].total : 0;
 
-    const activeCoupons = offers.filter(o => o.isActive).length;
-    const notificationsSent = alerts.length;
+    const activeCoupons = await Offer.countDocuments({ isActive: true });
+    const notificationsSent = await Notification.countDocuments({});
 
     // Today's orders
     const today = new Date();
     today.setHours(0,0,0,0);
-    const todaysOrders = bookings.filter(b => {
-      const bDate = new Date(b.createdAt || b.date);
-      return bDate >= today;
-    }).length;
+    const todaysOrders = await Booking.countDocuments({ createdAt: { $gte: today } });
 
     res.json({
       totalCustomers,
@@ -2948,63 +3037,83 @@ app.get('/api/admin/stats', async (req, res) => {
 });
 
 // Reports summary API for Chart.js
-app.get('/api/reports/summary', async (req, res) => {
+app.get('/api/reports/summary', requireAdmin, async (req, res) => {
   try {
-    const bookings = await Booking.find({});
-    const daily = {};
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0,0,0,0);
+
+    // 1. Get daily stats for last 7 days using aggregate
+    const dailyStats = await Booking.aggregate([
+      { $match: { createdAt: { $gte: sevenDaysAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "Asia/Kolkata" } },
+          count: { $sum: 1 },
+          revenue: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, "$amount", 0] } }
+        }
+      }
+    ]);
+
+    const dailyMap = {};
+    dailyStats.forEach(stat => {
+      if (stat._id) {
+        const d = new Date(stat._id);
+        const label = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+        dailyMap[label] = { revenue: stat.revenue, count: stat.count };
+      }
+    });
+
     const last7Days = [];
-    
+    const dailyData = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
       last7Days.push(dateStr);
-      daily[dateStr] = { revenue: 0, count: 0 };
+      
+      const val = dailyMap[dateStr] || { revenue: 0, count: 0 };
+      dailyData.push({
+        date: dateStr,
+        revenue: parseFloat(val.revenue.toFixed(2)),
+        bookings: val.count
+      });
     }
 
-    bookings.forEach(b => {
-      const bDate = new Date(b.createdAt || b.date);
-      const dateStr = bDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-      if (daily[dateStr]) {
-        daily[dateStr].count += 1;
-        if (b.status === 'completed') {
-          daily[dateStr].revenue += (parseFloat(b.amount) || 0);
+    // 2. Get category stats using aggregate
+    const categoryStats = await Booking.aggregate([
+      {
+        $lookup: {
+          from: "shops",
+          localField: "shopId",
+          foreignField: "id",
+          as: "shopInfo"
+        }
+      },
+      { $unwind: { path: "$shopInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          amount: 1,
+          status: 1,
+          categories: { $ifNull: ["$shopInfo.categories", ["General"]] }
+        }
+      },
+      { $unwind: "$categories" },
+      {
+        $group: {
+          _id: "$categories",
+          count: { $sum: 1 },
+          revenue: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, "$amount", 0] } }
         }
       }
-    });
-
-    const dailyData = last7Days.map(day => ({
-      date: day,
-      revenue: parseFloat(daily[day].revenue.toFixed(2)),
-      bookings: daily[day].count
-    }));
-
-    const categoryStats = {};
-    const shops = await Shop.find({});
-    const shopCategoryMap = {};
-    shops.forEach(s => {
-      shopCategoryMap[s.id] = s.categories || [];
-    });
-
-    bookings.forEach(b => {
-      const cats = shopCategoryMap[b.shopId] || ['General'];
-      cats.forEach(c => {
-        if (!categoryStats[c]) {
-          categoryStats[c] = { revenue: 0, count: 0 };
-        }
-        categoryStats[c].count += 1;
-        if (b.status === 'completed') {
-          categoryStats[c].revenue += (parseFloat(b.amount) || 0);
-        }
-      });
-    });
+    ]);
 
     res.json({
       daily: dailyData,
-      categories: Object.entries(categoryStats).map(([name, val]) => ({
-        name,
-        revenue: parseFloat(val.revenue.toFixed(2)),
-        bookings: val.count
+      categories: categoryStats.map(stat => ({
+        name: stat._id || 'General',
+        revenue: parseFloat(stat.revenue.toFixed(2)),
+        bookings: stat.count
       }))
     });
   } catch (e) {
@@ -3014,7 +3123,7 @@ app.get('/api/reports/summary', async (req, res) => {
 });
 
 // Customer management
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', requireAdmin, async (req, res) => {
   try {
     const list = await User.find({});
     res.json(list.filter(u => u.accountStatus !== 'deleted'));
@@ -3023,7 +3132,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-app.post('/api/users/wallet-adjust', async (req, res) => {
+app.post('/api/users/wallet-adjust', requireAdmin, async (req, res) => {
   const { userId, amount, type, title } = req.body;
   if (!userId || isNaN(amount)) {
     return res.status(400).json({ error: 'userId and valid amount are required' });
@@ -3270,7 +3379,7 @@ app.post('/api/audit-logs', async (req, res) => {
 });
 
 // Category image upload — stores in Cloudinary and returns imageUrl
-app.post('/api/categories/upload-image', async (req, res) => {
+app.post('/api/categories/upload-image', requireAdmin, async (req, res) => {
   try {
     const { base64Image, mimeType } = req.body;
     if (!base64Image) {
@@ -3292,7 +3401,7 @@ app.post('/api/categories/upload-image', async (req, res) => {
 });
 
 // Banner image upload — stores in Cloudinary and returns imageUrl
-app.post('/api/banners/upload-image', async (req, res) => {
+app.post('/api/banners/upload-image', requireAdmin, async (req, res) => {
   try {
     const { base64Image, mimeType } = req.body;
     if (!base64Image) {
@@ -3314,7 +3423,7 @@ app.post('/api/banners/upload-image', async (req, res) => {
 });
 
 // Category creation & deletion
-app.post('/api/categories/create', async (req, res) => {
+app.post('/api/categories/create', requireAdmin, async (req, res) => {
   const { id, name, iconUrl } = req.body;
   if (!id || !name) return res.status(400).json({ error: 'id and name are required' });
   try {
@@ -3326,7 +3435,7 @@ app.post('/api/categories/create', async (req, res) => {
   }
 });
 
-app.post('/api/categories/update', async (req, res) => {
+app.post('/api/categories/update', requireAdmin, async (req, res) => {
   const { id, name, iconUrl } = req.body;
   if (!id) return res.status(400).json({ error: 'id is required' });
   try {
@@ -3351,7 +3460,7 @@ app.post('/api/categories/update', async (req, res) => {
   }
 });
 
-app.delete('/api/categories/:id', async (req, res) => {
+app.delete('/api/categories/:id', requireAdmin, async (req, res) => {
   try {
     const deleted = await Category.findOneAndDelete({ id: req.params.id });
     if (deleted) {
@@ -3414,6 +3523,9 @@ app.get('/api/payments/ledger/:bookingId', requireAuth, async (req, res) => {
 // Get all ledger entries for a provider
 app.get('/api/payments/ledger/shop/:shopId', requireAuth, async (req, res) => {
   try {
+    if (req.user.role !== 'admin' && req.user.shopId !== req.params.shopId && req.user.id !== req.params.shopId) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to this shop\'s ledger' });
+    }
     const ledgers = await PaymentLedger.find({ shopId: req.params.shopId });
     ledgers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     res.json({ success: true, ledgers });
@@ -3423,7 +3535,7 @@ app.get('/api/payments/ledger/shop/:shopId', requireAuth, async (req, res) => {
 });
 
 // Admin: get all ledger entries (with optional filters)
-app.get('/api/payments/ledger', async (req, res) => {
+app.get('/api/payments/ledger', requireAdmin, async (req, res) => {
   try {
     const { shopId, paymentStatus, paymentMethod, from, to } = req.query;
     let ledgers = await PaymentLedger.find({});
@@ -3524,7 +3636,7 @@ app.post('/api/payments/commission-collect/:shopId', async (req, res) => {
 // --- SETTLEMENT ROUTES ---
 
 // Admin: get all settlements
-app.get('/api/payments/settlements', async (req, res) => {
+app.get('/api/payments/settlements', requireAdmin, async (req, res) => {
   try {
     const { status, shopId } = req.query;
     let settlements = await Settlement.find({});
@@ -3540,6 +3652,9 @@ app.get('/api/payments/settlements', async (req, res) => {
 // Provider: get their settlements
 app.get('/api/payments/settlements/shop/:shopId', requireAuth, async (req, res) => {
   try {
+    if (req.user.role !== 'admin' && req.user.shopId !== req.params.shopId && req.user.id !== req.params.shopId) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to this shop\'s settlements' });
+    }
     let settlements = await Settlement.find({ shopId: req.params.shopId });
     settlements.sort((a, b) => new Date(b.requestedAt || b.createdAt) - new Date(a.requestedAt || a.createdAt));
     res.json({ success: true, settlements });
@@ -3553,6 +3668,9 @@ app.post('/api/payments/settlements/request', requireAuth, async (req, res) => {
   const { shopId, amount, bookingIds, settlementType } = req.body;
   if (!shopId || !amount) {
     return res.status(400).json({ error: 'shopId and amount are required' });
+  }
+  if (req.user.role !== 'admin' && req.user.shopId !== shopId && req.user.id !== shopId) {
+    return res.status(403).json({ error: 'Forbidden: You cannot request settlements for another shop' });
   }
   try {
     const shop = await Shop.findOne({ id: shopId });
@@ -3614,7 +3732,7 @@ app.post('/api/payments/settlements/request', requireAuth, async (req, res) => {
 });
 
 // Admin: approve a settlement
-app.post('/api/payments/settlements/:id/approve', async (req, res) => {
+app.post('/api/payments/settlements/:id/approve', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { adminNote } = req.body;
   try {
@@ -3648,7 +3766,7 @@ app.post('/api/payments/settlements/:id/approve', async (req, res) => {
 });
 
 // Admin: complete a settlement (money transferred)
-app.post('/api/payments/settlements/:id/complete', async (req, res) => {
+app.post('/api/payments/settlements/:id/complete', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { transactionId, adminNote } = req.body;
   try {
@@ -3707,7 +3825,7 @@ app.post('/api/payments/settlements/:id/complete', async (req, res) => {
 });
 
 // Admin: reject/fail a settlement
-app.post('/api/payments/settlements/:id/reject', async (req, res) => {
+app.post('/api/payments/settlements/:id/reject', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { adminNote } = req.body;
   try {
@@ -3737,7 +3855,7 @@ app.post('/api/payments/settlements/:id/reject', async (req, res) => {
 
 // --- PAYMENT AUDIT LOG ROUTES ---
 
-app.get('/api/payments/audit-logs', async (req, res) => {
+app.get('/api/payments/audit-logs', requireAdmin, async (req, res) => {
   try {
     const { bookingId, shopId, eventType } = req.query;
     let logs = await PaymentAuditLog.find({});
@@ -3757,6 +3875,9 @@ app.get('/api/payments/audit-logs', async (req, res) => {
 app.get('/api/payments/dashboard/provider/:shopId', requireAuth, async (req, res) => {
   const { shopId } = req.params;
   try {
+    if (req.user.role !== 'admin' && req.user.shopId !== shopId && req.user.id !== shopId) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to this shop\'s dashboard' });
+    }
     const shop = await Shop.findOne({ id: shopId });
     if (!shop) return res.status(404).json({ error: 'Shop not found' });
 
@@ -3817,7 +3938,7 @@ app.get('/api/payments/dashboard/provider/:shopId', requireAuth, async (req, res
 });
 
 // Admin payment dashboard stats
-app.get('/api/payments/dashboard/admin', async (req, res) => {
+app.get('/api/payments/dashboard/admin', requireAdmin, async (req, res) => {
   try {
     const ledgers = await PaymentLedger.find({});
     const settlements = await Settlement.find({});
@@ -3888,7 +4009,7 @@ app.get('/api/payments/dashboard/admin', async (req, res) => {
 
 // --- COMMISSION CONFIG ROUTES ---
 
-app.get('/api/commission-config', async (req, res) => {
+app.get('/api/commission-config', requireAdmin, async (req, res) => {
   try {
     const settings = await Settings.find({});
     const config = {};
@@ -3904,7 +4025,7 @@ app.get('/api/commission-config', async (req, res) => {
   }
 });
 
-app.post('/api/commission-config', async (req, res) => {
+app.post('/api/commission-config', requireAdmin, async (req, res) => {
   const { defaultCommissionRate, commissionType, categoryRates, providerRates } = req.body;
   try {
     const updates = [];
@@ -3931,7 +4052,7 @@ app.post('/api/commission-config', async (req, res) => {
 
 // --- PAYMENT REPORTS ---
 
-app.get('/api/payments/reports/daily', async (req, res) => {
+app.get('/api/payments/reports/daily', requireAdmin, async (req, res) => {
   try {
     const { days = 7 } = req.query;
     const ledgers = await PaymentLedger.find({});
@@ -3967,7 +4088,7 @@ app.get('/api/payments/reports/daily', async (req, res) => {
   }
 });
 
-app.get('/api/payments/reports/commission', async (req, res) => {
+app.get('/api/payments/reports/commission', requireAdmin, async (req, res) => {
   try {
     const ledgers = await PaymentLedger.find({});
     const byProvider = {};
@@ -4011,6 +4132,9 @@ app.get('/api/payments/reports/commission', async (req, res) => {
 app.get('/api/payments/reports/provider/:shopId', requireAuth, async (req, res) => {
   const { shopId } = req.params;
   try {
+    if (req.user.role !== 'admin' && req.user.shopId !== shopId && req.user.id !== shopId) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to this shop\'s reports' });
+    }
     const ledgers = await PaymentLedger.find({ shopId });
     const settlements = await Settlement.find({ shopId });
 

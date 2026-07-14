@@ -13,3 +13,7 @@ quickfix_backend/*.log
 *.ntvssproj
 *.user
 *.db
+
+# Build outputs — APKs and AABs should NOT be committed
+*.apk
+*.aab

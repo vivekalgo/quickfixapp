@@ -12,27 +12,22 @@ import 'package:quickfix/core/logging/app_logger.dart';
 import 'package:quickfix/core/network/api_endpoints.dart';
 import 'package:quickfix/core/services/hive_service.dart';
 
+// ─── Background Handler (top-level, vm:entry-point required) ────────────────
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Initialize Firebase if not already initialized
   await Firebase.initializeApp();
-  
-  // Open local notifications Hive box
   await Hive.initFlutter();
   final box = await Hive.openBox('local_notifications');
-  
-  // Save notification to Hive
   final notificationData = _parseMessage(message);
   await box.put(notificationData['id'], notificationData);
-  
-  AppLogger.info('Background message received and stored: ${message.messageId}', tag: 'FCM');
+  AppLogger.info('Background message received: ${message.messageId}', tag: 'FCM');
 }
 
 Map<String, dynamic> _parseMessage(RemoteMessage message) {
   final notification = message.notification;
   final data = message.data;
   final id = message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
-  
   return {
     'id': id,
     'title': notification?.title ?? data['title'] ?? 'QuickFix Update',
@@ -47,14 +42,16 @@ Map<String, dynamic> _parseMessage(RemoteMessage message) {
   };
 }
 
+// ─── NotificationService ─────────────────────────────────────────────────────
+
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
-      
+
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'high_importance_channel', // id
-    'High Importance Notifications', // title
-    description: 'This channel is used for booking updates, payments, and emergency alerts.', // description
+    'high_importance_channel',
+    'High Importance Notifications',
+    description: 'Booking updates, payment receipts, and platform alerts.',
     importance: Importance.max,
     playSound: true,
     enableVibration: true,
@@ -63,27 +60,29 @@ class NotificationService {
 
   static Future<void> init() async {
     try {
-      // 1. Initialize local notifications Hive box
-      await Hive.openBox('local_notifications');
+      // 1. Ensure Hive notifications box is open
+      if (!Hive.isBoxOpen('local_notifications')) {
+        await Hive.openBox('local_notifications');
+      }
 
-      // 2. Set background message handler
+      // 2. Register background message handler FIRST
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-      // 3. Configure local notifications settings
-      const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@drawable/ic_notification');
-      
-      const InitializationSettings initializationSettings = InitializationSettings(
-        android: initializationSettingsAndroid,
-      );
+      // 3. Request notification permissions immediately
+      await requestPermissions();
 
+      // 4. Initialize flutter_local_notifications
+      const AndroidInitializationSettings initAndroid =
+          AndroidInitializationSettings('@drawable/ic_notification');
+      const InitializationSettings initSettings = InitializationSettings(
+        android: initAndroid,
+      );
       await _localNotificationsPlugin.initialize(
-        initializationSettings,
+        initSettings,
         onDidReceiveNotificationResponse: (NotificationResponse response) {
           final payload = response.payload;
           if (payload != null && payload.isNotEmpty) {
             try {
-              // Convert payload back to map
               final Map<String, dynamic> data = Uri.splitQueryString(payload);
               handleNotificationClick(data);
             } catch (e) {
@@ -93,28 +92,27 @@ class NotificationService {
         },
       );
 
-      // 4. Create the high importance channel
-      await _localNotificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(_channel);
+      // 5. Create the Android notification channel
+      final androidPlugin = _localNotificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        await androidPlugin.createNotificationChannel(_channel);
+      }
 
-      // 5. Handle foreground messages
+      // 6. Foreground message handler
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-        AppLogger.info('Foreground message received: ${message.messageId}', tag: 'FCM');
-        
-        // Save to Hive
+        AppLogger.info('Foreground message: ${message.messageId}', tag: 'FCM');
         final notificationData = _parseMessage(message);
         final box = Hive.box('local_notifications');
         await box.put(notificationData['id'], notificationData);
-        
-        // Trigger notification sound / pop up in foreground using flutter_local_notifications
-        final notification = message.notification;
 
+        final notification = message.notification;
         if (notification != null && !kIsWeb) {
-          // Build payload string
           final data = message.data;
-          final payload = Uri(queryParameters: data.map((key, value) => MapEntry(key, value.toString()))).query;
-          
+          final payload = Uri(
+            queryParameters: data.map((k, v) => MapEntry(k, v.toString())),
+          ).query;
+
           _localNotificationsPlugin.show(
             notification.hashCode,
             notification.title,
@@ -131,6 +129,10 @@ class NotificationService {
                 playSound: true,
                 enableVibration: true,
                 visibility: NotificationVisibility.public,
+                styleInformation: BigTextStyleInformation(
+                  notification.body ?? '',
+                  contentTitle: notification.title,
+                ),
               ),
             ),
             payload: payload,
@@ -138,44 +140,60 @@ class NotificationService {
         }
       });
 
-      // 6. Handle app resume from background notification click
+      // 7. Background notification tap handler
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        AppLogger.info('Notification clicked to open app from background: ${message.messageId}', tag: 'FCM');
+        AppLogger.info('Notification tap from background: ${message.messageId}', tag: 'FCM');
         handleNotificationClick(message.data);
       });
 
-      // 7. Auto sync token refresh
+      // 8. Token refresh — re-sync when token rotates
       FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-        AppLogger.info('FCM Token refreshed: $newToken', tag: 'FCM');
+        AppLogger.info('FCM token refreshed: $newToken', tag: 'FCM');
         await syncTokenWithBackend(newToken);
       });
 
-      // 8. Handle app launch and subscribe to topics asynchronously to prevent startup blockage
-      _initTerminatedStateAndTopic();
+      // 9. Terminated state + topic subscription + initial token sync
+      await _initStartup();
 
     } catch (e, s) {
-      AppLogger.error('Failed to initialize NotificationService', tag: 'FCM', error: e, stackTrace: s);
+      AppLogger.error('NotificationService.init failed', tag: 'FCM', error: e, stackTrace: s);
     }
   }
 
-  static Future<void> _initTerminatedStateAndTopic() async {
+  static Future<void> _initStartup() async {
+    // Handle app launch via notification (terminated state)
     try {
       final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
       if (initialMessage != null) {
-        AppLogger.info('App launched from terminated state via notification click: ${initialMessage.messageId}', tag: 'FCM');
-        // Give router a slight delay to initialize
-        Future.delayed(const Duration(milliseconds: 1000), () {
+        AppLogger.info('App launched via terminated notification: ${initialMessage.messageId}', tag: 'FCM');
+        Future.delayed(const Duration(milliseconds: 1200), () {
           handleNotificationClick(initialMessage.data);
         });
       }
     } catch (e) {
-      AppLogger.error('Failed to get initial message: $e', tag: 'FCM');
+      AppLogger.error('Failed to get initial message', tag: 'FCM', error: e);
     }
 
+    // Subscribe to customer topic
     try {
       await subscribeToTopic('customers');
     } catch (e) {
-      AppLogger.error('Failed to auto-subscribe to customers topic: $e', tag: 'FCM');
+      AppLogger.error('Failed to subscribe to customers topic', tag: 'FCM', error: e);
+    }
+
+    // ✅ FIX: Sync current FCM token to backend on EVERY app startup
+    // Without this, the backend never gets the token unless it rotates
+    try {
+      final fcmToken = await getToken();
+      if (fcmToken != null) {
+        // Only sync if user is logged in
+        final authToken = HiveService.getAuthToken();
+        if (authToken != null) {
+          await syncTokenWithBackend(fcmToken);
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Failed to sync token on startup', tag: 'FCM', error: e);
     }
   }
 
@@ -186,8 +204,20 @@ class NotificationService {
         badge: true,
         sound: true,
         provisional: false,
+        carPlay: false,
+        criticalAlert: false,
       );
-      AppLogger.info('Notification permission status: ${settings.authorizationStatus}', tag: 'FCM');
+      AppLogger.info(
+        'Notification permission: ${settings.authorizationStatus}',
+        tag: 'FCM',
+      );
+
+      // Android 13+ — also request exact alarm permission for scheduled notifications
+      if (Platform.isAndroid) {
+        final androidPlugin = _localNotificationsPlugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        await androidPlugin?.requestNotificationsPermission();
+      }
     } catch (e) {
       AppLogger.error('Error requesting notification permissions', tag: 'FCM', error: e);
     }
@@ -214,7 +244,7 @@ class NotificationService {
   static Future<String?> getToken() async {
     try {
       final token = await FirebaseMessaging.instance.getToken();
-      AppLogger.info('Fetched FCM Token: $token', tag: 'FCM');
+      AppLogger.info('FCM Token: ${token?.substring(0, 20)}...', tag: 'FCM');
       return token;
     } catch (e) {
       AppLogger.error('Failed to get FCM Token', tag: 'FCM', error: e);
@@ -222,46 +252,51 @@ class NotificationService {
     }
   }
 
+  /// Syncs the FCM token to the backend so the server can send push notifications.
+  /// Called on every startup (if logged in) and on token refresh.
   static Future<void> syncTokenWithBackend(String token) async {
-    // Only sync if the user is logged in
-    final cacheBox = Hive.box('app_cache');
-    final authToken = cacheBox.get('auth_token') as String?;
-    if (authToken == null) return;
+    final authToken = HiveService.getAuthToken();
+    if (authToken == null) {
+      AppLogger.info('Skipping token sync — user not logged in', tag: 'FCM');
+      return;
+    }
 
     try {
       final dioClient = Dio(BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
+        connectTimeout: const Duration(seconds: 8),
+        receiveTimeout: const Duration(seconds: 8),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
         },
       ));
 
-      // Operator-Block Bypass (Jio / Airtel)
+      // Jio/Airtel DNS bypass
       const String railwayEdgeIp = '69.46.46.69';
       const String railwayDomain = 'up.railway.app';
       if (ApiEndpoints.baseUrl.contains(railwayDomain)) {
         final originalHost = Uri.parse(ApiEndpoints.baseUrl).host;
         dioClient.options.headers['Host'] = originalHost;
         dioClient.options.baseUrl = ApiEndpoints.baseUrl.replaceFirst(originalHost, railwayEdgeIp);
-        
         ((dioClient.httpClientAdapter) as IOHttpClientAdapter).createHttpClient = () {
           final client = HttpClient();
           client.badCertificateCallback = (cert, host, port) {
             return (host == railwayEdgeIp || host.endsWith(railwayDomain)) &&
-                (cert.subject.contains('CN=*.up.railway.app') || cert.subject.contains('CN=up.railway.app'));
+                (cert.subject.contains('CN=*.up.railway.app') ||
+                    cert.subject.contains('CN=up.railway.app'));
           };
           return client;
         };
       }
 
-      final response = await dioClient.post('/auth/profile/update', data: {
+      final response = await dioClient.post('/api/auth/profile/update', data: {
         'fcmToken': token,
       });
 
       if (response.statusCode == 200) {
-        AppLogger.info('Successfully synced FCM Token with backend.', tag: 'FCM');
-        // Update cached profile
+        AppLogger.info('FCM Token synced to backend successfully', tag: 'FCM');
+        // Update cached profile with new token
         final cached = HiveService.getCachedProfile();
         if (cached != null) {
           final updated = Map<String, dynamic>.from(cached);
@@ -270,7 +305,20 @@ class NotificationService {
         }
       }
     } catch (e) {
-      AppLogger.error('Failed to sync FCM Token with backend', tag: 'FCM', error: e);
+      AppLogger.error('Failed to sync FCM Token to backend', tag: 'FCM', error: e);
+    }
+  }
+
+  /// Called after successful login to register the FCM token immediately
+  static Future<void> onUserLoggedIn() async {
+    try {
+      final fcmToken = await getToken();
+      if (fcmToken != null) {
+        await syncTokenWithBackend(fcmToken);
+      }
+      await subscribeToTopic('customers');
+    } catch (e) {
+      AppLogger.error('Failed to register FCM after login', tag: 'FCM', error: e);
     }
   }
 
@@ -279,7 +327,10 @@ class NotificationService {
     final bookingId = data['bookingId']?.toString();
     final deepLink = data['deepLink']?.toString();
 
-    AppLogger.info('Handling notification tap: type=$type, bookingId=$bookingId, deepLink=$deepLink', tag: 'FCM');
+    AppLogger.info(
+      'Notification tap: type=$type, bookingId=$bookingId',
+      tag: 'FCM',
+    );
 
     if (deepLink != null && deepLink.isNotEmpty) {
       try {
@@ -304,6 +355,9 @@ class NotificationService {
         break;
       case 'support':
         appRouter.push('/support');
+        break;
+      case 'payment':
+        appRouter.push('/orders');
         break;
       case 'general':
       default:

@@ -51,8 +51,8 @@ void main() async {
     ]);
   });
 
-  // Initialize Notification Service asynchronously to avoid blocking startup
-  NotificationService.init();
+  // Initialize Notification Service — must be awaited so Hive boxes are ready
+  await NotificationService.init();
 
   runApp(
     const ProviderScope(

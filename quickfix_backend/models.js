@@ -218,6 +218,130 @@ function createMockModel(modelName, collectionName) {
       return found ? wrapDoc(found, collectionName) : null;
     }
 
+    static async aggregate(pipeline) {
+      const db = readDb();
+      let current = db[collectionName] || [];
+      current = JSON.parse(JSON.stringify(current));
+      
+      for (const stage of pipeline) {
+        if (stage.$match) {
+          current = current.filter(doc => matchesQuery(doc, stage.$match));
+        } else if (stage.$unwind) {
+          let path = stage.$unwind;
+          let preserveNull = false;
+          if (typeof path === 'object') {
+            preserveNull = !!path.preserveNullAndEmptyArrays;
+            path = path.path;
+          }
+          const field = path.replace(/^\$/, '');
+          const nextList = [];
+          for (const doc of current) {
+            const val = doc[field];
+            if (Array.isArray(val)) {
+              if (val.length === 0) {
+                if (preserveNull) {
+                  const copy = { ...doc };
+                  copy[field] = null;
+                  nextList.push(copy);
+                }
+              } else {
+                for (const item of val) {
+                  const copy = { ...doc };
+                  copy[field] = item;
+                  nextList.push(copy);
+                }
+              }
+            } else if (val === undefined || val === null) {
+              if (preserveNull) {
+                const copy = { ...doc };
+                copy[field] = null;
+                nextList.push(copy);
+              }
+            } else {
+              nextList.push(doc);
+            }
+          }
+          current = nextList;
+        } else if (stage.$lookup) {
+          const { from, localField, foreignField, as } = stage.$lookup;
+          const foreignDocs = db[from] || [];
+          for (const doc of current) {
+            const val = doc[localField];
+            const matches = foreignDocs.filter(fd => fd[foreignField] === val);
+            doc[as] = matches;
+          }
+        } else if (stage.$project) {
+          current = current.map(doc => {
+            const projected = {};
+            for (const [k, v] of Object.entries(stage.$project)) {
+              if (v === 1) {
+                projected[k] = doc[k];
+              } else if (typeof v === 'object' && v.$cond) {
+                const isArray = Array.isArray(doc.services);
+                projected[k] = isArray ? doc.services.length : 0;
+              } else if (typeof v === 'object' && v.$ifNull) {
+                const [target, fallback] = v.$ifNull;
+                const path = target.replace(/^\$/, '');
+                projected[k] = doc[path] !== undefined && doc[path] !== null ? doc[path] : fallback;
+              }
+            }
+            if (doc._id) projected._id = doc._id;
+            if (doc.id) projected.id = doc.id;
+            return projected;
+          });
+        } else if (stage.$group) {
+          const { _id, ...aggregators } = stage.$group;
+          const groups = {};
+          for (const doc of current) {
+            let key = 'null';
+            if (typeof _id === 'string' && _id.startsWith('$')) {
+              key = String(doc[_id.replace(/^\$/, '')]);
+            } else if (typeof _id === 'object' && _id.$dateToString) {
+              const { date } = _id.$dateToString;
+              const dateVal = doc[date.replace(/^\$/, '')];
+              if (dateVal) {
+                const d = new Date(dateVal);
+                key = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+              }
+            }
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(doc);
+          }
+          
+          const result = [];
+          for (const [key, groupDocs] of Object.entries(groups)) {
+            const entry = { _id: key === 'null' ? null : key };
+            for (const [aggKey, aggVal] of Object.entries(aggregators)) {
+              if (aggVal.$sum) {
+                let sum = 0;
+                if (typeof aggVal.$sum === 'number') {
+                  sum = groupDocs.length * aggVal.$sum;
+                } else if (typeof aggVal.$sum === 'string' && aggVal.$sum.startsWith('$')) {
+                  const fieldName = aggVal.$sum.replace(/^\$/, '');
+                  sum = groupDocs.reduce((acc, d) => acc + (parseFloat(d[fieldName]) || 0), 0);
+                } else if (typeof aggVal.$sum === 'object' && aggVal.$sum.$cond) {
+                  const [cond, trueVal, falseVal] = aggVal.$sum.$cond;
+                  if (cond.$eq) {
+                    const [fieldExp, targetVal] = cond.$eq;
+                    const fieldName = fieldExp.replace(/^\$/, '');
+                    sum = groupDocs.reduce((acc, d) => {
+                      const matches = d[fieldName] === targetVal;
+                      const val = matches ? (typeof trueVal === 'string' && trueVal.startsWith('$') ? parseFloat(d[trueVal.replace(/^\$/, '')]) || 0 : trueVal) : falseVal;
+                      return acc + val;
+                    }, 0);
+                  }
+                }
+                entry[aggKey] = sum;
+              }
+            }
+            result.push(entry);
+          }
+          current = result;
+        }
+      }
+      return current;
+    }
+
     static async countDocuments(query) {
       const db = readDb();
       const list = db[collectionName] || [];
@@ -291,7 +415,7 @@ function createMockModel(modelName, collectionName) {
 
 // 1. User Schema (Customer profiles)
 const UserSchema = new mongoose.Schema({
-  phone: { type: String, required: true, unique: true },
+  phone: { type: String, required: true, unique: true, index: true },
   name: { type: String, default: '' },
   email: { type: String, default: '' },
   membership: { type: String, default: 'basic' },
@@ -356,13 +480,13 @@ const ServiceSchema = new mongoose.Schema({
 
 // 3. Shop Schema (Service Provider shop profile)
 const ShopSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
-  shopDisplayId: { type: String, default: '' },
+  id: { type: String, required: true, unique: true, index: true },
+  shopDisplayId: { type: String, default: '', index: true },
   name: { type: String, required: true },
   ownerName: { type: String, required: true },
   password: { type: String, required: true }, // will be hashed using bcrypt
   tempPassword: { type: String, default: '' },
-  phone: { type: String, required: true, unique: true },
+  phone: { type: String, required: true, unique: true, index: true },
   email: { type: String, default: '' },
   latitude: { type: Number, default: 26.4912 },
   longitude: { type: Number, default: 80.3156 },
@@ -429,8 +553,8 @@ const ShopSchema = new mongoose.Schema({
 
 // 4. Booking Schema (Service Orders)
 const BookingSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true }, // QF-XXXXXX format
-  customerId: { type: String, required: true },
+  id: { type: String, required: true, unique: true, index: true }, // QF-XXXXXX format
+  customerId: { type: String, required: true, index: true },
   customerName: { type: String, required: true },
   customerPhone: { type: String, required: true },
   customerAddress: { type: String, required: true }, // complete full address
@@ -439,7 +563,7 @@ const BookingSchema = new mongoose.Schema({
   customerLng: { type: Number, default: 80.3156 },
   providerLat: { type: Number },
   providerLng: { type: Number },
-  shopId: { type: String, required: true },
+  shopId: { type: String, required: true, index: true },
   title: { type: String, required: true }, // Description of items ordered
   slot: { type: String, required: true },
   date: { type: Date, required: true },
@@ -453,7 +577,8 @@ const BookingSchema = new mongoose.Schema({
   status: { 
     type: String, 
     enum: ['pending', 'accepted', 'navigating', 'arrived', 'quote_sent', 'work_started', 'work_completed', 'payment_completed', 'cancelled', 'closed'], 
-    default: 'pending' 
+    default: 'pending',
+    index: true
   },
   providerName: { type: String, default: 'Assigning Expert...' },
   quotation: {
@@ -473,7 +598,7 @@ const BookingSchema = new mongoose.Schema({
 
 // 5. Category Schema
 const CategorySchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
+  id: { type: String, required: true, unique: true, index: true },
   name: { type: String, required: true },
   iconUrl: { type: String, default: '' },
   isActive: { type: Boolean, default: true }
@@ -481,14 +606,14 @@ const CategorySchema = new mongoose.Schema({
 
 // 6. Review Schema (Customer Feedbacks feed)
 const ReviewSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
+  id: { type: String, required: true, unique: true, index: true },
   userName: { type: String, required: true },
   userAvatar: { type: String },
   rating: { type: Number, required: true },
   comment: { type: String, required: true },
   serviceName: { type: String },
   locationName: { type: String },
-  shopId: { type: String, default: '' },
+  shopId: { type: String, default: '', index: true },
   reply: { type: String, default: '' },
   providerName: { type: String, default: '' },
   date: { type: String, default: '' },
@@ -798,7 +923,8 @@ function makeModelProxy(modelName) {
 
   const staticMethods = [
     'find', 'findOne', 'findById', 'countDocuments', 'create', 'insertMany',
-    'findOneAndUpdate', 'findByIdAndUpdate', 'findOneAndDelete', 'findByIdAndDelete'
+    'findOneAndUpdate', 'findByIdAndUpdate', 'findOneAndDelete', 'findByIdAndDelete',
+    'aggregate'
   ];
 
   for (const method of staticMethods) {

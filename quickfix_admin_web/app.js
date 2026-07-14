@@ -1,5 +1,85 @@
 const API_URL = 'https://quickfixapp-production.up.railway.app/api';
 
+// Global fetch interceptor for Admin Auth Token
+const originalFetch = window.fetch;
+window.fetch = function (url, options = {}) {
+  const token = localStorage.getItem('admin_token');
+  if (token) {
+    options.headers = options.headers || {};
+    if (!(options.headers instanceof Headers)) {
+      options.headers['Authorization'] = `Bearer ${token}`;
+    } else {
+      options.headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+  return originalFetch(url, options).then(response => {
+    if ((response.status === 401 || response.status === 403) && !url.includes('/admin/login')) {
+      localStorage.removeItem('admin_token');
+      showAdminLoginScreen();
+    }
+    return response;
+  });
+};
+
+function showAdminLoginScreen() {
+  const overlay = document.getElementById('admin-login-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+  }
+}
+
+function hideAdminLoginScreen() {
+  const overlay = document.getElementById('admin-login-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
+
+// Setup Admin Login Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+  const loginForm = document.getElementById('admin-login-form');
+  const passwordInput = document.getElementById('admin-login-password');
+  const errorDiv = document.getElementById('admin-login-error');
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = passwordInput.value;
+      
+      try {
+        const response = await originalFetch(`${API_URL}/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        
+        const data = await response.json();
+        if (response.ok && data.token) {
+          localStorage.setItem('admin_token', data.token);
+          errorDiv.style.display = 'none';
+          passwordInput.value = '';
+          hideAdminLoginScreen();
+          refreshAllData().then(() => {
+            renderShopCategoriesCheckbox();
+          });
+        } else {
+          errorDiv.textContent = data.error || 'Incorrect password. Please try again.';
+          errorDiv.style.display = 'block';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Connection to authentication server failed.';
+        errorDiv.style.display = 'block';
+      }
+    });
+  }
+
+  // Check auth state immediately
+  const token = localStorage.getItem('admin_token');
+  if (!token) {
+    showAdminLoginScreen();
+  }
+});
+
 // State variables
 let shops = [];
 let bookings = [];
@@ -48,12 +128,19 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   // Initial loading sequence
-  refreshAllData().then(() => {
-    renderShopCategoriesCheckbox();
-  });
+  const token = localStorage.getItem('admin_token');
+  if (token) {
+    refreshAllData().then(() => {
+      renderShopCategoriesCheckbox();
+    });
+  }
   
   // Refresh loop every 10 seconds to keep stats and live stream up to date
-  setInterval(refreshAllData, 10000);
+  setInterval(() => {
+    if (localStorage.getItem('admin_token')) {
+      refreshAllData();
+    }
+  }, 10000);
 });
 
 // Toast notification helper
