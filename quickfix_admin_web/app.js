@@ -1903,7 +1903,8 @@ function loadPaymentStats() {
   
   bookings.forEach(b => {
     if (b.status === 'completed') {
-      const comm = b.amount * 0.10;
+      const commRate = (shops.find(s => s.id === b.shopId)?.commissionRate || 20) / 100;
+      const comm = b.amount * commRate;
       platformCommission += comm;
       settlementsDue += (b.amount - comm);
       
@@ -1920,17 +1921,18 @@ function loadPaymentStats() {
   // Populate settlements table
   Object.entries(shopSettlementMap).forEach(([shopId, s]) => {
     if (s.bookingsCount > 0) {
+      const shop = shops.find(sh => sh.id === shopId);
+      const commRate = (shop?.commissionRate || 20) / 100;
+      const earned = s.grossAmount * (1 - commRate);
+      const commission = s.grossAmount * commRate;
       const tr = document.createElement('tr');
-      const earned = s.grossAmount * 0.90;
-      const commission = s.grossAmount * 0.10;
-      
       tr.innerHTML = `
         <td>${shopId}</td>
         <td><strong>${s.name}</strong></td>
         <td>${s.phone}</td>
         <td>₹${s.visiting}</td>
         <td>${s.bookingsCount} Completed</td>
-        <td style="font-weight:600;">₹${s.grossAmount}</td>
+        <td style="font-weight:600;">₹${s.grossAmount.toFixed(2)}</td>
         <td style="color:var(--success); font-weight:600;">₹${earned.toFixed(2)}</td>
         <td style="color:var(--warning); font-weight:600;">₹${commission.toFixed(2)}</td>
       `;
@@ -1965,6 +1967,610 @@ function loadPaymentStats() {
   if (txTbody.innerHTML === '') {
     txTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);">No escrow transactions log found.</td></tr>';
   }
+
+  // Also load the new enterprise payment dashboard
+  refreshPaymentDashboard();
+}
+
+// ============================================================
+// ENTERPRISE PAYMENT ACCOUNTING CONSOLE - FUNCTIONS
+// ============================================================
+
+function switchPaySubtab(btn) {
+  document.querySelectorAll('.pay-subtab').forEach(b => {
+    b.classList.remove('active');
+    b.classList.add('btn-secondary');
+    b.classList.remove('btn-primary');
+  });
+  btn.classList.add('active', 'btn-primary');
+  btn.classList.remove('btn-secondary');
+
+  const paneId = btn.getAttribute('data-pay-tab');
+  document.querySelectorAll('.pay-pane').forEach(p => p.style.display = 'none');
+  const pane = document.getElementById(paneId);
+  if (pane) pane.style.display = 'block';
+
+  // Load data for the activated pane
+  if (paneId === 'pay-overview-pane') refreshPaymentDashboard();
+  if (paneId === 'pay-ledger-pane') loadLedgerTable();
+  if (paneId === 'pay-queue-pane') loadSettlementQueue();
+  if (paneId === 'pay-history-pane') loadSettlementHistory();
+  if (paneId === 'pay-commission-pane') { loadCommissionConfig(); loadCommissionReport(); populateCommissionShopDropdowns(); }
+  if (paneId === 'pay-audit-pane') loadPaymentAuditLog();
+}
+
+async function refreshPaymentDashboard() {
+  try {
+    const res = await fetch(`${API_URL}/payments/dashboard/admin`);
+    const data = await res.json();
+    if (!data.today) return;
+
+    // Update KPI cards
+    document.getElementById('pay-kpi-today-gross').textContent = `₹${(data.today.grossRevenue || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-today-comm').textContent = `₹${(data.today.commissionEarned || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-total-comm').textContent = `₹${(data.overall.totalCommissionEarned || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-outstanding-comm').textContent = `₹${(data.overall.outstandingCommission || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-pending-set').textContent = `₹${(data.settlements.pendingAmount || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-total-settled').textContent = `₹${(data.settlements.totalSettled || 0).toFixed(2)}`;
+
+    // Update top bar commission stats
+    const globalRateEl = document.getElementById('pay-global-rate');
+    if (globalRateEl) globalRateEl.textContent = 'Per-Shop Config';
+    const outstandingEl = document.getElementById('pay-outstanding-comm');
+    if (outstandingEl) outstandingEl.textContent = `₹${(data.overall.outstandingCommission || 0).toFixed(2)}`;
+    const platformCommEl = document.getElementById('pay-platform-comm');
+    if (platformCommEl) platformCommEl.textContent = `₹${(data.overall.totalCommissionEarned || 0).toFixed(2)}`;
+    const providerDueEl = document.getElementById('pay-provider-due');
+    if (providerDueEl) providerDueEl.textContent = `₹${(data.overall.totalProviderEarnings || 0).toFixed(2)}`;
+
+    // Settlement badge
+    const badge = document.getElementById('pay-queue-badge');
+    if (badge) {
+      if ((data.settlements.pendingCount || 0) > 0) {
+        badge.textContent = data.settlements.pendingCount;
+        badge.style.display = 'inline';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // Overview pane sections
+    const methodSplit = document.getElementById('pay-method-split');
+    if (methodSplit) {
+      const total = (data.overall.totalGrossRevenue || 0);
+      const cash = (data.overall.cashCollection || 0);
+      const online = (data.overall.onlineCollection || 0);
+      methodSplit.innerHTML = `
+        <div class="set-row"><span>💵 Cash Payments</span><strong style="color:var(--warning);">₹${cash.toFixed(2)}</strong></div>
+        <div class="set-row"><span>💳 Online Payments</span><strong style="color:var(--success);">₹${online.toFixed(2)}</strong></div>
+        <div class="set-row"><span>📊 Total Gross Volume</span><strong>₹${total.toFixed(2)}</strong></div>
+      `;
+    }
+
+    const commStatus = document.getElementById('pay-commission-status');
+    if (commStatus) {
+      const totalComm = (data.overall.totalCommissionEarned || 0);
+      const outstanding = (data.overall.outstandingCommission || 0);
+      const collected = totalComm - outstanding;
+      commStatus.innerHTML = `
+        <div class="set-row"><span>✅ Commission Collected</span><strong style="color:var(--success);">₹${collected.toFixed(2)}</strong></div>
+        <div class="set-row"><span>⚠️ Outstanding (Cash)</span><strong style="color:var(--warning);">₹${outstanding.toFixed(2)}</strong></div>
+        <div class="set-row"><span>📊 Total Commission</span><strong>₹${totalComm.toFixed(2)}</strong></div>
+      `;
+    }
+
+    const settleOverview = document.getElementById('pay-settlement-overview');
+    if (settleOverview) {
+      settleOverview.innerHTML = `
+        <div class="set-row"><span>⏳ Pending Requests</span><strong style="color:var(--warning);">${data.settlements.pendingCount || 0} (₹${(data.settlements.pendingAmount || 0).toFixed(2)})</strong></div>
+        <div class="set-row"><span>✅ Completed</span><strong style="color:var(--success);">${data.settlements.completedCount || 0}</strong></div>
+        <div class="set-row"><span>💸 Total Settled</span><strong>₹${(data.settlements.totalSettled || 0).toFixed(2)}</strong></div>
+      `;
+    }
+
+    // Provider wallets table
+    const walletsTbody = document.getElementById('pay-provider-wallets-tbody');
+    if (walletsTbody && data.providerWallets) {
+      walletsTbody.innerHTML = '';
+      data.providerWallets.forEach(p => {
+        const isNegative = p.walletBalance < 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${p.shopName}</strong></td>
+          <td style="font-size:11px;color:var(--text-muted);">${p.shopId}</td>
+          <td>${p.commissionRate}%</td>
+          <td style="font-weight:700; color: ${isNegative ? 'var(--danger)' : 'var(--success)'};">₹${p.walletBalance.toFixed(2)}${isNegative ? ' ⚠️' : ''}</td>
+          <td>${isNegative ? '<span class="badge badge-cancelled">Commission Due</span>' : '<span class="badge badge-completed">OK</span>'}</td>
+        `;
+        walletsTbody.appendChild(tr);
+      });
+      if (data.providerWallets.length === 0) {
+        walletsTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No providers registered</td></tr>';
+      }
+    }
+
+  } catch (e) {
+    console.error('Payment dashboard error:', e);
+  }
+}
+
+async function loadLedgerTable() {
+  const tbody = document.getElementById('pay-ledger-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</td></tr>';
+
+  // Populate shop filter dropdown
+  const shopSelect = document.getElementById('ledger-filter-shop');
+  if (shopSelect && shopSelect.options.length <= 1) {
+    shops.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      shopSelect.appendChild(opt);
+    });
+  }
+
+  const method = document.getElementById('ledger-filter-method')?.value || '';
+  const status = document.getElementById('ledger-filter-status')?.value || '';
+  const shopId = document.getElementById('ledger-filter-shop')?.value || '';
+
+  let url = `${API_URL}/payments/ledger?`;
+  if (method) url += `paymentMethod=${method}&`;
+  if (status) url += `paymentStatus=${status}&`;
+  if (shopId) url += `shopId=${shopId}&`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const ledgers = data.ledgers || [];
+
+    tbody.innerHTML = '';
+    if (ledgers.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">No ledger entries found. Ledger entries are created automatically when bookings are placed.</td></tr>';
+      return;
+    }
+
+    ledgers.forEach(l => {
+      const tr = document.createElement('tr');
+      const payBadge = renderPayStatusBadge(l.paymentStatus);
+      const commBadge = renderCommStatusBadge(l.commissionStatus);
+      const methBadge = renderMethodBadge(l.paymentMethod);
+      tr.innerHTML = `
+        <td style="font-size:11px;font-family:monospace;">${l.bookingId}</td>
+        <td style="font-size:11px;">${l.customerName || '—'}</td>
+        <td style="font-size:11px;">${l.providerName || '—'}</td>
+        <td style="font-weight:700;color:var(--primary-solid);">₹${(l.grossAmount || 0).toFixed(2)}</td>
+        <td style="font-weight:600;color:var(--warning);">₹${(l.commissionAmount || 0).toFixed(2)} <span style="font-size:9px;color:var(--text-muted);">(${l.commissionRate || 20}%)</span></td>
+        <td style="font-weight:600;color:var(--success);">₹${(l.providerEarnings || 0).toFixed(2)}</td>
+        <td>${methBadge}</td>
+        <td>${payBadge}</td>
+        <td>${commBadge}</td>
+        <td style="font-size:11px;">${l.createdAt ? new Date(l.createdAt).toLocaleString('en-IN', {dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+        <td>
+          ${l.paymentMethod === 'cash' && l.commissionStatus === 'pending' ?
+            `<button class="btn btn-primary btn-sm" style="font-size:10px;padding:3px 8px;" onclick="collectCommissionForBooking('${l.shopId}', '${l.bookingId}', ${l.commissionAmount})">Collect Comm</button>` : ''}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('Ledger load error:', e);
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--danger);">Failed to load ledger data.</td></tr>';
+  }
+}
+
+async function loadSettlementQueue() {
+  const listEl = document.getElementById('pay-queue-list');
+  const emptyEl = document.getElementById('pay-queue-empty');
+  if (!listEl) return;
+  listEl.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Loading...</p>';
+
+  try {
+    const res = await fetch(`${API_URL}/payments/settlements?status=pending`);
+    const data = await res.json();
+    const settlements = data.settlements || [];
+
+    listEl.innerHTML = '';
+    if (settlements.length === 0) {
+      if (emptyEl) emptyEl.style.display = 'block';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    settlements.forEach(s => {
+      const card = document.createElement('div');
+      card.style.cssText = 'border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; background: var(--card-bg);';
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h4 style="margin:0;display:flex;align-items:center;gap:8px;">${s.providerName || s.shopId} <span class="badge badge-pending" style="font-size:10px;">Pending</span></h4>
+            <p style="font-size:12px;color:var(--text-muted);margin:4px 0;">Settlement ID: <strong>${s.id}</strong></p>
+            <p style="font-size:12px;color:var(--text-muted);margin:4px 0;">Bank: ${s.bankAccount ? '****' + s.bankAccount.slice(-4) : 'N/A'} | IFSC: ${s.ifscCode || 'N/A'} | UPI: ${s.upiId || 'N/A'}</p>
+            <p style="font-size:12px;color:var(--text-muted);">Requested: ${s.requestedAt ? new Date(s.requestedAt).toLocaleString('en-IN') : '—'}</p>
+          </div>
+          <div style="text-align:right;">
+            <p style="font-size:28px;font-weight:800;color:var(--primary-solid);margin:0;">₹${(s.amount || 0).toFixed(2)}</p>
+            <p style="font-size:11px;color:var(--text-muted);">Requested Amount</p>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="approveSettlement('${s.id}')"><i class="fa-solid fa-check"></i> Approve</button>
+          <button class="btn btn-secondary btn-sm" onclick="completeSettlement('${s.id}')"><i class="fa-solid fa-money-bill-transfer"></i> Mark Completed</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectSettlement('${s.id}')"><i class="fa-solid fa-xmark"></i> Reject</button>
+        </div>
+      `;
+      listEl.appendChild(card);
+    });
+  } catch (e) {
+    console.error('Settlement queue error:', e);
+    listEl.innerHTML = '<p style="color:var(--danger);text-align:center;">Failed to load settlement queue.</p>';
+  }
+}
+
+async function loadSettlementHistory() {
+  const tbody = document.getElementById('pay-history-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</td></tr>';
+
+  try {
+    const res = await fetch(`${API_URL}/payments/settlements`);
+    const data = await res.json();
+    const settlements = (data.settlements || []).filter(s => s.status !== 'pending');
+
+    tbody.innerHTML = '';
+    if (settlements.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">No settlement history yet.</td></tr>';
+      return;
+    }
+
+    settlements.forEach(s => {
+      const statusColors = { approved: 'var(--primary-solid)', completed: 'var(--success)', failed: 'var(--danger)', rejected: 'var(--danger)', processing: 'var(--warning)' };
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-size:11px;font-family:monospace;">${s.id}</td>
+        <td><strong>${s.providerName || s.shopId}</strong></td>
+        <td style="font-weight:700;color:var(--primary-solid);">₹${(s.amount || 0).toFixed(2)}</td>
+        <td><span style="color:${statusColors[s.status] || 'var(--text-primary)'};font-weight:600;">${s.status.toUpperCase()}</span></td>
+        <td style="font-size:11px;">${s.bankAccount ? '****' + s.bankAccount.slice(-4) + (s.ifscCode ? ' | ' + s.ifscCode : '') : (s.upiId || 'N/A')}</td>
+        <td style="font-size:11px;font-family:monospace;">${s.transactionId || '—'}</td>
+        <td style="font-size:11px;">${s.requestedAt ? new Date(s.requestedAt).toLocaleDateString('en-IN') : '—'}</td>
+        <td style="font-size:11px;">${s.completedAt ? new Date(s.completedAt).toLocaleDateString('en-IN') : '—'}</td>
+        <td style="font-size:11px;color:var(--text-muted);">${s.adminNote || '—'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('Settlement history error:', e);
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--danger);">Failed to load settlement history.</td></tr>';
+  }
+}
+
+async function approveSettlement(id) {
+  const note = prompt('Admin note for approval (optional):') || '';
+  try {
+    const res = await fetch(`${API_URL}/payments/settlements/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminNote: note })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Settlement approved! Provider has been notified.', 'success');
+      await logAdminActivity('Approve Settlement', id, `Settlement ${id} approved`);
+      loadSettlementQueue();
+      loadSettlementHistory();
+    } else {
+      showToast(data.error || 'Failed to approve settlement', 'error');
+    }
+  } catch (e) {
+    showToast('Failed to approve settlement', 'error');
+  }
+}
+
+async function completeSettlement(id) {
+  const txnId = prompt('Enter bank transaction ID (required to mark as completed):');
+  if (!txnId) { showToast('Transaction ID is required to mark as completed', 'warning'); return; }
+  const note = prompt('Admin note (optional):') || '';
+  try {
+    const res = await fetch(`${API_URL}/payments/settlements/${id}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionId: txnId, adminNote: note })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Settlement completed! TxnID: ${txnId}`, 'success');
+      await logAdminActivity('Complete Settlement', id, `Settlement ${id} completed. TxnID: ${txnId}`);
+      loadSettlementQueue();
+      loadSettlementHistory();
+      refreshAllData();
+    } else {
+      showToast(data.error || 'Failed to complete settlement', 'error');
+    }
+  } catch (e) {
+    showToast('Failed to complete settlement', 'error');
+  }
+}
+
+async function rejectSettlement(id) {
+  const reason = prompt('Reason for rejection (required):');
+  if (!reason) { showToast('Rejection reason is required', 'warning'); return; }
+  if (!confirm(`Reject this settlement request? Reason: "${reason}"`)) return;
+  try {
+    const res = await fetch(`${API_URL}/payments/settlements/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminNote: reason })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Settlement rejected. Provider has been notified.', 'success');
+      await logAdminActivity('Reject Settlement', id, `Settlement ${id} rejected. Reason: ${reason}`);
+      loadSettlementQueue();
+      loadSettlementHistory();
+    } else {
+      showToast(data.error || 'Failed to reject settlement', 'error');
+    }
+  } catch (e) {
+    showToast('Failed to reject settlement', 'error');
+  }
+}
+
+async function loadPaymentAuditLog() {
+  const tbody = document.getElementById('pay-audit-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</td></tr>';
+
+  const eventType = document.getElementById('audit-filter-type')?.value || '';
+  let url = `${API_URL}/payments/audit-logs?`;
+  if (eventType) url += `eventType=${eventType}`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const logs = data.logs || [];
+
+    tbody.innerHTML = '';
+    if (logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">No audit logs found.</td></tr>';
+      return;
+    }
+
+    logs.slice(0, 200).forEach(l => {
+      const eventColors = {
+        booking_created: 'var(--primary-solid)',
+        payment_success: 'var(--success)',
+        payment_failed: 'var(--danger)',
+        commission_calculated: 'var(--warning)',
+        wallet_updated: 'var(--accent)',
+        settlement_created: 'var(--primary-solid)',
+        settlement_approved: 'var(--success)',
+        settlement_completed: 'var(--success)',
+        commission_collected: 'var(--success)',
+        cash_confirmed: 'var(--accent)'
+      };
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-size:11px;">${l.createdAt ? new Date(l.createdAt).toLocaleString('en-IN') : '—'}</td>
+        <td><span style="font-size:10px;font-weight:700;color:${eventColors[l.eventType] || 'var(--text-primary)'};">${l.eventType.toUpperCase().replace(/_/g, ' ')}</span></td>
+        <td style="font-size:11px;font-family:monospace;">${l.bookingId || '—'}</td>
+        <td style="font-size:11px;">${l.shopId || '—'}</td>
+        <td style="font-weight:600;">${l.amount ? '₹' + l.amount.toFixed(2) : '—'}</td>
+        <td><span class="badge ${l.actor === 'admin' ? 'badge-active' : l.actor === 'provider' ? 'badge-pending' : 'badge-completed'}">${l.actor || 'system'}</span></td>
+        <td style="font-size:11px;color:var(--text-secondary);">${l.description || '—'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('Audit log error:', e);
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);">Failed to load audit logs.</td></tr>';
+  }
+}
+
+async function loadCommissionConfig() {
+  try {
+    const res = await fetch(`${API_URL}/commission-config`);
+    const data = await res.json();
+    const rateEl = document.getElementById('comm-default-rate');
+    const typeEl = document.getElementById('comm-type');
+    if (rateEl) rateEl.value = data.defaultCommissionRate || 20;
+    if (typeEl) typeEl.value = data.commissionType || 'percentage';
+  } catch (e) {
+    console.error('Commission config load error:', e);
+  }
+}
+
+async function loadCommissionReport() {
+  const listEl = document.getElementById('comm-report-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<p style="color:var(--text-muted);font-size:12px;">Loading...</p>';
+
+  try {
+    const res = await fetch(`${API_URL}/payments/reports/commission`);
+    const data = await res.json();
+    const report = data.report || [];
+
+    listEl.innerHTML = '';
+    if (report.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--text-muted);font-size:12px;">No commission data yet.</p>';
+      return;
+    }
+
+    report.forEach(r => {
+      const div = document.createElement('div');
+      div.style.cssText = 'border:1px solid var(--border);border-radius:10px;padding:12px;';
+      div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong style="font-size:13px;">${r.providerName || r.shopId}</strong>
+          <span style="font-size:11px;color:var(--text-muted);">${r.jobCount} jobs</span>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;flex-wrap:wrap;">
+          <span>Gross: <strong>₹${r.totalGross.toFixed(2)}</strong></span>
+          <span>Commission: <strong style="color:var(--warning);">₹${r.totalCommission.toFixed(2)}</strong></span>
+          <span>Collected: <strong style="color:var(--success);">₹${r.commissionPaid.toFixed(2)}</strong></span>
+          ${r.commissionPending > 0 ? `<span>Pending: <strong style="color:var(--danger);">₹${r.commissionPending.toFixed(2)}</strong></span>` : ''}
+        </div>
+      `;
+      listEl.appendChild(div);
+    });
+  } catch (e) {
+    console.error('Commission report error:', e);
+  }
+}
+
+function populateCommissionShopDropdowns() {
+  const selects = ['comm-collect-shop'];
+  selects.forEach(selectId => {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- Select Provider --</option>';
+    shops.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = `${s.name} (${s.shopDisplayId || s.id})`;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+async function saveCommissionConfig() {
+  const rate = parseFloat(document.getElementById('comm-default-rate')?.value || '20');
+  const type = document.getElementById('comm-type')?.value || 'percentage';
+
+  if (isNaN(rate) || rate < 0 || rate > 100) {
+    showToast('Commission rate must be between 0 and 100', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/commission-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ defaultCommissionRate: rate, commissionType: type })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Commission config saved: ${rate}% (${type})`, 'success');
+      await logAdminActivity('Update Commission Config', 'SYSTEM', `Rate: ${rate}%, Type: ${type}`);
+    } else {
+      showToast(data.error || 'Failed to save commission config', 'error');
+    }
+  } catch (e) {
+    showToast('Failed to save commission config', 'error');
+  }
+}
+
+async function collectCommission() {
+  const shopId = document.getElementById('comm-collect-shop')?.value;
+  const amount = parseFloat(document.getElementById('comm-collect-amount')?.value || '0');
+  const note = document.getElementById('comm-collect-note')?.value || '';
+
+  if (!shopId) { showToast('Please select a provider', 'warning'); return; }
+  if (!amount || amount <= 0) { showToast('Please enter a valid amount', 'warning'); return; }
+
+  if (!confirm(`Mark ₹${amount} as commission collected from ${shops.find(s => s.id === shopId)?.name || shopId}?`)) return;
+
+  try {
+    const res = await fetch(`${API_URL}/payments/commission-collect/${shopId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, note, bookingIds: [] })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Commission ₹${amount} marked as collected!`, 'success');
+      await logAdminActivity('Collect Commission', shopId, `₹${amount} collected. ${note}`);
+      document.getElementById('comm-collect-amount').value = '';
+      document.getElementById('comm-collect-note').value = '';
+      loadCommissionReport();
+      refreshAllData();
+    } else {
+      showToast(data.error || 'Failed to record commission', 'error');
+    }
+  } catch (e) {
+    showToast('Failed to collect commission', 'error');
+  }
+}
+
+async function collectCommissionForBooking(shopId, bookingId, amount) {
+  if (!confirm(`Mark commission ₹${amount.toFixed(2)} as collected for booking ${bookingId}?`)) return;
+  try {
+    const res = await fetch(`${API_URL}/payments/commission-collect/${shopId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, note: `Booking ${bookingId}`, bookingIds: [bookingId] })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Commission marked as collected!', 'success');
+      loadLedgerTable();
+      refreshAllData();
+    } else {
+      showToast(data.error || 'Failed', 'error');
+    }
+  } catch (e) {
+    showToast('Failed to collect commission', 'error');
+  }
+}
+
+function exportLedgerCSV() {
+  const tbody = document.getElementById('pay-ledger-tbody');
+  if (!tbody || !tbody.children.length) return;
+  
+  let csv = 'Booking ID,Customer,Provider,Gross Amount,Commission,Provider Earnings,Method,Payment Status,Commission Status,Date\n';
+  Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+    const cells = Array.from(tr.querySelectorAll('td')).map(td => `"${td.textContent.replace(/"/g, '').trim()}"`);
+    if (cells.length > 1) csv += cells.slice(0, 10).join(',') + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `quickfix_ledger_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Ledger CSV exported!', 'success');
+}
+
+// Badge helper functions for payment system
+function renderPayStatusBadge(status) {
+  const map = {
+    cash_pending: ['badge-pending', '💵 Cash Pending'],
+    cash_collected: ['badge-active', '✅ Cash Collected'],
+    paid: ['badge-completed', '💳 Paid'],
+    settlement_pending: ['badge-pending', '⏳ Settlement Pending'],
+    settled: ['badge-completed', '✅ Settled'],
+    pending: ['badge-pending', '⏳ Pending'],
+    failed: ['badge-cancelled', '❌ Failed'],
+    refunded: ['badge-cancelled', '↩️ Refunded']
+  };
+  const [cls, label] = map[status] || ['badge-pending', status];
+  return `<span class="badge ${cls}" style="font-size:10px;">${label}</span>`;
+}
+
+function renderCommStatusBadge(status) {
+  const map = {
+    pending: ['badge-pending', '⏳ Pending'],
+    paid: ['badge-completed', '✅ Paid'],
+    waived: ['badge-active', '🎁 Waived'],
+    na: ['', '—']
+  };
+  const [cls, label] = map[status] || ['badge-pending', status];
+  return cls ? `<span class="badge ${cls}" style="font-size:10px;">${label}</span>` : label;
+}
+
+function renderMethodBadge(method) {
+  const map = {
+    cash: ['⚠️', '#f59e0b'],
+    online: ['💳', 'var(--success)'],
+    wallet: ['👛', 'var(--primary-solid)'],
+    upi: ['📱', 'var(--accent)'],
+    card: ['💳', 'var(--success)'],
+    netbanking: ['🏦', 'var(--success)']
+  };
+  const [icon, color] = map[method] || ['💰', 'var(--text-primary)'];
+  return `<span style="font-size:11px;font-weight:600;color:${color};">${icon} ${method ? method.toUpperCase() : '—'}</span>`;
 }
 
 // Load Audit logs tab

@@ -61,6 +61,17 @@ class NotificationService {
     showBadge: true,
   );
 
+  static const AndroidNotificationChannel _bookingChannel = AndroidNotificationChannel(
+    'booking_alert_channel', // id
+    'Booking Alerts', // title
+    description: 'This channel is used for incoming booking requests and plays a custom alert ringtone.', // description
+    importance: Importance.max,
+    playSound: true,
+    sound: RawResourceAndroidNotificationSound('alert_ring'),
+    enableVibration: true,
+    showBadge: true,
+  );
+
   static Future<void> init() async {
     try {
       // 1. Initialize local notifications Hive box
@@ -93,10 +104,13 @@ class NotificationService {
         },
       );
 
-      // 4. Create the high importance channel
-      await _localNotificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(_channel);
+      // 4. Create the high importance channels
+      final androidImplementation = _localNotificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (androidImplementation != null) {
+        await androidImplementation.createNotificationChannel(_channel);
+        await androidImplementation.createNotificationChannel(_bookingChannel);
+      }
 
       // 5. Handle foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
@@ -115,20 +129,28 @@ class NotificationService {
           final data = message.data;
           final payload = Uri(queryParameters: data.map((key, value) => MapEntry(key, value.toString()))).query;
           
+          final type = data['type']?.toString();
+          final isBookingRequest = type == 'booking' || (notification.title ?? '').contains('New Booking');
+          
+          final channelId = isBookingRequest ? _bookingChannel.id : _channel.id;
+          final channelName = isBookingRequest ? _bookingChannel.name : _channel.name;
+          final channelDesc = isBookingRequest ? _bookingChannel.description : _channel.description;
+          
           _localNotificationsPlugin.show(
             notification.hashCode,
             notification.title,
             notification.body,
             NotificationDetails(
               android: AndroidNotificationDetails(
-                _channel.id,
-                _channel.name,
-                channelDescription: _channel.description,
+                channelId,
+                channelName,
+                channelDescription: channelDesc,
                 icon: '@drawable/ic_notification',
                 importance: Importance.max,
                 priority: Priority.high,
                 ticker: 'ticker',
                 playSound: true,
+                sound: isBookingRequest ? const RawResourceAndroidNotificationSound('alert_ring') : null,
                 enableVibration: true,
                 visibility: NotificationVisibility.public,
               ),

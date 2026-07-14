@@ -28,6 +28,14 @@ class ApiEndpoints {
   // Earnings
   static String earnings(String shopId) => '/provider/earnings/$shopId';
 
+  // Payment System
+  static String paymentDashboard(String shopId) => '/payments/dashboard/provider/$shopId';
+  static String providerSettlements(String shopId) => '/payments/settlements/shop/$shopId';
+  static String providerLedger(String shopId) => '/payments/ledger/shop/$shopId';
+  static const String requestSettlement = '/payments/settlements/request';
+  static String cashConfirm(String bookingId) => '/payments/cash-confirm/$bookingId';
+  static String bookingLedger(String bookingId) => '/payments/ledger/$bookingId';
+
   // Reviews
   static const String replyReview = '/provider/reply-review';
   static String shopReviews(String shopId) => '/reviews/shop/$shopId';

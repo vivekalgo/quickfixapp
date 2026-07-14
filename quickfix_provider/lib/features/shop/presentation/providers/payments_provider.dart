@@ -3,19 +3,63 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/network_providers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
+// ─── State Model ─────────────────────────────────────────────────────────────
+
 class PaymentsState {
   final bool isLoading;
   final String? errorMessage;
+
+  // Wallet
   final double walletBalance;
   final double commissionRate;
   final List<dynamic> transactions;
+
+  // Payment Dashboard (from new API)
+  final double todayEarnings;
+  final double todayCash;
+  final double todayOnline;
+  final double todayCommission;
+  final double totalEarnings;
+  final double totalCommission;
+  final double commissionDue;
+  final int cashJobsCount;
+  final int onlineJobsCount;
+
+  // Settlements
+  final double pendingSettlementAmount;
+  final int pendingSettlementCount;
+  final double totalSettled;
+  final int completedSettlementCount;
+  final List<dynamic> settlementHistory;
+
+  // Ledger
+  final List<dynamic> ledgerEntries;
+
+  // Flags
+  final bool hasDashboardData;
 
   PaymentsState({
     this.isLoading = false,
     this.errorMessage,
     this.walletBalance = 0.0,
-    this.commissionRate = 15.0,
+    this.commissionRate = 20.0,
     this.transactions = const [],
+    this.todayEarnings = 0.0,
+    this.todayCash = 0.0,
+    this.todayOnline = 0.0,
+    this.todayCommission = 0.0,
+    this.totalEarnings = 0.0,
+    this.totalCommission = 0.0,
+    this.commissionDue = 0.0,
+    this.cashJobsCount = 0,
+    this.onlineJobsCount = 0,
+    this.pendingSettlementAmount = 0.0,
+    this.pendingSettlementCount = 0,
+    this.totalSettled = 0.0,
+    this.completedSettlementCount = 0,
+    this.settlementHistory = const [],
+    this.ledgerEntries = const [],
+    this.hasDashboardData = false,
   });
 
   PaymentsState copyWith({
@@ -24,6 +68,22 @@ class PaymentsState {
     double? walletBalance,
     double? commissionRate,
     List<dynamic>? transactions,
+    double? todayEarnings,
+    double? todayCash,
+    double? todayOnline,
+    double? todayCommission,
+    double? totalEarnings,
+    double? totalCommission,
+    double? commissionDue,
+    int? cashJobsCount,
+    int? onlineJobsCount,
+    double? pendingSettlementAmount,
+    int? pendingSettlementCount,
+    double? totalSettled,
+    int? completedSettlementCount,
+    List<dynamic>? settlementHistory,
+    List<dynamic>? ledgerEntries,
+    bool? hasDashboardData,
   }) {
     return PaymentsState(
       isLoading: isLoading ?? this.isLoading,
@@ -31,9 +91,27 @@ class PaymentsState {
       walletBalance: walletBalance ?? this.walletBalance,
       commissionRate: commissionRate ?? this.commissionRate,
       transactions: transactions ?? this.transactions,
+      todayEarnings: todayEarnings ?? this.todayEarnings,
+      todayCash: todayCash ?? this.todayCash,
+      todayOnline: todayOnline ?? this.todayOnline,
+      todayCommission: todayCommission ?? this.todayCommission,
+      totalEarnings: totalEarnings ?? this.totalEarnings,
+      totalCommission: totalCommission ?? this.totalCommission,
+      commissionDue: commissionDue ?? this.commissionDue,
+      cashJobsCount: cashJobsCount ?? this.cashJobsCount,
+      onlineJobsCount: onlineJobsCount ?? this.onlineJobsCount,
+      pendingSettlementAmount: pendingSettlementAmount ?? this.pendingSettlementAmount,
+      pendingSettlementCount: pendingSettlementCount ?? this.pendingSettlementCount,
+      totalSettled: totalSettled ?? this.totalSettled,
+      completedSettlementCount: completedSettlementCount ?? this.completedSettlementCount,
+      settlementHistory: settlementHistory ?? this.settlementHistory,
+      ledgerEntries: ledgerEntries ?? this.ledgerEntries,
+      hasDashboardData: hasDashboardData ?? this.hasDashboardData,
     );
   }
 }
+
+// ─── Notifier ────────────────────────────────────────────────────────────────
 
 class PaymentsNotifier extends StateNotifier<PaymentsState> {
   final Ref _ref;
@@ -42,6 +120,7 @@ class PaymentsNotifier extends StateNotifier<PaymentsState> {
     fetchEarnings();
   }
 
+  /// Fetches basic earnings (existing API — backward compatible)
   Future<void> fetchEarnings() async {
     final shop = _ref.read(authProvider).shop;
     if (shop == null) return;
@@ -50,13 +129,13 @@ class PaymentsNotifier extends StateNotifier<PaymentsState> {
     try {
       final dio = _ref.read(dioClientProvider);
       final response = await dio.get(ApiEndpoints.earnings(shop.id));
-      
+
       final data = response.data;
       if (data != null) {
-        state = PaymentsState(
+        state = state.copyWith(
           isLoading: false,
           walletBalance: (data['walletBalance'] as num?)?.toDouble() ?? 0.0,
-          commissionRate: (data['commissionRate'] as num?)?.toDouble() ?? 15.0,
+          commissionRate: (data['commissionRate'] as num?)?.toDouble() ?? 20.0,
           transactions: data['walletTransactions'] as List? ?? [],
         );
       } else {
@@ -65,8 +144,85 @@ class PaymentsNotifier extends StateNotifier<PaymentsState> {
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
+
+    // Also fetch the enhanced payment dashboard
+    await fetchPaymentDashboard();
   }
 
+  /// Fetches the full payment dashboard from new API
+  Future<void> fetchPaymentDashboard() async {
+    final shop = _ref.read(authProvider).shop;
+    if (shop == null) return;
+
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final response = await dio.get(ApiEndpoints.paymentDashboard(shop.id));
+      final data = response.data as Map<String, dynamic>?;
+      if (data == null) return;
+
+      final today = data['today'] as Map<String, dynamic>? ?? {};
+      final overall = data['overall'] as Map<String, dynamic>? ?? {};
+      final settlement = data['settlement'] as Map<String, dynamic>? ?? {};
+
+      state = state.copyWith(
+        walletBalance: (data['walletBalance'] as num?)?.toDouble() ?? state.walletBalance,
+        commissionRate: (data['commissionRate'] as num?)?.toDouble() ?? state.commissionRate,
+        todayEarnings: (today['totalEarnings'] as num?)?.toDouble() ?? 0.0,
+        todayCash: (today['cashCollected'] as num?)?.toDouble() ?? 0.0,
+        todayOnline: (today['onlineEarnings'] as num?)?.toDouble() ?? 0.0,
+        todayCommission: (today['commissionDeducted'] as num?)?.toDouble() ?? 0.0,
+        totalEarnings: (overall['totalEarnings'] as num?)?.toDouble() ?? 0.0,
+        totalCommission: (overall['totalCommission'] as num?)?.toDouble() ?? 0.0,
+        commissionDue: (overall['commissionDue'] as num?)?.toDouble() ?? 0.0,
+        cashJobsCount: (overall['cashJobsCount'] as num?)?.toInt() ?? 0,
+        onlineJobsCount: (overall['onlineJobsCount'] as num?)?.toInt() ?? 0,
+        pendingSettlementAmount: (settlement['pendingAmount'] as num?)?.toDouble() ?? 0.0,
+        pendingSettlementCount: (settlement['pendingCount'] as num?)?.toInt() ?? 0,
+        totalSettled: (settlement['totalSettled'] as num?)?.toDouble() ?? 0.0,
+        completedSettlementCount: (settlement['completedCount'] as num?)?.toInt() ?? 0,
+        hasDashboardData: true,
+      );
+    } catch (e) {
+      // Dashboard fetch failing is non-critical — basic earnings still loaded
+      debugPrint('Payment dashboard fetch failed: $e');
+    }
+  }
+
+  /// Fetches settlement history for the provider
+  Future<void> fetchSettlementHistory() async {
+    final shop = _ref.read(authProvider).shop;
+    if (shop == null) return;
+
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final response = await dio.get(ApiEndpoints.providerSettlements(shop.id));
+      final data = response.data;
+      if (data != null && data['settlements'] != null) {
+        state = state.copyWith(settlementHistory: data['settlements'] as List);
+      }
+    } catch (e) {
+      debugPrint('Settlement history fetch failed: $e');
+    }
+  }
+
+  /// Fetches payment ledger for the provider
+  Future<void> fetchLedger() async {
+    final shop = _ref.read(authProvider).shop;
+    if (shop == null) return;
+
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final response = await dio.get(ApiEndpoints.providerLedger(shop.id));
+      final data = response.data;
+      if (data != null && data['ledgers'] != null) {
+        state = state.copyWith(ledgerEntries: data['ledgers'] as List);
+      }
+    } catch (e) {
+      debugPrint('Ledger fetch failed: $e');
+    }
+  }
+
+  /// Requests a settlement via new API
   Future<bool> requestSettlementWithdrawal(double amount) async {
     final shop = _ref.read(authProvider).shop;
     if (shop == null) return false;
@@ -79,41 +235,50 @@ class PaymentsNotifier extends StateNotifier<PaymentsState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final dio = _ref.read(dioClientProvider);
-      
-      // We simulate a withdrawal transaction in the shop profile
-      // Deduct from wallet and append to transactions array
-      final updatedTxList = List<Map<String, dynamic>>.from(
-        shop.toJson()['walletTransactions'] as List? ?? []
+      final response = await dio.post(
+        ApiEndpoints.requestSettlement,
+        data: {
+          'shopId': shop.id,
+          'amount': amount,
+          'settlementType': 'manual',
+        },
       );
-      
-      updatedTxList.add({
-        'id': 'TX-SETTLE-${DateTime.now().millisecondsSinceEpoch}',
-        'title': 'Wallet Settlement Payout Request',
-        'amount': amount,
-        'type': 'debit',
-        'date': DateTime.now().toIso8601String(),
-        'status': 'pending'
-      });
-
-      final newBalance = (shop.walletBalance) - amount;
-
-      final success = await _ref.read(authProvider.notifier).updateShopDetails(
-        walletBalance: newBalance,
-        walletTransactions: updatedTxList
-      );
-
-      if (success) {
+      final data = response.data;
+      if (data != null && data['success'] == true) {
         await fetchEarnings();
+        await fetchSettlementHistory();
         return true;
       }
-      state = state.copyWith(isLoading: false, errorMessage: 'Settlement request failed.');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: data?['error'] ?? 'Settlement request failed.',
+      );
       return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }
   }
+
+  /// Provider confirms cash collected for a booking
+  Future<bool> confirmCashCollected(String bookingId) async {
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final response = await dio.post(ApiEndpoints.cashConfirm(bookingId));
+      final data = response.data;
+      if (data != null && data['success'] == true) {
+        await fetchLedger();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Cash confirm failed: $e');
+      return false;
+    }
+  }
 }
+
+// ─── Provider ────────────────────────────────────────────────────────────────
 
 final paymentsProvider = StateNotifierProvider<PaymentsNotifier, PaymentsState>((ref) {
   return PaymentsNotifier(ref);

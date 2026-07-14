@@ -9,6 +9,7 @@ import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/features/booking/providers/cart_provider.dart';
 import 'package:quickfix/features/booking/widgets/checkout_offers_sheet.dart';
+import 'package:quickfix/features/booking/screens/booking_receipt_screen.dart';
 
 class BookingConfirmationScreen extends ConsumerWidget {
   final Map<String, dynamic>? extraData;
@@ -151,6 +152,35 @@ class BookingConfirmationScreen extends ConsumerWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Track Booking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      AppHaptics.lightTap();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BookingReceiptScreen(
+                            bookingId: bookingId,
+                            bookingData: {
+                              'amount': finalPaidAmount,
+                              'date': DateFormat('dd MMM yyyy').format(selectedDate),
+                              'slot': selectedSlot,
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.receipt_long_outlined, color: AppColors.primary, size: 18),
+                    label: const Text(
+                      'View Payment Receipt',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primary),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(

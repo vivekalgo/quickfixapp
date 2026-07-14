@@ -16,7 +16,7 @@ function readDb() {
       fs.writeFileSync(dbPath, JSON.stringify({}));
     }
     const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands', 'promotions', 'specialcards', 'cmssections', 'customsections'];
+    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands', 'promotions', 'specialcards', 'cmssections', 'customsections', 'paymentledgers', 'settlements', 'paymentauditlogs'];
     let changed = false;
     for (const col of collections) {
       if (!data[col]) {
@@ -657,6 +657,92 @@ const CustomSectionSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
+// 18. Payment Ledger Schema (one record per booking - central accounting document)
+const PaymentLedgerSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  bookingId: { type: String, required: true, unique: true },
+  customerId: { type: String, required: true },
+  providerId: { type: String, required: true }, // shopId
+  shopId: { type: String, required: true },
+  providerName: { type: String, default: '' },
+  customerName: { type: String, default: '' },
+  serviceTitle: { type: String, default: '' },
+  grossAmount: { type: Number, required: true, default: 0 },
+  commissionRate: { type: Number, default: 20.0 },
+  commissionAmount: { type: Number, default: 0 },
+  gatewayCharges: { type: Number, default: 0 },
+  providerEarnings: { type: Number, default: 0 },
+  platformRevenue: { type: Number, default: 0 },
+  paymentMethod: { type: String, enum: ['cash', 'online', 'wallet', 'upi', 'card', 'netbanking'], default: 'cash' },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'authorized', 'paid', 'failed', 'refunded', 'cancelled', 'cash_pending', 'cash_collected', 'settlement_pending', 'settled', 'commission_pending', 'commission_paid'],
+    default: 'pending'
+  },
+  commissionStatus: { type: String, enum: ['pending', 'paid', 'waived', 'na'], default: 'pending' },
+  settlementId: { type: String, default: '' },
+  transactionId: { type: String, default: '' },
+  gatewayOrderId: { type: String, default: '' },
+  gatewaySignature: { type: String, default: '' },
+  refundAmount: { type: Number, default: 0 },
+  refundStatus: { type: String, enum: ['none', 'initiated', 'completed', 'failed'], default: 'none' },
+  ledgerEntries: [{
+    id: String,
+    type: { type: String, enum: ['credit', 'debit', 'hold', 'release'] },
+    amount: Number,
+    party: { type: String, enum: ['customer', 'provider', 'platform'] },
+    description: String,
+    timestamp: { type: Date, default: Date.now }
+  }],
+  metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
+}, { timestamps: true });
+
+// 19. Settlement Schema (one record per provider payout event)
+const SettlementSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  shopId: { type: String, required: true },
+  providerId: { type: String, required: true },
+  providerName: { type: String, default: '' },
+  settlementType: { type: String, enum: ['daily', 'weekly', 'manual', 'auto'], default: 'manual' },
+  amount: { type: Number, required: true },
+  bookingIds: { type: [String], default: [] },
+  ledgerIds: { type: [String], default: [] },
+  status: { type: String, enum: ['pending', 'approved', 'processing', 'completed', 'failed', 'rejected'], default: 'pending' },
+  bankAccount: { type: String, default: '' },
+  ifscCode: { type: String, default: '' },
+  upiId: { type: String, default: '' },
+  transactionId: { type: String, default: '' },
+  adminNote: { type: String, default: '' },
+  requestedAt: { type: Date, default: Date.now },
+  approvedAt: { type: Date },
+  completedAt: { type: Date },
+  rejectedAt: { type: Date }
+}, { timestamps: true });
+
+// 20. Payment Audit Log Schema (immutable event log for every payment event)
+const PaymentAuditLogSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  eventType: {
+    type: String,
+    enum: [
+      'booking_created', 'payment_initiated', 'payment_success', 'payment_failed',
+      'commission_calculated', 'wallet_updated', 'settlement_created', 'settlement_approved',
+      'settlement_completed', 'settlement_failed', 'refund_processed', 'commission_collected',
+      'cash_confirmed', 'ledger_created', 'ledger_updated'
+    ],
+    required: true
+  },
+  bookingId: { type: String, default: '' },
+  ledgerId: { type: String, default: '' },
+  shopId: { type: String, default: '' },
+  customerId: { type: String, default: '' },
+  settlementId: { type: String, default: '' },
+  amount: { type: Number, default: 0 },
+  description: { type: String, default: '' },
+  actor: { type: String, default: 'system' }, // 'system', 'admin', 'provider', 'customer'
+  metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
+}, { timestamps: true });
+
 const MongooseModels = {
   User: mongoose.model('User', UserSchema),
   Shop: mongoose.model('Shop', ShopSchema),
@@ -673,7 +759,10 @@ const MongooseModels = {
   Promotion: mongoose.model('Promotion', PromotionSchema),
   SpecialCard: mongoose.model('SpecialCard', SpecialCardSchema),
   CmsSection: mongoose.model('CmsSection', CmsSectionSchema),
-  CustomSection: mongoose.model('CustomSection', CustomSectionSchema)
+  CustomSection: mongoose.model('CustomSection', CustomSectionSchema),
+  PaymentLedger: mongoose.model('PaymentLedger', PaymentLedgerSchema),
+  Settlement: mongoose.model('Settlement', SettlementSchema),
+  PaymentAuditLog: mongoose.model('PaymentAuditLog', PaymentAuditLogSchema)
 };
 
 const LocalModels = {
@@ -692,7 +781,10 @@ const LocalModels = {
   Promotion: createMockModel('Promotion', 'promotions'),
   SpecialCard: createMockModel('SpecialCard', 'specialcards'),
   CmsSection: createMockModel('CmsSection', 'cmssections'),
-  CustomSection: createMockModel('CustomSection', 'customsections')
+  CustomSection: createMockModel('CustomSection', 'customsections'),
+  PaymentLedger: createMockModel('PaymentLedger', 'paymentledgers'),
+  Settlement: createMockModel('Settlement', 'settlements'),
+  PaymentAuditLog: createMockModel('PaymentAuditLog', 'paymentauditlogs')
 };
 
 function makeModelProxy(modelName) {
@@ -739,5 +831,8 @@ module.exports = {
   Promotion: makeModelProxy('Promotion'),
   SpecialCard: makeModelProxy('SpecialCard'),
   CmsSection: makeModelProxy('CmsSection'),
-  CustomSection: makeModelProxy('CustomSection')
+  CustomSection: makeModelProxy('CustomSection'),
+  PaymentLedger: makeModelProxy('PaymentLedger'),
+  Settlement: makeModelProxy('Settlement'),
+  PaymentAuditLog: makeModelProxy('PaymentAuditLog')
 };

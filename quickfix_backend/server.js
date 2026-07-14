@@ -14,6 +14,34 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET ? process.env.CLOUDINARY_API_SECRET.trim() : '',
 });
 
+// --- CLOUDINARY CLEANUP HELPER ---
+async function deleteFromCloudinary(url) {
+  if (!url || typeof url !== 'string' || !url.includes('cloudinary.com')) return;
+  try {
+    const parts = url.split('/');
+    const uploadIndex = parts.indexOf('upload');
+    if (uploadIndex === -1) return;
+    
+    let remainingParts = parts.slice(uploadIndex + 1);
+    
+    // Remove version segment if present (starts with v followed by digits)
+    if (remainingParts[0] && /^v\d+$/.test(remainingParts[0])) {
+      remainingParts.shift();
+    }
+    
+    const pathWithExtension = remainingParts.join('/');
+    const lastDotIndex = pathWithExtension.lastIndexOf('.');
+    const publicId = lastDotIndex !== -1 ? pathWithExtension.substring(0, lastDotIndex) : pathWithExtension;
+    
+    const result = await cloudinary.uploader.destroy(publicId);
+    console.log(`[Cloudinary Cleanup] Attempted to delete URL: ${url}. Public ID: ${publicId}. Result:`, result);
+    return result;
+  } catch (error) {
+    console.error(`[Cloudinary Cleanup] Error deleting URL: ${url}`, error.message || error);
+  }
+}
+
+
 const { 
   User, 
   Shop, 
@@ -29,7 +57,10 @@ const {
   Promotion,
   SpecialCard,
   CmsSection,
-  CustomSection
+  CustomSection,
+  PaymentLedger,
+  Settlement,
+  PaymentAuditLog
 } = require('./models');
 const { calculateCheckoutPriceInternal } = require('./pricingCalculator');
 
@@ -97,10 +128,15 @@ async function sendFcmNotification(targetId, title, body, data = {}, targetType 
       return false;
     }
 
+    const isPartner = targetType === 'partner';
+    const channelId = isPartner ? 'booking_alert_channel' : 'high_importance_channel';
+    const sound = isPartner ? 'alert_ring' : 'default';
+
     const message = {
       notification: {
         title,
         body,
+        sound: sound,
       },
       token: token,
       data: {
@@ -110,9 +146,9 @@ async function sendFcmNotification(targetId, title, body, data = {}, targetType 
       android: {
         priority: 'high',
         notification: {
-          sound: 'default',
+          sound: sound,
           clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-          channelId: 'high_importance_channel',
+          channelId: channelId,
           icon: 'ic_notification'
         }
       }
@@ -134,10 +170,15 @@ async function sendFcmTopicNotification(topic, title, body, data = {}) {
       return false;
     }
 
+    const isPartner = topic === 'providers';
+    const channelId = isPartner ? 'booking_alert_channel' : 'high_importance_channel';
+    const sound = isPartner ? 'alert_ring' : 'default';
+
     const message = {
       notification: {
         title,
         body,
+        sound: sound,
       },
       topic: topic,
       data: {
@@ -147,9 +188,9 @@ async function sendFcmTopicNotification(topic, title, body, data = {}) {
       android: {
         priority: 'high',
         notification: {
-          sound: 'default',
+          sound: sound,
           clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-          channelId: 'high_importance_channel',
+          channelId: channelId,
           icon: 'ic_notification'
         }
       }
@@ -370,6 +411,12 @@ app.post('/api/auth/profile/upload-avatar', requireAuth, async (req, res) => {
     }
     const dataUri = `data:${mimeType || 'image/jpeg'};base64,${base64Image}`;
     
+    const userToUpdate = await User.findById(req.user.id);
+    if (!userToUpdate) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const oldAvatarUrl = userToUpdate.avatarUrl;
+
     // Upload image to Cloudinary in a custom folder
     const uploadResponse = await cloudinary.uploader.upload(dataUri, {
       folder: 'quickfix_avatars',
@@ -377,15 +424,15 @@ app.post('/api/auth/profile/upload-avatar', requireAuth, async (req, res) => {
     });
 
     const avatarUrl = uploadResponse.secure_url;
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { avatarUrl },
-      { new: true }
-    );
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    userToUpdate.avatarUrl = avatarUrl;
+    await userToUpdate.save();
+
+    // Clean up old avatar from Cloudinary
+    if (oldAvatarUrl) {
+      deleteFromCloudinary(oldAvatarUrl);
     }
-    res.json({ success: true, avatarUrl: user.avatarUrl });
+
+    res.json({ success: true, avatarUrl: userToUpdate.avatarUrl });
   } catch (e) {
     console.error('Cloudinary upload error:', e.message || e);
     res.status(500).json({ error: `Failed to upload avatar: ${e.message || e}` });
@@ -672,6 +719,16 @@ app.delete('/api/shops/:id', async (req, res) => {
   try {
     const deleted = await Shop.findOneAndDelete({ id: shopId });
     if (deleted) {
+      // Clean up banner image from Cloudinary
+      if (deleted.imagePath) {
+        deleteFromCloudinary(deleted.imagePath);
+      }
+      // Clean up portfolio images from Cloudinary
+      if (deleted.portfolioImages && Array.isArray(deleted.portfolioImages)) {
+        deleted.portfolioImages.forEach(img => {
+          if (img) deleteFromCloudinary(img);
+        });
+      }
       res.json({ success: true, shop: deleted });
     } else {
       res.status(404).json({ error: 'Shop not found' });
@@ -908,6 +965,9 @@ app.post('/api/provider/update-services', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Shop not found' });
     }
 
+    // Collect existing service images before update
+    const oldServiceImages = (shop.services || []).map(s => s.imageUrl).filter(Boolean);
+
     if (services) {
       shop.services = services;
     }
@@ -938,6 +998,14 @@ app.post('/api/provider/update-services', requireAuth, async (req, res) => {
     }
 
     await shop.save();
+
+    // Identify and delete images that are no longer used
+    const currentImages = new Set((shop.services || []).map(s => s.imageUrl).filter(Boolean));
+    const imagesToDelete = oldServiceImages.filter(img => !currentImages.has(img));
+    imagesToDelete.forEach(img => {
+      deleteFromCloudinary(img);
+    });
+
     res.json({ success: true, services: shop.services });
   } catch (e) {
     console.error('Update services error:', e);
@@ -1105,20 +1173,26 @@ app.post('/api/provider/upload-banner', requireAuth, async (req, res) => {
     }
     const dataUri = `data:${mimeType || 'image/jpeg'};base64,${base64Image}`;
     
+    const shop = await Shop.findById(req.user.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+    const oldImagePath = shop.imagePath;
+
     const uploadResponse = await cloudinary.uploader.upload(dataUri, {
       folder: 'quickfix_banners',
       resource_type: 'image',
     });
 
     const imageUrl = uploadResponse.secure_url;
-    const shop = await Shop.findByIdAndUpdate(
-      req.user.id,
-      { imagePath: imageUrl },
-      { new: true }
-    );
-    if (!shop) {
-      return res.status(404).json({ error: 'Shop not found' });
+    shop.imagePath = imageUrl;
+    await shop.save();
+
+    // Clean up old banner from Cloudinary
+    if (oldImagePath) {
+      deleteFromCloudinary(oldImagePath);
     }
+
     res.json({ success: true, imagePath: shop.imagePath });
   } catch (e) {
     console.error('Cloudinary upload error:', e.message || e);
@@ -1172,8 +1246,12 @@ app.post('/api/provider/delete-portfolio', requireAuth, async (req, res) => {
     }
     
     if (shop.portfolioImages) {
-      shop.portfolioImages = shop.portfolioImages.filter(img => img !== imageUrl);
-      await shop.save();
+      const exists = shop.portfolioImages.includes(imageUrl);
+      if (exists) {
+        shop.portfolioImages = shop.portfolioImages.filter(img => img !== imageUrl);
+        await shop.save();
+        deleteFromCloudinary(imageUrl); // Clean up from Cloudinary
+      }
     }
     
     res.json({ success: true, portfolioImages: shop.portfolioImages });
@@ -2026,6 +2104,9 @@ app.delete('/api/banners/:id', async (req, res) => {
   try {
     const deleted = await Banner.findOneAndDelete({ id: req.params.id });
     if (deleted) {
+      if (deleted.imageUrl) {
+        deleteFromCloudinary(deleted.imageUrl);
+      }
       res.json({ success: true, banner: deleted });
     } else {
       res.status(404).json({ error: 'Banner not found' });
@@ -2250,6 +2331,118 @@ const placeBooking = async (req, res) => {
 
     await newBooking.save();
 
+    // --- PAYMENT LEDGER: Create accounting record for this booking ---
+    try {
+      const commRate = shop.commissionRate || 20.0;
+      const gross = parsedAmount;
+      const commAmt = parseFloat((gross * commRate / 100).toFixed(2));
+      const gatewayCharges = paymentMethod === 'Razorpay' ? parseFloat((gross * 0.02).toFixed(2)) : 0;
+      const providerEarn = parseFloat((gross - commAmt - gatewayCharges).toFixed(2));
+      const platformRev = parseFloat((commAmt + gatewayCharges).toFixed(2));
+
+      // Determine payment method enum
+      let pmEnum = 'cash';
+      if (paymentMethod === 'Razorpay') pmEnum = 'online';
+      else if (paymentMethod === 'Wallet') pmEnum = 'wallet';
+      else if (paymentMethod === 'UPI') pmEnum = 'upi';
+      else if (paymentMethod === 'Card' || paymentMethod === 'Credit Card' || paymentMethod === 'Debit Card') pmEnum = 'card';
+      else if (paymentMethod === 'Net Banking') pmEnum = 'netbanking';
+
+      // Payment status based on method
+      let pStatus = 'cash_pending';
+      if (pmEnum === 'online') pStatus = 'pending';
+      else if (pmEnum === 'wallet') pStatus = 'paid';
+
+      // Commission status
+      let cStatus = 'pending';
+      if (pmEnum === 'wallet') cStatus = 'paid'; // wallet deducted at source
+
+      const ledgerId = `LDG-${bookingId}`;
+      const ledgerEntries = [
+        {
+          id: `LE-${Date.now()}-1`,
+          type: 'credit',
+          amount: gross,
+          party: 'platform',
+          description: `Booking ${bookingId} received - ${paymentMethod}`,
+          timestamp: new Date()
+        },
+        {
+          id: `LE-${Date.now()}-2`,
+          type: 'debit',
+          amount: commAmt,
+          party: 'platform',
+          description: `Platform commission ${commRate}% = ₹${commAmt}`,
+          timestamp: new Date()
+        },
+        {
+          id: `LE-${Date.now()}-3`,
+          type: 'credit',
+          amount: providerEarn,
+          party: 'provider',
+          description: `Provider earnings after ${commRate}% commission`,
+          timestamp: new Date()
+        }
+      ];
+
+      const ledger = new PaymentLedger({
+        id: ledgerId,
+        bookingId: bookingId,
+        customerId: newBooking.customerId,
+        providerId: shop.id,
+        shopId: shop.id,
+        providerName: shop.ownerName || shop.name,
+        customerName: newBooking.customerName,
+        serviceTitle: title,
+        grossAmount: gross,
+        commissionRate: commRate,
+        commissionAmount: commAmt,
+        gatewayCharges,
+        providerEarnings: providerEarn,
+        platformRevenue: platformRev,
+        paymentMethod: pmEnum,
+        paymentStatus: pStatus,
+        commissionStatus: cStatus,
+        ledgerEntries,
+        metadata: { slot: newBooking.slot, date: newBooking.date }
+      });
+      await ledger.save();
+
+      // Audit log
+      const auditLog = new PaymentAuditLog({
+        id: `PAL-${Date.now()}-BOOKING`,
+        eventType: 'booking_created',
+        bookingId: bookingId,
+        ledgerId: ledgerId,
+        shopId: shop.id,
+        customerId: newBooking.customerId,
+        amount: gross,
+        description: `Booking ${bookingId} created via ${paymentMethod}`,
+        actor: 'customer',
+        metadata: { paymentMethod, commissionRate: commRate }
+      });
+      await auditLog.save();
+
+      // If wallet payment - immediately also log payment_success
+      if (pmEnum === 'wallet') {
+        const walletAudit = new PaymentAuditLog({
+          id: `PAL-${Date.now()}-WALLET`,
+          eventType: 'payment_success',
+          bookingId: bookingId,
+          ledgerId: ledgerId,
+          shopId: shop.id,
+          customerId: newBooking.customerId,
+          amount: gross,
+          description: `Wallet payment of ₹${gross} processed`,
+          actor: 'system',
+          metadata: { paymentMethod: 'wallet' }
+        });
+        await walletAudit.save();
+      }
+    } catch (ledgerErr) {
+      console.error('Payment ledger creation failed (non-critical):', ledgerErr.message);
+    }
+
     // Send Booking Created push notification to customer
     sendFcmNotification(
       newBooking.customerId,
@@ -2365,22 +2558,95 @@ app.post('/api/bookings/update-status', async (req, res) => {
       });
     }
 
-    // Credit provider's wallet if transitioned to completed or closed
+    // Credit/debit provider's wallet based on payment method
     if ((status === 'completed' || status === 'closed' || status === 'payment_completed') && 
         (oldStatus !== 'completed' && oldStatus !== 'closed' && oldStatus !== 'payment_completed')) {
       const shop = await Shop.findOne({ id: booking.shopId });
       if (shop) {
-        const earnings = booking.estEarnings || (booking.amount * 0.85);
-        shop.walletBalance = (shop.walletBalance || 0.0) + earnings;
+        // Lookup the payment ledger for this booking
+        const ledger = await PaymentLedger.findOne({ bookingId: booking.id });
+        const commRate = shop.commissionRate || 20.0;
+        const gross = booking.quotation && booking.quotation.totalAmount > 0 ? booking.quotation.totalAmount : booking.amount;
+        const commAmt = ledger ? ledger.commissionAmount : parseFloat((gross * commRate / 100).toFixed(2));
+        const providerEarn = ledger ? ledger.providerEarnings : parseFloat((gross - commAmt).toFixed(2));
+        const payMethod = ledger ? ledger.paymentMethod : 'cash';
+
         if (!shop.walletTransactions) shop.walletTransactions = [];
-        shop.walletTransactions.push({
-          id: `TX-EARN-${Date.now()}`,
-          title: `Earnings for ${booking.title}`,
-          amount: parseFloat(earnings.toFixed(2)),
-          type: 'credit',
-          date: new Date()
-        });
+
+        if (payMethod === 'cash') {
+          // Cash: Provider collected full amount, now owes commission
+          // Debit commission from wallet (may go negative — shows as outstanding)
+          shop.walletBalance = (shop.walletBalance || 0.0) - commAmt;
+          shop.walletTransactions.push({
+            id: `TX-COMM-${Date.now()}`,
+            title: `Commission Due for ${booking.title} (Cash Booking ${booking.id})`,
+            amount: parseFloat(commAmt.toFixed(2)),
+            type: 'debit',
+            date: new Date()
+          });
+          // Also credit cash collected notation
+          shop.walletTransactions.push({
+            id: `TX-CASH-${Date.now()}`,
+            title: `Cash Collected for ${booking.title} (${booking.id})`,
+            amount: parseFloat(gross.toFixed(2)),
+            type: 'credit',
+            date: new Date()
+          });
+        } else {
+          // Online/Wallet: Platform already has the money, credit provider earnings
+          shop.walletBalance = (shop.walletBalance || 0.0) + providerEarn;
+          shop.walletTransactions.push({
+            id: `TX-EARN-${Date.now()}`,
+            title: `Online Earnings for ${booking.title} (${booking.id})`,
+            amount: parseFloat(providerEarn.toFixed(2)),
+            type: 'credit',
+            date: new Date()
+          });
+        }
         await shop.save();
+
+        // Update the payment ledger
+        if (ledger) {
+          if (payMethod === 'cash') {
+            ledger.paymentStatus = 'cash_collected';
+            ledger.commissionStatus = 'pending';
+          } else {
+            ledger.paymentStatus = 'settlement_pending';
+            ledger.commissionStatus = 'paid';
+          }
+          ledger.grossAmount = gross;
+          ledger.commissionAmount = commAmt;
+          ledger.providerEarnings = providerEarn;
+          ledger.platformRevenue = commAmt + (ledger.gatewayCharges || 0);
+          await ledger.save();
+
+          // Audit log
+          try {
+            const aud = new PaymentAuditLog({
+              id: `PAL-${Date.now()}-COMPLETE`,
+              eventType: 'commission_calculated',
+              bookingId: booking.id,
+              ledgerId: ledger.id,
+              shopId: shop.id,
+              amount: commAmt,
+              description: `Commission ₹${commAmt} (${commRate}%) calculated for booking ${booking.id}. Payment: ${payMethod}`,
+              actor: 'system',
+              metadata: { payMethod, gross, commAmt, providerEarn }
+            });
+            await aud.save();
+            const aud2 = new PaymentAuditLog({
+              id: `PAL-${Date.now()}-WALLET`,
+              eventType: 'wallet_updated',
+              bookingId: booking.id,
+              ledgerId: ledger.id,
+              shopId: shop.id,
+              amount: payMethod === 'cash' ? -commAmt : providerEarn,
+              description: payMethod === 'cash' ? `Provider wallet debited ₹${commAmt} (commission due)` : `Provider wallet credited ₹${providerEarn} (online earnings)`,
+              actor: 'system'
+            });
+            await aud2.save();
+          } catch(ae) { console.error('Audit log error:', ae.message); }
+        }
       }
     }
 
@@ -2888,12 +3154,26 @@ app.post('/api/shops/reset-password', async (req, res) => {
 app.post('/api/banners/update', async (req, res) => {
   const { id, title, code, percent, imageUrl, redirectUrl, priority, expiryDate } = req.body;
   try {
-    const banner = await Banner.findOneAndUpdate(
-      { id },
-      { title, code, percent, imageUrl, redirectUrl, priority: parseInt(priority) || 0, expiryDate },
-      { new: true }
-    );
+    const banner = await Banner.findOne({ id });
     if (!banner) return res.status(404).json({ error: 'Banner not found' });
+    
+    const oldImageUrl = banner.imageUrl;
+
+    if (title !== undefined) banner.title = title;
+    if (code !== undefined) banner.code = code;
+    if (percent !== undefined) banner.percent = percent;
+    if (imageUrl !== undefined) banner.imageUrl = imageUrl;
+    if (redirectUrl !== undefined) banner.redirectUrl = redirectUrl;
+    if (priority !== undefined) banner.priority = parseInt(priority) || 0;
+    if (expiryDate !== undefined) banner.expiryDate = expiryDate;
+
+    await banner.save();
+
+    // Clean up old banner image from Cloudinary if imageUrl changed
+    if (imageUrl !== undefined && oldImageUrl && oldImageUrl !== imageUrl) {
+      deleteFromCloudinary(oldImageUrl);
+    }
+
     res.json({ success: true, banner });
   } catch (e) {
     res.status(500).json({ error: 'Failed to update banner' });
@@ -3050,12 +3330,21 @@ app.post('/api/categories/update', async (req, res) => {
   const { id, name, iconUrl } = req.body;
   if (!id) return res.status(400).json({ error: 'id is required' });
   try {
-    const cat = await Category.findOneAndUpdate(
-      { id: id.toLowerCase() },
-      { name, iconUrl },
-      { new: true }
-    );
+    const cat = await Category.findOne({ id: id.toLowerCase() });
     if (!cat) return res.status(404).json({ error: 'Category not found' });
+    
+    const oldIconUrl = cat.iconUrl;
+    
+    if (name !== undefined) cat.name = name;
+    if (iconUrl !== undefined) cat.iconUrl = iconUrl;
+    
+    await cat.save();
+
+    // Clean up old iconUrl if it was changed
+    if (iconUrl !== undefined && oldIconUrl && oldIconUrl !== iconUrl) {
+      deleteFromCloudinary(oldIconUrl);
+    }
+
     res.json({ success: true, category: cat });
   } catch (e) {
     res.status(500).json({ error: 'Failed to update category' });
@@ -3066,12 +3355,683 @@ app.delete('/api/categories/:id', async (req, res) => {
   try {
     const deleted = await Category.findOneAndDelete({ id: req.params.id });
     if (deleted) {
+      if (deleted.iconUrl) {
+        deleteFromCloudinary(deleted.iconUrl);
+      }
       res.json({ success: true });
     } else {
       res.status(404).json({ error: 'Category not found' });
     }
   } catch (e) {
     res.status(500).json({ error: 'Failed to delete category' });
+  }
+});
+
+// ============================================================
+// PAYMENT LEDGER, COMMISSION, SETTLEMENT & ACCOUNTING APIs
+// ============================================================
+
+// Helper: calculate commission for a shop
+async function getCommissionRate(shopId) {
+  try {
+    const shop = await Shop.findOne({ id: shopId });
+    if (shop && shop.commissionRate !== undefined) return shop.commissionRate;
+    // Fallback to global setting
+    const setting = await Settings.findOne({ key: 'defaultCommissionRate' });
+    return setting ? parseFloat(setting.value) : 20.0;
+  } catch (e) {
+    return 20.0;
+  }
+}
+
+// Helper: log payment audit event
+async function logPaymentEvent(eventType, data) {
+  try {
+    const log = new PaymentAuditLog({
+      id: `PAL-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+      eventType,
+      ...data
+    });
+    await log.save();
+  } catch (e) {
+    console.error('PaymentAuditLog save error:', e.message);
+  }
+}
+
+// --- PAYMENT LEDGER ROUTES ---
+
+// Get ledger entry for a specific booking
+app.get('/api/payments/ledger/:bookingId', requireAuth, async (req, res) => {
+  try {
+    const ledger = await PaymentLedger.findOne({ bookingId: req.params.bookingId });
+    if (!ledger) return res.status(404).json({ error: 'No ledger found for this booking' });
+    res.json({ success: true, ledger });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch payment ledger' });
+  }
+});
+
+// Get all ledger entries for a provider
+app.get('/api/payments/ledger/shop/:shopId', requireAuth, async (req, res) => {
+  try {
+    const ledgers = await PaymentLedger.find({ shopId: req.params.shopId });
+    ledgers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json({ success: true, ledgers });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch provider ledger' });
+  }
+});
+
+// Admin: get all ledger entries (with optional filters)
+app.get('/api/payments/ledger', async (req, res) => {
+  try {
+    const { shopId, paymentStatus, paymentMethod, from, to } = req.query;
+    let ledgers = await PaymentLedger.find({});
+    if (shopId) ledgers = ledgers.filter(l => l.shopId === shopId);
+    if (paymentStatus) ledgers = ledgers.filter(l => l.paymentStatus === paymentStatus);
+    if (paymentMethod) ledgers = ledgers.filter(l => l.paymentMethod === paymentMethod);
+    if (from) ledgers = ledgers.filter(l => new Date(l.createdAt) >= new Date(from));
+    if (to) ledgers = ledgers.filter(l => new Date(l.createdAt) <= new Date(to));
+    ledgers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json({ success: true, ledgers });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch all ledger entries' });
+  }
+});
+
+// Provider: confirm cash collected (marks ledger as cash_collected)
+app.post('/api/payments/cash-confirm/:bookingId', requireAuth, async (req, res) => {
+  const { bookingId } = req.params;
+  try {
+    const booking = await Booking.findOne({ id: bookingId });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    const ledger = await PaymentLedger.findOne({ bookingId });
+    if (!ledger) return res.status(404).json({ error: 'Ledger not found for this booking' });
+
+    if (ledger.paymentStatus !== 'cash_pending' && ledger.paymentStatus !== 'commission_pending') {
+      return res.status(400).json({ error: `Cannot confirm cash for ledger in status: ${ledger.paymentStatus}` });
+    }
+
+    ledger.paymentStatus = 'cash_collected';
+    await ledger.save();
+
+    await logPaymentEvent('cash_confirmed', {
+      bookingId,
+      ledgerId: ledger.id,
+      shopId: ledger.shopId,
+      amount: ledger.grossAmount,
+      description: `Cash of ₹${ledger.grossAmount} confirmed collected for booking ${bookingId}`,
+      actor: 'provider'
+    });
+
+    res.json({ success: true, ledger });
+  } catch (e) {
+    console.error('Cash confirm error:', e);
+    res.status(500).json({ error: 'Failed to confirm cash collection' });
+  }
+});
+
+// Admin: mark commission collected from provider (for cash bookings)
+app.post('/api/payments/commission-collect/:shopId', async (req, res) => {
+  const { shopId } = req.params;
+  const { bookingIds, amount, note } = req.body;
+  try {
+    const shop = await Shop.findOne({ id: shopId });
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+
+    // Update specified ledgers
+    const bids = bookingIds || [];
+    for (const bid of bids) {
+      const ledger = await PaymentLedger.findOne({ bookingId: bid });
+      if (ledger) {
+        ledger.commissionStatus = 'paid';
+        ledger.paymentStatus = 'settled';
+        await ledger.save();
+      }
+    }
+
+    // Credit the wallet (reverse the commission-due debit)
+    const collectedAmt = parseFloat(amount) || 0;
+    if (collectedAmt > 0) {
+      shop.walletBalance = (shop.walletBalance || 0) + collectedAmt;
+      if (!shop.walletTransactions) shop.walletTransactions = [];
+      shop.walletTransactions.push({
+        id: `TX-COMM-COLL-${Date.now()}`,
+        title: `Commission Collected by Admin${note ? ': ' + note : ''}`,
+        amount: collectedAmt,
+        type: 'credit',
+        date: new Date()
+      });
+      await shop.save();
+    }
+
+    await logPaymentEvent('commission_collected', {
+      shopId,
+      amount: collectedAmt,
+      description: `Commission ₹${collectedAmt} collected from provider ${shopId}. ${note || ''}`,
+      actor: 'admin',
+      metadata: { bookingIds: bids, note }
+    });
+
+    res.json({ success: true, message: 'Commission marked as collected' });
+  } catch (e) {
+    console.error('Commission collect error:', e);
+    res.status(500).json({ error: 'Failed to collect commission' });
+  }
+});
+
+// --- SETTLEMENT ROUTES ---
+
+// Admin: get all settlements
+app.get('/api/payments/settlements', async (req, res) => {
+  try {
+    const { status, shopId } = req.query;
+    let settlements = await Settlement.find({});
+    if (status) settlements = settlements.filter(s => s.status === status);
+    if (shopId) settlements = settlements.filter(s => s.shopId === shopId);
+    settlements.sort((a, b) => new Date(b.requestedAt || b.createdAt) - new Date(a.requestedAt || a.createdAt));
+    res.json({ success: true, settlements });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch settlements' });
+  }
+});
+
+// Provider: get their settlements
+app.get('/api/payments/settlements/shop/:shopId', requireAuth, async (req, res) => {
+  try {
+    let settlements = await Settlement.find({ shopId: req.params.shopId });
+    settlements.sort((a, b) => new Date(b.requestedAt || b.createdAt) - new Date(a.requestedAt || a.createdAt));
+    res.json({ success: true, settlements });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch provider settlements' });
+  }
+});
+
+// Provider: request a settlement
+app.post('/api/payments/settlements/request', requireAuth, async (req, res) => {
+  const { shopId, amount, bookingIds, settlementType } = req.body;
+  if (!shopId || !amount) {
+    return res.status(400).json({ error: 'shopId and amount are required' });
+  }
+  try {
+    const shop = await Shop.findOne({ id: shopId });
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+
+    const requestAmt = parseFloat(amount);
+    if (requestAmt <= 0) return res.status(400).json({ error: 'Amount must be greater than 0' });
+    if ((shop.walletBalance || 0) < requestAmt) {
+      return res.status(400).json({ error: `Insufficient wallet balance. Available: ₹${shop.walletBalance || 0}` });
+    }
+
+    const settlementId = `SET-${Date.now()}`;
+    const settlement = new Settlement({
+      id: settlementId,
+      shopId: shop.id,
+      providerId: shop.id,
+      providerName: shop.ownerName || shop.name,
+      settlementType: settlementType || 'manual',
+      amount: requestAmt,
+      bookingIds: bookingIds || [],
+      status: 'pending',
+      bankAccount: shop.bankAccountNumber || '',
+      ifscCode: shop.ifscCode || '',
+      upiId: shop.upiId || '',
+      requestedAt: new Date()
+    });
+    await settlement.save();
+
+    // Update related ledgers to settlement_pending status
+    if (bookingIds && bookingIds.length > 0) {
+      for (const bid of bookingIds) {
+        const ledger = await PaymentLedger.findOne({ bookingId: bid });
+        if (ledger && ledger.paymentStatus === 'settlement_pending') {
+          ledger.settlementId = settlementId;
+          await ledger.save();
+        }
+      }
+    }
+
+    await logPaymentEvent('settlement_created', {
+      shopId,
+      settlementId,
+      amount: requestAmt,
+      description: `Settlement request ₹${requestAmt} created by provider ${shopId}`,
+      actor: 'provider'
+    });
+
+    // Notify admin via FCM (if configured)
+    sendFcmTopicNotification('admins', '💰 Settlement Request', `${shop.name} has requested a settlement of ₹${requestAmt}`, {
+      type: 'settlement_request',
+      settlementId
+    }).catch(() => {});
+
+    res.json({ success: true, settlement });
+  } catch (e) {
+    console.error('Settlement request error:', e);
+    res.status(500).json({ error: 'Failed to create settlement request' });
+  }
+});
+
+// Admin: approve a settlement
+app.post('/api/payments/settlements/:id/approve', async (req, res) => {
+  const { id } = req.params;
+  const { adminNote } = req.body;
+  try {
+    const settlement = await Settlement.findOne({ id });
+    if (!settlement) return res.status(404).json({ error: 'Settlement not found' });
+    if (settlement.status !== 'pending') {
+      return res.status(400).json({ error: `Cannot approve settlement in status: ${settlement.status}` });
+    }
+
+    settlement.status = 'approved';
+    settlement.adminNote = adminNote || '';
+    settlement.approvedAt = new Date();
+    await settlement.save();
+
+    await logPaymentEvent('settlement_approved', {
+      shopId: settlement.shopId,
+      settlementId: id,
+      amount: settlement.amount,
+      description: `Settlement ${id} approved by admin`,
+      actor: 'admin',
+      metadata: { adminNote }
+    });
+
+    // Notify provider
+    sendFcmNotification(settlement.shopId, '✅ Settlement Approved', `Your settlement of ₹${settlement.amount} has been approved and will be processed soon.`, { type: 'settlement_approved', settlementId: id }, 'partner').catch(() => {});
+
+    res.json({ success: true, settlement });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to approve settlement' });
+  }
+});
+
+// Admin: complete a settlement (money transferred)
+app.post('/api/payments/settlements/:id/complete', async (req, res) => {
+  const { id } = req.params;
+  const { transactionId, adminNote } = req.body;
+  try {
+    const settlement = await Settlement.findOne({ id });
+    if (!settlement) return res.status(404).json({ error: 'Settlement not found' });
+    if (!['approved', 'processing'].includes(settlement.status)) {
+      return res.status(400).json({ error: `Cannot complete settlement in status: ${settlement.status}` });
+    }
+
+    settlement.status = 'completed';
+    settlement.transactionId = transactionId || '';
+    settlement.adminNote = adminNote || settlement.adminNote;
+    settlement.completedAt = new Date();
+    await settlement.save();
+
+    // Debit provider wallet by settled amount
+    const shop = await Shop.findOne({ id: settlement.shopId });
+    if (shop) {
+      shop.walletBalance = Math.max(0, (shop.walletBalance || 0) - settlement.amount);
+      if (!shop.walletTransactions) shop.walletTransactions = [];
+      shop.walletTransactions.push({
+        id: `TX-SET-${Date.now()}`,
+        title: `Settlement Paid ${id}${transactionId ? ' | Txn: ' + transactionId : ''}`,
+        amount: settlement.amount,
+        type: 'debit',
+        date: new Date()
+      });
+      await shop.save();
+    }
+
+    // Mark related ledgers as settled
+    for (const bid of (settlement.bookingIds || [])) {
+      const ledger = await PaymentLedger.findOne({ bookingId: bid });
+      if (ledger) {
+        ledger.paymentStatus = 'settled';
+        ledger.settlementId = id;
+        await ledger.save();
+      }
+    }
+
+    await logPaymentEvent('settlement_completed', {
+      shopId: settlement.shopId,
+      settlementId: id,
+      amount: settlement.amount,
+      description: `Settlement ${id} completed. TxnID: ${transactionId || 'N/A'}`,
+      actor: 'admin',
+      metadata: { transactionId }
+    });
+
+    sendFcmNotification(settlement.shopId, '💸 Settlement Completed', `₹${settlement.amount} has been transferred to your account. Reference: ${transactionId || 'N/A'}`, { type: 'settlement_completed', settlementId: id }, 'partner').catch(() => {});
+
+    res.json({ success: true, settlement });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to complete settlement' });
+  }
+});
+
+// Admin: reject/fail a settlement
+app.post('/api/payments/settlements/:id/reject', async (req, res) => {
+  const { id } = req.params;
+  const { adminNote } = req.body;
+  try {
+    const settlement = await Settlement.findOne({ id });
+    if (!settlement) return res.status(404).json({ error: 'Settlement not found' });
+
+    settlement.status = 'rejected';
+    settlement.adminNote = adminNote || '';
+    settlement.rejectedAt = new Date();
+    await settlement.save();
+
+    await logPaymentEvent('settlement_failed', {
+      shopId: settlement.shopId,
+      settlementId: id,
+      amount: settlement.amount,
+      description: `Settlement ${id} rejected by admin. Reason: ${adminNote || 'Not specified'}`,
+      actor: 'admin'
+    });
+
+    sendFcmNotification(settlement.shopId, '❌ Settlement Rejected', `Your settlement request of ₹${settlement.amount} was rejected. Reason: ${adminNote || 'Contact support'}`, { type: 'settlement_rejected', settlementId: id }, 'partner').catch(() => {});
+
+    res.json({ success: true, settlement });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to reject settlement' });
+  }
+});
+
+// --- PAYMENT AUDIT LOG ROUTES ---
+
+app.get('/api/payments/audit-logs', async (req, res) => {
+  try {
+    const { bookingId, shopId, eventType } = req.query;
+    let logs = await PaymentAuditLog.find({});
+    if (bookingId) logs = logs.filter(l => l.bookingId === bookingId);
+    if (shopId) logs = logs.filter(l => l.shopId === shopId);
+    if (eventType) logs = logs.filter(l => l.eventType === eventType);
+    logs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json({ success: true, logs });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch payment audit logs' });
+  }
+});
+
+// --- PAYMENT DASHBOARD ROUTES ---
+
+// Provider payment dashboard stats
+app.get('/api/payments/dashboard/provider/:shopId', requireAuth, async (req, res) => {
+  const { shopId } = req.params;
+  try {
+    const shop = await Shop.findOne({ id: shopId });
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+
+    const ledgers = await PaymentLedger.find({ shopId });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayLedgers = ledgers.filter(l => new Date(l.createdAt) >= today);
+
+    const todayCash = todayLedgers.filter(l => l.paymentMethod === 'cash').reduce((s, l) => s + l.grossAmount, 0);
+    const todayOnline = todayLedgers.filter(l => l.paymentMethod !== 'cash').reduce((s, l) => s + l.grossAmount, 0);
+    const todayEarnings = todayLedgers.reduce((s, l) => s + l.providerEarnings, 0);
+    const todayCommission = todayLedgers.reduce((s, l) => s + l.commissionAmount, 0);
+
+    const totalEarnings = ledgers.reduce((s, l) => s + l.providerEarnings, 0);
+    const totalCommission = ledgers.reduce((s, l) => s + l.commissionAmount, 0);
+
+    const commissionDue = ledgers
+      .filter(l => l.commissionStatus === 'pending' && l.paymentMethod === 'cash')
+      .reduce((s, l) => s + l.commissionAmount, 0);
+
+    const pendingSettlements = await Settlement.find({ shopId, status: 'pending' });
+    const pendingSettlementAmount = pendingSettlements.reduce((s, st) => s + st.amount, 0);
+
+    const completedSettlements = await Settlement.find({ shopId, status: 'completed' });
+    const totalSettled = completedSettlements.reduce((s, st) => s + st.amount, 0);
+
+    const cashLedgers = ledgers.filter(l => l.paymentMethod === 'cash' && l.paymentStatus === 'cash_collected');
+    const onlineLedgers = ledgers.filter(l => l.paymentMethod !== 'cash');
+
+    res.json({
+      walletBalance: shop.walletBalance || 0,
+      commissionRate: shop.commissionRate || 20,
+      today: {
+        totalEarnings: parseFloat(todayEarnings.toFixed(2)),
+        cashCollected: parseFloat(todayCash.toFixed(2)),
+        onlineEarnings: parseFloat(todayOnline.toFixed(2)),
+        commissionDeducted: parseFloat(todayCommission.toFixed(2))
+      },
+      overall: {
+        totalEarnings: parseFloat(totalEarnings.toFixed(2)),
+        totalCommission: parseFloat(totalCommission.toFixed(2)),
+        commissionDue: parseFloat(commissionDue.toFixed(2)),
+        cashJobsCount: cashLedgers.length,
+        onlineJobsCount: onlineLedgers.length
+      },
+      settlement: {
+        pendingAmount: parseFloat(pendingSettlementAmount.toFixed(2)),
+        pendingCount: pendingSettlements.length,
+        totalSettled: parseFloat(totalSettled.toFixed(2)),
+        completedCount: completedSettlements.length
+      }
+    });
+  } catch (e) {
+    console.error('Provider payment dashboard error:', e);
+    res.status(500).json({ error: 'Failed to fetch provider payment dashboard' });
+  }
+});
+
+// Admin payment dashboard stats
+app.get('/api/payments/dashboard/admin', async (req, res) => {
+  try {
+    const ledgers = await PaymentLedger.find({});
+    const settlements = await Settlement.find({});
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayLedgers = ledgers.filter(l => new Date(l.createdAt) >= today);
+
+    const totalGross = ledgers.reduce((s, l) => s + l.grossAmount, 0);
+    const totalCommission = ledgers.reduce((s, l) => s + l.commissionAmount, 0);
+    const totalProviderEarnings = ledgers.reduce((s, l) => s + l.providerEarnings, 0);
+
+    const todayGross = todayLedgers.reduce((s, l) => s + l.grossAmount, 0);
+    const todayCommission = todayLedgers.reduce((s, l) => s + l.commissionAmount, 0);
+
+    const cashLedgers = ledgers.filter(l => l.paymentMethod === 'cash');
+    const onlineLedgers = ledgers.filter(l => l.paymentMethod !== 'cash');
+
+    const cashCollection = cashLedgers.reduce((s, l) => s + l.grossAmount, 0);
+    const onlineCollection = onlineLedgers.reduce((s, l) => s + l.grossAmount, 0);
+
+    const outstandingCommission = ledgers
+      .filter(l => l.commissionStatus === 'pending' && l.paymentMethod === 'cash')
+      .reduce((s, l) => s + l.commissionAmount, 0);
+
+    const pendingSettlements = settlements.filter(s => s.status === 'pending');
+    const completedSettlements = settlements.filter(s => s.status === 'completed');
+    const pendingSettlementAmount = pendingSettlements.reduce((s, st) => s + st.amount, 0);
+    const totalSettled = completedSettlements.reduce((s, st) => s + st.amount, 0);
+
+    // Per-provider breakdown
+    const shops = await Shop.find({});
+    const providerWallets = shops.map(s => ({
+      shopId: s.id,
+      shopName: s.name,
+      walletBalance: s.walletBalance || 0,
+      commissionRate: s.commissionRate || 20
+    }));
+
+    res.json({
+      today: {
+        grossRevenue: parseFloat(todayGross.toFixed(2)),
+        commissionEarned: parseFloat(todayCommission.toFixed(2)),
+        cashCollection: parseFloat(cashLedgers.filter(l => new Date(l.createdAt) >= today).reduce((s, l) => s + l.grossAmount, 0).toFixed(2)),
+        onlineCollection: parseFloat(onlineLedgers.filter(l => new Date(l.createdAt) >= today).reduce((s, l) => s + l.grossAmount, 0).toFixed(2))
+      },
+      overall: {
+        totalGrossRevenue: parseFloat(totalGross.toFixed(2)),
+        totalCommissionEarned: parseFloat(totalCommission.toFixed(2)),
+        totalProviderEarnings: parseFloat(totalProviderEarnings.toFixed(2)),
+        cashCollection: parseFloat(cashCollection.toFixed(2)),
+        onlineCollection: parseFloat(onlineCollection.toFixed(2)),
+        outstandingCommission: parseFloat(outstandingCommission.toFixed(2))
+      },
+      settlements: {
+        pendingCount: pendingSettlements.length,
+        pendingAmount: parseFloat(pendingSettlementAmount.toFixed(2)),
+        completedCount: completedSettlements.length,
+        totalSettled: parseFloat(totalSettled.toFixed(2))
+      },
+      providerWallets
+    });
+  } catch (e) {
+    console.error('Admin payment dashboard error:', e);
+    res.status(500).json({ error: 'Failed to fetch admin payment dashboard' });
+  }
+});
+
+// --- COMMISSION CONFIG ROUTES ---
+
+app.get('/api/commission-config', async (req, res) => {
+  try {
+    const settings = await Settings.find({});
+    const config = {};
+    settings.forEach(s => { config[s.key] = s.value; });
+    res.json({
+      defaultCommissionRate: parseFloat(config.defaultCommissionRate || '20'),
+      commissionType: config.commissionType || 'percentage',
+      categoryRates: config.categoryRates ? JSON.parse(typeof config.categoryRates === 'string' ? config.categoryRates : JSON.stringify(config.categoryRates)) : {},
+      providerRates: config.providerRates ? JSON.parse(typeof config.providerRates === 'string' ? config.providerRates : JSON.stringify(config.providerRates)) : {}
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch commission config' });
+  }
+});
+
+app.post('/api/commission-config', async (req, res) => {
+  const { defaultCommissionRate, commissionType, categoryRates, providerRates } = req.body;
+  try {
+    const updates = [];
+    if (defaultCommissionRate !== undefined) updates.push({ key: 'defaultCommissionRate', value: parseFloat(defaultCommissionRate) });
+    if (commissionType !== undefined) updates.push({ key: 'commissionType', value: commissionType });
+    if (categoryRates !== undefined) updates.push({ key: 'categoryRates', value: categoryRates });
+    if (providerRates !== undefined) updates.push({ key: 'providerRates', value: providerRates });
+
+    for (const { key, value } of updates) {
+      await Settings.findOneAndUpdate({ key }, { key, value }, { upsert: true });
+    }
+
+    await logPaymentEvent('ledger_updated', {
+      description: `Commission config updated: rate=${defaultCommissionRate}%, type=${commissionType}`,
+      actor: 'admin',
+      metadata: { defaultCommissionRate, commissionType }
+    });
+
+    res.json({ success: true, message: 'Commission configuration updated' });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update commission config' });
+  }
+});
+
+// --- PAYMENT REPORTS ---
+
+app.get('/api/payments/reports/daily', async (req, res) => {
+  try {
+    const { days = 7 } = req.query;
+    const ledgers = await PaymentLedger.find({});
+    const report = [];
+
+    for (let i = parseInt(days) - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const dEnd = new Date(d);
+      dEnd.setHours(23, 59, 59, 999);
+
+      const dayLedgers = ledgers.filter(l => {
+        const ld = new Date(l.createdAt);
+        return ld >= d && ld <= dEnd;
+      });
+
+      report.push({
+        date: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+        dateIso: d.toISOString().split('T')[0],
+        grossRevenue: parseFloat(dayLedgers.reduce((s, l) => s + l.grossAmount, 0).toFixed(2)),
+        commissionEarned: parseFloat(dayLedgers.reduce((s, l) => s + l.commissionAmount, 0).toFixed(2)),
+        providerEarnings: parseFloat(dayLedgers.reduce((s, l) => s + l.providerEarnings, 0).toFixed(2)),
+        cashCollection: parseFloat(dayLedgers.filter(l => l.paymentMethod === 'cash').reduce((s, l) => s + l.grossAmount, 0).toFixed(2)),
+        onlineCollection: parseFloat(dayLedgers.filter(l => l.paymentMethod !== 'cash').reduce((s, l) => s + l.grossAmount, 0).toFixed(2)),
+        bookingsCount: dayLedgers.length
+      });
+    }
+
+    res.json({ success: true, report });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to generate daily report' });
+  }
+});
+
+app.get('/api/payments/reports/commission', async (req, res) => {
+  try {
+    const ledgers = await PaymentLedger.find({});
+    const byProvider = {};
+
+    ledgers.forEach(l => {
+      if (!byProvider[l.shopId]) {
+        byProvider[l.shopId] = {
+          shopId: l.shopId,
+          providerName: l.providerName,
+          totalGross: 0,
+          totalCommission: 0,
+          commissionPaid: 0,
+          commissionPending: 0,
+          jobCount: 0
+        };
+      }
+      byProvider[l.shopId].totalGross += l.grossAmount;
+      byProvider[l.shopId].totalCommission += l.commissionAmount;
+      byProvider[l.shopId].jobCount += 1;
+      if (l.commissionStatus === 'paid') {
+        byProvider[l.shopId].commissionPaid += l.commissionAmount;
+      } else {
+        byProvider[l.shopId].commissionPending += l.commissionAmount;
+      }
+    });
+
+    const report = Object.values(byProvider).map(p => ({
+      ...p,
+      totalGross: parseFloat(p.totalGross.toFixed(2)),
+      totalCommission: parseFloat(p.totalCommission.toFixed(2)),
+      commissionPaid: parseFloat(p.commissionPaid.toFixed(2)),
+      commissionPending: parseFloat(p.commissionPending.toFixed(2))
+    }));
+
+    res.json({ success: true, report });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to generate commission report' });
+  }
+});
+
+app.get('/api/payments/reports/provider/:shopId', requireAuth, async (req, res) => {
+  const { shopId } = req.params;
+  try {
+    const ledgers = await PaymentLedger.find({ shopId });
+    const settlements = await Settlement.find({ shopId });
+
+    const report = {
+      shopId,
+      totalJobsDone: ledgers.length,
+      totalGrossBilling: parseFloat(ledgers.reduce((s, l) => s + l.grossAmount, 0).toFixed(2)),
+      totalEarnings: parseFloat(ledgers.reduce((s, l) => s + l.providerEarnings, 0).toFixed(2)),
+      totalCommissionPaid: parseFloat(ledgers.filter(l => l.commissionStatus === 'paid').reduce((s, l) => s + l.commissionAmount, 0).toFixed(2)),
+      totalCommissionPending: parseFloat(ledgers.filter(l => l.commissionStatus === 'pending').reduce((s, l) => s + l.commissionAmount, 0).toFixed(2)),
+      cashJobs: ledgers.filter(l => l.paymentMethod === 'cash').length,
+      onlineJobs: ledgers.filter(l => l.paymentMethod !== 'cash').length,
+      totalSettled: parseFloat(settlements.filter(s => s.status === 'completed').reduce((s, st) => s + st.amount, 0).toFixed(2)),
+      pendingSettlements: settlements.filter(s => s.status === 'pending').length,
+      ledgers: ledgers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+      settlements: settlements.sort((a, b) => new Date(b.requestedAt || b.createdAt) - new Date(a.requestedAt || a.createdAt))
+    };
+
+    res.json({ success: true, report });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to generate provider report' });
   }
 });
 

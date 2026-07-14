@@ -36,4 +36,7 @@ class ApiEndpoints {
   // Support
   static const String supportTickets = '/support/tickets';
   static const String ticketMessages = '/support/messages';
+
+  // Payment Receipts
+  static String bookingLedger(String bookingId) => '/payments/ledger/$bookingId';
 }
