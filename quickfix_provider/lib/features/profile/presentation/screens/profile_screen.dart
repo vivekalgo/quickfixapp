@@ -135,11 +135,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         title: const Text('My Partner Profile'),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async {
+          await ref.read(authProvider.notifier).refreshProfile();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             // Profile Card Details
             Container(
               padding: const EdgeInsets.all(16),
@@ -327,6 +333,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

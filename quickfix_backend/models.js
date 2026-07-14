@@ -166,7 +166,8 @@ const modelDefaults = {
     accountStatus: 'active',
     referralCode: '',
     referralCount: 0,
-    referralRewardsEarned: 0
+    referralRewardsEarned: 0,
+    fcmToken: ''
   },
   Shop: {
     deliveryTimeMins: 20,
@@ -324,7 +325,8 @@ const UserSchema = new mongoose.Schema({
   referralCode: { type: String, default: '' },
   referralCount: { type: Number, default: 0 },
   referralRewardsEarned: { type: Number, default: 0 },
-  memberSince: { type: Date, default: Date.now }
+  memberSince: { type: Date, default: Date.now },
+  fcmToken: { type: String, default: '' }
 }, { timestamps: true });
 
 // 2. Service Item Schema (sub-document for Shop services)

@@ -75,6 +75,95 @@ if (serviceAccountPath) {
   console.log("FIREBASE_SERVICE_ACCOUNT_JSON not set. Verify OTP endpoint will fall back to simulation.");
 }
 
+// --- FCM PUSH NOTIFICATION DISPATCH HELPERS ---
+async function sendFcmNotification(targetId, title, body, data = {}, targetType = 'user') {
+  try {
+    if (!admin.apps.length) {
+      console.warn("FCM NOT SENT: Firebase Admin SDK is not initialized.");
+      return false;
+    }
+
+    let token = '';
+    if (targetType === 'user') {
+      const user = await User.findById(targetId);
+      token = user ? user.fcmToken : '';
+    } else {
+      const shop = await Shop.findOne({ id: targetId });
+      token = shop ? shop.fcmToken : '';
+    }
+
+    if (!token) {
+      console.log(`FCM NOT SENT: No token registered for ${targetType} ${targetId}`);
+      return false;
+    }
+
+    const message = {
+      notification: {
+        title,
+        body,
+      },
+      token: token,
+      data: {
+        ...data,
+        click_action: 'FLUTTER_NOTIFICATION_CLICK'
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          channelId: 'high_importance_channel',
+          icon: 'ic_notification'
+        }
+      }
+    };
+
+    const response = await admin.messaging().send(message);
+    console.log(`Successfully sent FCM message: ${response} to ${targetType} ${targetId}`);
+    return true;
+  } catch (error) {
+    console.error(`Error sending FCM notification to ${targetType} ${targetId}:`, error.message || error);
+    return false;
+  }
+}
+
+async function sendFcmTopicNotification(topic, title, body, data = {}) {
+  try {
+    if (!admin.apps.length) {
+      console.warn("FCM TOPIC NOT SENT: Firebase Admin SDK is not initialized.");
+      return false;
+    }
+
+    const message = {
+      notification: {
+        title,
+        body,
+      },
+      topic: topic,
+      data: {
+        ...data,
+        click_action: 'FLUTTER_NOTIFICATION_CLICK'
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          channelId: 'high_importance_channel',
+          icon: 'ic_notification'
+        }
+      }
+    };
+
+    const response = await admin.messaging().send(message);
+    console.log(`Successfully sent FCM topic message: ${response} to topic ${topic}`);
+    return true;
+  } catch (error) {
+    console.error(`Error sending FCM topic notification to topic ${topic}:`, error.message || error);
+    return false;
+  }
+}
+
 // --- DATABASE CONNECTION ---
 const isMongoConfigured = process.env.MONGODB_URI && !process.env.MONGODB_URI.includes('YOUR_MONGODB_ATLAS_CONNECTION_STRING_HERE');
 if (!isMongoConfigured) {
@@ -164,7 +253,8 @@ function buildProfileResponse(user) {
     referralCode: user.referralCode || '',
     referralCount: user.referralCount || 0,
     referralRewardsEarned: user.referralRewardsEarned || 0,
-    memberSince: user.memberSince || user.createdAt || new Date().toISOString()
+    memberSince: user.memberSince || user.createdAt || new Date().toISOString(),
+    fcmToken: user.fcmToken || ''
   };
 }
 
@@ -249,7 +339,7 @@ app.post('/api/auth/profile/update', requireAuth, async (req, res) => {
     const allowedFields = [
       'name', 'email', 'avatarUrl', 'gender', 'dob',
       'alternatePhone', 'emergencyContact', 'preferredLanguage',
-      'savedAddresses'
+      'savedAddresses', 'fcmToken'
     ];
     const updateData = {};
     for (const field of allowedFields) {
@@ -2107,6 +2197,19 @@ const placeBooking = async (req, res) => {
     });
 
     await newBooking.save();
+
+    // Send Booking Created push notification to customer
+    sendFcmNotification(
+      newBooking.customerId,
+      'Booking Created 🎉',
+      `Your booking QF-${bookingId} for "${title}" has been successfully created.`,
+      {
+        type: 'booking',
+        bookingId: bookingId,
+        iconColor: 'success'
+      }
+    );
+
     res.json({ 
       success: true, 
       bookingId, 
@@ -2141,6 +2244,61 @@ app.post('/api/bookings/update-status', async (req, res) => {
     }
 
     await booking.save();
+
+    // Send FCM push notification depending on new status
+    let fcmTitle = '';
+    let fcmBody = '';
+    let fcmIconColor = 'primary';
+
+    switch (status) {
+      case 'accepted':
+        fcmTitle = 'Booking Accepted 🛠️';
+        fcmBody = `Your booking for "${booking.title}" has been accepted by ${booking.providerName || 'our expert'}.`;
+        fcmIconColor = 'success';
+        break;
+      case 'navigating':
+      case 'on_the_way':
+        fcmTitle = 'Provider En Route 🛵';
+        fcmBody = `Your provider ${booking.providerName || 'expert'} has started traveling to your location.`;
+        fcmIconColor = 'info';
+        break;
+      case 'arrived':
+        fcmTitle = 'Provider Arrived 📍';
+        fcmBody = `Your provider ${booking.providerName || 'expert'} has arrived at your location.`;
+        fcmIconColor = 'success';
+        break;
+      case 'work_started':
+        fcmTitle = 'Service Started ⚙️';
+        fcmBody = `Work has successfully started for "${booking.title}".`;
+        fcmIconColor = 'info';
+        break;
+      case 'completed':
+      case 'work_completed':
+        fcmTitle = 'Service Completed ✅';
+        fcmBody = `Your service for "${booking.title}" is complete. Please verify and pay.`;
+        fcmIconColor = 'success';
+        break;
+      case 'payment_completed':
+        fcmTitle = 'Payment Successful 💳';
+        fcmBody = `Payment of ₹${booking.amount} has been successfully processed. Thank you!`;
+        fcmIconColor = 'success';
+        break;
+      case 'cancelled':
+        fcmTitle = 'Booking Cancelled ❌';
+        fcmBody = `Your booking for "${booking.title}" has been cancelled.`;
+        fcmIconColor = 'error';
+        break;
+      default:
+        break;
+    }
+
+    if (fcmTitle && fcmBody) {
+      sendFcmNotification(booking.customerId, fcmTitle, fcmBody, {
+        type: 'booking_status',
+        bookingId: booking.id,
+        iconColor: fcmIconColor
+      });
+    }
 
     // Credit provider's wallet if transitioned to completed or closed
     if ((status === 'completed' || status === 'closed' || status === 'payment_completed') && 
@@ -2182,6 +2340,19 @@ app.post('/api/bookings/cancel', async (req, res) => {
 
     booking.status = 'cancelled';
     await booking.save();
+
+    // Notify customer
+    sendFcmNotification(
+      booking.customerId,
+      'Booking Cancelled ❌',
+      `Your booking QF-${id} for "${booking.title}" has been cancelled.`,
+      {
+        type: 'booking_status',
+        bookingId: id,
+        iconColor: 'error'
+      }
+    );
+
     res.json({ success: true, booking });
   } catch (e) {
     res.status(500).json({ error: 'Failed to cancel booking' });
@@ -2233,6 +2404,19 @@ app.post('/api/bookings/:bookingId/quotation', async (req, res) => {
     });
 
     await booking.save();
+
+    // Notify customer
+    sendFcmNotification(
+      booking.customerId,
+      'New Quotation Received 📋',
+      `A new quotation of ₹${totalAmount.toFixed(2)} has been sent for "${booking.title}".`,
+      {
+        type: 'booking_status',
+        bookingId: bookingId,
+        iconColor: 'info'
+      }
+    );
+
     res.json({ success: true, booking });
   } catch (e) {
     console.error('Quotation upload failed:', e);
@@ -2298,7 +2482,7 @@ app.get('/api/notifications', async (req, res) => {
 });
 
 app.post('/api/notifications/send', async (req, res) => {
-  const { title, body, icon, iconColor } = req.body;
+  const { title, body, icon, iconColor, audience, channel } = req.body;
   try {
     const newAlert = new Notification({
       id: `alert-${Date.now()}`,
@@ -2309,6 +2493,34 @@ app.post('/api/notifications/send', async (req, res) => {
       iconColor: iconColor || 'primary'
     });
     await newAlert.save();
+
+    // Dispatch FCM Push Notification to topic based on audience selection
+    if (audience === 'shops') {
+      sendFcmTopicNotification('providers', title, body, {
+        type: 'broadcast',
+        icon: icon || 'notifications_active',
+        iconColor: iconColor || 'primary'
+      });
+    } else if (audience === 'all') {
+      sendFcmTopicNotification('customers', title, body, {
+        type: 'broadcast',
+        icon: icon || 'notifications_active',
+        iconColor: iconColor || 'primary'
+      });
+      sendFcmTopicNotification('providers', title, body, {
+        type: 'broadcast',
+        icon: icon || 'notifications_active',
+        iconColor: iconColor || 'primary'
+      });
+    } else {
+      // Default: customers topic
+      sendFcmTopicNotification('customers', title, body, {
+        type: 'broadcast',
+        icon: icon || 'notifications_active',
+        iconColor: iconColor || 'primary'
+      });
+    }
+
     res.json({ success: true, alert: newAlert });
   } catch (e) {
     res.status(500).json({ error: 'Failed to send alert notification' });
@@ -2492,6 +2704,20 @@ app.post('/api/users/wallet-adjust', async (req, res) => {
       date: new Date()
     });
     await user.save();
+
+    // Notify customer
+    sendFcmNotification(
+      user._id,
+      type === 'credit' ? 'Wallet Credited 💰' : 'Wallet Debited 💸',
+      type === 'credit' 
+        ? `Your wallet has been credited with ₹${val.toFixed(2)}: ${title || 'Adjusted by Admin'}.`
+        : `Your wallet has been debited by ₹${val.toFixed(2)}: ${title || 'Adjusted by Admin'}.`,
+      {
+        type: 'wallet_update',
+        iconColor: type === 'credit' ? 'success' : 'warning'
+      }
+    );
+
     res.json({ success: true, walletBalance: user.walletBalance });
   } catch (e) {
     res.status(500).json({ error: 'Failed to adjust wallet' });

@@ -4,6 +4,7 @@ import 'package:quickfix/features/home/models/home_models.dart';
 import 'package:quickfix/features/home/repositories/home_repository.dart';
 import 'package:quickfix/features/home/repositories/home_repository_impl.dart';
 import 'package:quickfix/core/services/hive_service.dart';
+import 'package:hive/hive.dart';
 import 'package:dio/dio.dart';
 
 import 'package:quickfix/core/providers/network_providers.dart';
@@ -323,40 +324,125 @@ final wishlistProvider = StateNotifierProvider<WishlistNotifier, List<String>>((
 });
 
 // Global Notifications Providers
-final notificationsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final notificationsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
+  final box = Hive.box('local_notifications');
+  
+  List<Map<String, dynamic>> getList() {
+    final list = box.values
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    list.sort((a, b) {
+      final timeA = DateTime.tryParse(a['time'] ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final timeB = DateTime.tryParse(b['time'] ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return timeB.compareTo(timeA);
+    });
+    return list;
+  }
+  
+  yield getList();
+  
+  await for (final _ in box.watch()) {
+    yield getList();
+  }
+});
+
+final syncNotificationsProvider = FutureProvider<void>((ref) async {
   try {
-    final client = ref.watch(dioClientProvider);
+    final client = ref.read(dioClientProvider);
     final res = await client.get('/notifications');
     final data = res.data as List;
-    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-  } catch (e) {
-    return [];
+    final box = Hive.box('local_notifications');
+    
+    for (final item in data) {
+      final map = Map<String, dynamic>.from(item as Map);
+      final id = map['id']?.toString() ?? '';
+      if (id.isNotEmpty && !box.containsKey(id)) {
+        final localItem = {
+          'id': id,
+          'title': map['title'] ?? '',
+          'body': map['body'] ?? '',
+          'time': map['createdAt'] ?? map['time'] ?? DateTime.now().toIso8601String(),
+          'isRead': false,
+          'type': map['type'] ?? 'general',
+          'bookingId': map['bookingId'] ?? '',
+          'orderId': map['orderId'] ?? '',
+          'deepLink': map['deepLink'] ?? '',
+          'iconColor': map['iconColor'] ?? 'primary',
+        };
+        await box.put(id, localItem);
+      }
+    }
+  } catch (_) {
+    // Fail silently
   }
 });
 
 class ReadNotificationsNotifier extends StateNotifier<Set<String>> {
-  ReadNotificationsNotifier() : super(HiveService.getReadNotificationIds().toSet());
-
-  void markAsRead(String id) {
-    if (!state.contains(id)) {
-      state = {...state, id};
-      HiveService.markNotificationAsRead(id);
-    }
+  ReadNotificationsNotifier() : super(HiveService.getReadNotificationIds().toSet()) {
+    _syncWithLocalNotifications();
   }
 
-  void markAllAsRead(List<String> ids) {
-    bool changed = false;
-    final newState = Set<String>.from(state);
-    for (final id in ids) {
-      if (!newState.contains(id)) {
-        newState.add(id);
-        HiveService.markNotificationAsRead(id);
-        changed = true;
+  void _syncWithLocalNotifications() {
+    try {
+      final box = Hive.box('local_notifications');
+      final readIds = box.values
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .where((item) => item['isRead'] == true)
+          .map((item) => item['id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      state = readIds;
+    } catch (_) {}
+  }
+
+  Future<void> markAsRead(String id) async {
+    state = {...state, id};
+    HiveService.markNotificationAsRead(id);
+    
+    try {
+      final box = Hive.box('local_notifications');
+      final item = box.get(id);
+      if (item != null) {
+        final updated = Map<String, dynamic>.from(item as Map);
+        updated['isRead'] = true;
+        await box.put(id, updated);
       }
+    } catch (_) {}
+  }
+
+  Future<void> markAllAsRead(List<String> ids) async {
+    state = {...state, ...ids};
+    for (final id in ids) {
+      HiveService.markNotificationAsRead(id);
     }
-    if (changed) {
-      state = newState;
-    }
+    
+    try {
+      final box = Hive.box('local_notifications');
+      for (final id in ids) {
+        final item = box.get(id);
+        if (item != null) {
+          final updated = Map<String, dynamic>.from(item as Map);
+          updated['isRead'] = true;
+          await box.put(id, updated);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> deleteNotification(String id) async {
+    state = state.where((item) => item != id).toSet();
+    try {
+      final box = Hive.box('local_notifications');
+      await box.delete(id);
+    } catch (_) {}
+  }
+
+  Future<void> clearAll() async {
+    state = {};
+    try {
+      final box = Hive.box('local_notifications');
+      await box.clear();
+    } catch (_) {}
   }
 }
 
@@ -366,14 +452,9 @@ final readNotificationsProvider = StateNotifierProvider<ReadNotificationsNotifie
 
 final unreadNotificationsCountProvider = Provider<int>((ref) {
   final notificationsAsync = ref.watch(notificationsProvider);
-  final readIds = ref.watch(readNotificationsProvider);
-
   return notificationsAsync.when(
     data: (list) {
-      return list.where((item) {
-        final id = item['id']?.toString() ?? '';
-        return !readIds.contains(id);
-      }).length;
+      return list.where((item) => item['isRead'] != true).length;
     },
     loading: () => 0,
     error: (_, __) => 0,

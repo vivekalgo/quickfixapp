@@ -8,6 +8,8 @@ import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
 import 'package:quickfix/shared/widgets/notify_me_dialog.dart';
+import 'package:quickfix/shared/widgets/error_widgets.dart';
+import 'package:quickfix/core/providers/connectivity_provider.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
   final String categoryId;
@@ -96,7 +98,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     final currentLoc = ref.watch(currentAddressProvider);
     return Center(
       child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -202,6 +204,13 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   Widget build(BuildContext context) {
     final isDark = ref.watch(isDarkModeProvider);
 
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && _errorMessage.isNotEmpty) {
+        _fetchCategoryShops();
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_getCategoryTitle(), style: AppTextStyles.headingMedium(isDark)),
@@ -222,27 +231,26 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage.isNotEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                      const SizedBox(height: 16),
-                      Text(_errorMessage, style: TextStyle(color: isDark ? Colors.white70 : AppColors.secondary)),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: _fetchCategoryShops,
-                        child: const Text('Retry'),
-                      )
-                    ],
-                  ),
-                )
-              : (_shops == null || _shops!.isEmpty)
-                  ? _buildComingSoonScreen(context, isDark)
-                  : ListView.builder(
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _fetchCategoryShops,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage.isNotEmpty
+                ? SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Container(
+                      height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+                      alignment: Alignment.center,
+                      child: CommonErrorWidget(
+                        message: _errorMessage,
+                        onRetry: _fetchCategoryShops,
+                      ),
+                    ),
+                  )
+                : (_shops == null || _shops!.isEmpty)
+                    ? _buildComingSoonScreen(context, isDark)
+                    : ListView.builder(
                       padding: const EdgeInsets.all(16.0),
                       physics: const BouncingScrollPhysics(),
                       itemCount: _shops!.length,
@@ -442,6 +450,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                         ).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.05, end: 0);
                       },
                     ),
+      ),
     );
   }
 }

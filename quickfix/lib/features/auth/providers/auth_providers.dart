@@ -6,6 +6,8 @@ import 'package:quickfix/features/auth/services/auth_remote_data_source.dart';
 import 'package:quickfix/features/auth/repositories/auth_repository.dart';
 import 'package:quickfix/features/auth/repositories/auth_repository_impl.dart';
 import 'package:quickfix/core/network/error_handler.dart';
+import 'package:quickfix/core/services/notification_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class AuthState {
   final bool isAuthenticated;
@@ -53,12 +55,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (cached != null) {
       state = AuthState(isAuthenticated: true, user: cached, isLoading: false);
       _refreshProfileSilently();
+      syncFcmTokenSilently();
     } else {
       try {
         state = AuthState(isAuthenticated: false, isLoading: true);
         final profile = await _repository.fetchUserProfile();
         await HiveService.saveCachedProfile(profile);
         state = AuthState(isAuthenticated: true, user: profile, isLoading: false);
+        syncFcmTokenSilently();
       } catch (e, s) {
         final resolved = ErrorHandler.handle(e, s);
         if (HiveService.getAuthToken() == null) {
@@ -89,6 +93,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> syncFcmTokenSilently() async {
+    try {
+      final fcmToken = await NotificationService.getToken();
+      if (fcmToken != null) {
+        final cached = HiveService.getCachedProfile();
+        if (cached == null || cached['fcmToken'] != fcmToken) {
+          await _repository.updateUserProfile({'fcmToken': fcmToken});
+          if (cached != null) {
+            final updatedProfile = Map<String, dynamic>.from(cached);
+            updatedProfile['fcmToken'] = fcmToken;
+            await HiveService.saveCachedProfile(updatedProfile);
+            state = state.copyWith(user: updatedProfile);
+          }
+        }
+        await NotificationService.subscribeToTopic('customers');
+      }
+    } catch (_) {}
+  }
+
   Future<void> _refreshProfileSilently() async {
     try {
       final profile = await _repository.fetchUserProfile();
@@ -110,6 +133,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final profile = await _repository.fetchUserProfile();
       await HiveService.saveCachedProfile(profile);
       state = AuthState(isAuthenticated: true, user: profile, isLoading: false);
+      
+      // Request permissions and sync FCM token immediately on login
+      await NotificationService.requestPermissions();
+      final fcmToken = await NotificationService.getToken();
+      if (fcmToken != null) {
+        try {
+          await _repository.updateUserProfile({'fcmToken': fcmToken});
+          final updated = Map<String, dynamic>.from(profile);
+          updated['fcmToken'] = fcmToken;
+          await HiveService.saveCachedProfile(updated);
+          state = AuthState(isAuthenticated: true, user: updated, isLoading: false);
+        } catch (_) {}
+      }
+      await NotificationService.subscribeToTopic('customers');
     } catch (e, s) {
       final resolved = ErrorHandler.handle(e, s);
       state = AuthState(isAuthenticated: false, isLoading: false, error: resolved.message);
@@ -184,8 +221,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     state = AuthState(isAuthenticated: false, isLoading: true);
+    try {
+      await NotificationService.unsubscribeFromTopic('customers');
+      await _repository.updateUserProfile({'fcmToken': ''});
+    } catch (_) {}
     await SecureTokenManager.clearToken(clearCallback: HiveService.clearAuthToken);
     await HiveService.clearCachedProfile();
+    try {
+      final box = Hive.box('local_notifications');
+      await box.clear();
+    } catch (_) {}
     state = AuthState(isAuthenticated: false, isLoading: false);
   }
 }

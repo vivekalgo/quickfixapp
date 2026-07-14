@@ -7,6 +7,8 @@ import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
+import 'package:quickfix/shared/widgets/error_widgets.dart';
+import 'package:quickfix/core/providers/connectivity_provider.dart';
 
 class ShopsListScreen extends ConsumerStatefulWidget {
   const ShopsListScreen({super.key});
@@ -20,6 +22,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
   List<Shop>? _filteredShops;
   bool _isLoading = true;
   String _searchQuery = '';
+  String _errorMessage = '';
   
   bool _filterTopRated = false;
   bool _filterFastDelivery = false;
@@ -34,6 +37,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
   Future<void> _fetchShops() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = '';
     });
 
     try {
@@ -48,6 +52,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
         setState(() {
           _allShops = shops;
           _isLoading = false;
+          _errorMessage = '';
           _applyFilters();
         });
       }
@@ -55,12 +60,10 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _errorMessage = 'Failed to load nearby shops: $e';
           _allShops = [];
           _filteredShops = [];
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load shops: $e')),
-        );
       }
     }
   }
@@ -102,6 +105,13 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = ref.watch(isDarkModeProvider);
+
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && _errorMessage.isNotEmpty) {
+        _fetchShops();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -209,13 +219,35 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
 
           // 3. Shop Directory List
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : (_filteredShops == null || _filteredShops!.isEmpty)
-                    ? _buildEmptyState(isDark)
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16.0),
-                        physics: const BouncingScrollPhysics(),
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: _fetchShops,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage.isNotEmpty
+                      ? SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Container(
+                            height: MediaQuery.of(context).size.height - 250,
+                            alignment: Alignment.center,
+                            child: CommonErrorWidget(
+                              message: _errorMessage,
+                              onRetry: _fetchShops,
+                            ),
+                          ),
+                        )
+                      : (_filteredShops == null || _filteredShops!.isEmpty)
+                          ? SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: Container(
+                                height: MediaQuery.of(context).size.height - 250,
+                                alignment: Alignment.center,
+                                child: _buildEmptyState(isDark),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16.0),
+                              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                         itemCount: _filteredShops!.length,
                         itemBuilder: (context, index) {
                           final shop = _filteredShops![index];
@@ -438,6 +470,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
                           ).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.05, end: 0);
                         },
                       ),
+            ),
           ),
         ],
       ),

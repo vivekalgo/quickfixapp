@@ -8,6 +8,9 @@ import 'package:quickfix/shared/themes/app_text_styles.dart';
 import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/core/network/error_handler.dart';
+import 'package:quickfix/shared/widgets/error_widgets.dart';
+import 'package:quickfix/core/providers/connectivity_provider.dart';
+import 'package:quickfix/core/services/notification_service.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -44,6 +47,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final isDark = ref.watch(isDarkModeProvider);
     final notificationsAsync = ref.watch(notificationsProvider);
 
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && notificationsAsync.hasError) {
+        ref.invalidate(notificationsProvider);
+      }
+    });
+
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
@@ -61,89 +71,144 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_outlined),
+            icon: const Icon(Icons.done_all),
+            tooltip: 'Mark all as read',
             onPressed: () {
               AppHaptics.lightTap();
-              ref.invalidate(notificationsProvider);
+              notificationsAsync.whenData((list) {
+                final ids = list.map((e) => e['id']?.toString() ?? '').toList();
+                ref.read(readNotificationsProvider.notifier).markAllAsRead(ids);
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_outlined),
+            tooltip: 'Clear all',
+            onPressed: () {
+              AppHaptics.lightTap();
+              ref.read(readNotificationsProvider.notifier).clearAll();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_outlined),
+            tooltip: 'Sync alerts',
+            onPressed: () {
+              AppHaptics.lightTap();
+              ref.invalidate(syncNotificationsProvider);
             },
           ),
         ],
       ),
-      body: notificationsAsync.when(
-        loading: () => _buildSkeleton(isDark),
-        error: (err, st) => _buildError(isDark, ErrorHandler.handle(err, st).message),
-        data: (notifications) {
-          if (notifications.isEmpty) {
-            return Center(
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.notifications_off_outlined, size: 70, color: AppColors.textSecondaryLight),
-                const SizedBox(height: 16),
-                Text('No notifications yet', style: AppTextStyles.headingSmall(isDark)),
-                const SizedBox(height: 6),
-                Text('We\'ll notify you about bookings,\noffers, and updates here.', textAlign: TextAlign.center, style: AppTextStyles.bodySmall(isDark)),
-              ]),
-            );
-          }
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async => await ref.refresh(syncNotificationsProvider.future),
+        child: notificationsAsync.when(
+          loading: () => _buildSkeleton(isDark),
+          error: (err, st) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+              alignment: Alignment.center,
+              child: CommonErrorWidget(
+                message: ErrorHandler.handle(err, st).message,
+                onRetry: () => ref.invalidate(syncNotificationsProvider),
+              ),
+            ),
+          ),
+          data: (notifications) {
+            if (notifications.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+                  alignment: Alignment.center,
+                  child: const EmptyStateWidget(
+                    title: 'No notifications yet',
+                    message: 'We\'ll notify you about bookings, offers, and updates here.',
+                    icon: Icons.notifications_off_outlined,
+                  ),
+                ),
+              );
+            }
 
-          return RefreshIndicator(
-            color: AppColors.primary,
-            onRefresh: () async => await ref.refresh(notificationsProvider.future),
-            child: ListView.builder(
-              physics: const BouncingScrollPhysics(),
+            return ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
               padding: const EdgeInsets.all(16),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final item = notifications[index];
                 final id = item['id']?.toString() ?? index.toString();
-                final isRead = ref.watch(readNotificationsProvider).contains(id);
+                final isRead = item['isRead'] == true;
                 final iconColor = item['iconColor']?.toString() ?? 'primary';
                 final color = _colorForTag(iconColor, isDark);
                 final icon = _iconForColor(iconColor);
 
-                return GestureDetector(
-                  onTap: () => ref.read(readNotificationsProvider.notifier).markAsRead(id),
-                  child: Container(
+                return Dismissible(
+                  key: Key(id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.only(right: 20),
+                    alignment: Alignment.centerRight,
                     decoration: BoxDecoration(
-                      color: isRead
-                          ? (isDark ? AppColors.surfaceDark : Colors.white)
-                          : (isDark ? AppColors.surfaceDark.withValues(alpha: 0.8) : color.withValues(alpha: 0.04)),
+                      color: AppColors.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isRead
-                            ? (isDark ? AppColors.borderDark : AppColors.borderLight)
-                            : color.withValues(alpha: 0.25),
-                      ),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
                     ),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-                        child: Icon(icon, color: color, size: 20),
+                    child: const Icon(Icons.delete_outline, color: AppColors.error),
+                  ),
+                  onDismissed: (_) {
+                    AppHaptics.lightTap();
+                    ref.read(readNotificationsProvider.notifier).deleteNotification(id);
+                  },
+                  child: GestureDetector(
+                    onTap: () {
+                      AppHaptics.lightTap();
+                      ref.read(readNotificationsProvider.notifier).markAsRead(id);
+                      NotificationService.handleNotificationClick(item);
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isRead
+                            ? (isDark ? AppColors.surfaceDark : Colors.white)
+                            : (isDark ? AppColors.surfaceDark.withValues(alpha: 0.8) : color.withValues(alpha: 0.04)),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isRead
+                              ? (isDark ? AppColors.borderDark : AppColors.borderLight)
+                              : color.withValues(alpha: 0.25),
+                        ),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            Expanded(child: Text(item['title']?.toString() ?? '', style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14))),
-                            if (!isRead)
-                              Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+                          child: Icon(icon, color: color, size: 20),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Expanded(child: Text(item['title']?.toString() ?? '', style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14))),
+                              if (!isRead)
+                                Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
+                            ]),
+                            const SizedBox(height: 4),
+                            Text(item['body']?.toString() ?? '', style: AppTextStyles.bodySmall(isDark).copyWith(color: isDark ? Colors.white60 : AppColors.textSecondaryLight)),
+                            const SizedBox(height: 8),
+                            Text(item['time']?.toString() ?? 'Just now', style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
                           ]),
-                          const SizedBox(height: 4),
-                          Text(item['body']?.toString() ?? '', style: AppTextStyles.bodySmall(isDark).copyWith(color: isDark ? Colors.white60 : AppColors.textSecondaryLight)),
-                          const SizedBox(height: 8),
-                          Text(item['time']?.toString() ?? 'Just now', style: AppTextStyles.bodySmall(isDark).copyWith(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
-                        ]),
-                      ),
-                    ]),
+                        ),
+                      ]),
+                    ),
                   ).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.05, end: 0),
                 );
               },
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -166,28 +231,5 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildError(bool isDark, String error) {
-    return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.cloud_off_rounded, size: 64, color: AppColors.textSecondaryLight),
-      const SizedBox(height: 16),
-      Text('Could not load notifications', style: AppTextStyles.headingSmall(isDark)),
-      const SizedBox(height: 6),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Text(
-          error,
-          style: AppTextStyles.bodySmall(isDark),
-          textAlign: TextAlign.center,
-        ),
-      ),
-      const SizedBox(height: 16),
-      ElevatedButton(
-        onPressed: () => ref.invalidate(notificationsProvider),
-        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-        child: const Text('Retry', style: TextStyle(color: Colors.white)),
-      ),
-    ]));
   }
 }

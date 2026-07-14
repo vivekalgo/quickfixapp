@@ -11,6 +11,8 @@ import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/features/auth/providers/auth_providers.dart';
 import 'package:quickfix/core/network/error_handler.dart';
 import 'package:quickfix/core/providers/network_providers.dart';
+import 'package:quickfix/shared/widgets/error_widgets.dart';
+import 'package:quickfix/core/providers/connectivity_provider.dart';
 
 class OrderItem {
   final String id;
@@ -40,28 +42,24 @@ class OrderItem {
 final customerBookingsProvider = FutureProvider<List<OrderItem>>((ref) async {
   final user = ref.watch(authProvider).user;
   final userId = user?['id']?.toString() ?? '';
-  try {
-    final client = ref.watch(dioClientProvider);
-    final res = await client.get('/bookings', queryParameters: {
-      if (userId.isNotEmpty) 'customerId': userId,
-    });
-    final data = res.data as List;
-    return data.map((json) {
-      return OrderItem(
-        id: json['id']?.toString() ?? '',
-        title: json['title']?.toString() ?? 'Home Service',
-        date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
-        slot: json['slot']?.toString() ?? '09:00 AM – 11:00 AM',
-        amount: double.tryParse(json['amount']?.toString() ?? '') ?? 0.0,
-        providerName: json['providerName']?.toString() ?? 'Assigning Expert...',
-        status: json['status']?.toString() ?? 'pending',
-        shopId: json['shopId']?.toString() ?? '',
-        pricingType: json['pricingType']?.toString() ?? 'fixed',
-      );
-    }).toList();
-  } catch (e) {
-    return [];
-  }
+  final client = ref.watch(dioClientProvider);
+  final res = await client.get('/bookings', queryParameters: {
+    if (userId.isNotEmpty) 'customerId': userId,
+  });
+  final data = res.data as List;
+  return data.map((json) {
+    return OrderItem(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Home Service',
+      date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
+      slot: json['slot']?.toString() ?? '09:00 AM – 11:00 AM',
+      amount: double.tryParse(json['amount']?.toString() ?? '') ?? 0.0,
+      providerName: json['providerName']?.toString() ?? 'Assigning Expert...',
+      status: json['status']?.toString() ?? 'pending',
+      shopId: json['shopId']?.toString() ?? '',
+      pricingType: json['pricingType']?.toString() ?? 'fixed',
+    );
+  }).toList();
 });
 
 class OrderHistoryScreen extends ConsumerStatefulWidget {
@@ -91,6 +89,13 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
   Widget build(BuildContext context) {
     final isDark = ref.watch(isDarkModeProvider);
     final bookingsAsync = ref.watch(customerBookingsProvider);
+
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && bookingsAsync.hasError) {
+        ref.invalidate(customerBookingsProvider);
+      }
+    });
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
@@ -135,7 +140,21 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
       ),
       body: bookingsAsync.when(
         loading: () => _buildSkeletonLoader(isDark),
-        error: (err, st) => _buildErrorState(context, isDark, ErrorHandler.handle(err, st).message),
+        error: (err, st) => RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async => await ref.refresh(customerBookingsProvider.future),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+              alignment: Alignment.center,
+              child: CommonErrorWidget(
+                message: ErrorHandler.handle(err, st).message,
+                onRetry: () => ref.invalidate(customerBookingsProvider),
+              ),
+            ),
+          ),
+        ),
         data: (list) {
           final active = list.where((o) => o.status == 'pending' || o.status == 'accepted' || o.status == 'navigating' || o.status == 'on_the_way' || o.status == 'arrived' || o.status == 'quote_sent' || o.status == 'work_started').toList();
           final completed = list.where((o) => o.status == 'completed' || o.status == 'work_completed' || o.status == 'payment_completed' || o.status == 'closed').toList();
@@ -154,55 +173,58 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
   }
 
   Widget _buildOrdersList(List<OrderItem> list, bool isDark, {required String tabType}) {
-    if (list.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              tabType == 'active' ? Icons.pending_actions_outlined : tabType == 'completed' ? Icons.check_circle_outline : Icons.cancel_outlined,
-              size: 70,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              tabType == 'active' ? 'No active bookings' : tabType == 'completed' ? 'No completed orders yet' : 'No cancelled orders',
-              style: AppTextStyles.headingSmall(isDark),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              tabType == 'active' ? 'Book a service to get started!' : 'Your $tabType orders will appear here',
-              style: AppTextStyles.bodySmall(isDark),
-            ),
-            if (tabType == 'active') ...[
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () {
-                  ref.read(currentNavIndexProvider.notifier).state = 0;
-                  context.go('/home');
-                },
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text('Book a Service', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () async => await ref.refresh(customerBookingsProvider.future),
-      child: ListView.builder(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        itemCount: list.length,
-        itemBuilder: (context, index) {
-          final order = list[index];
-          return _buildOrderCard(order, isDark, tabType).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.05, end: 0);
-        },
-      ),
+      child: list.isEmpty
+          ? SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Container(
+                height: MediaQuery.of(context).size.height - 250,
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      tabType == 'active' ? Icons.pending_actions_outlined : tabType == 'completed' ? Icons.check_circle_outline : Icons.cancel_outlined,
+                      size: 70,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      tabType == 'active' ? 'No active bookings' : tabType == 'completed' ? 'No completed orders yet' : 'No cancelled orders',
+                      style: AppTextStyles.headingSmall(isDark),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      tabType == 'active' ? 'Book a service to get started!' : 'Your $tabType orders will appear here',
+                      style: AppTextStyles.bodySmall(isDark),
+                    ),
+                    if (tabType == 'active') ...[
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          ref.read(currentNavIndexProvider.notifier).state = 0;
+                          context.go('/home');
+                        },
+                        icon: const Icon(Icons.add, color: Colors.white),
+                        label: const Text('Book a Service', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            )
+          : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              padding: const EdgeInsets.all(16),
+              itemCount: list.length,
+              itemBuilder: (context, index) {
+                final order = list[index];
+                return _buildOrderCard(order, isDark, tabType).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.05, end: 0);
+              },
+            ),
     );
   }
 
@@ -650,29 +672,5 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
     );
   }
 
-  Widget _buildErrorState(BuildContext context, bool isDark, String error) {
-    return Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.cloud_off_rounded, size: 64, color: AppColors.textSecondaryLight),
-        const SizedBox(height: 16),
-        Text('Could not load bookings', style: AppTextStyles.headingSmall(isDark)),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Text(
-            error,
-            style: AppTextStyles.bodySmall(isDark),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(height: 20),
-        ElevatedButton.icon(
-          onPressed: () => ref.invalidate(customerBookingsProvider),
-          icon: const Icon(Icons.refresh, color: Colors.white),
-          label: const Text('Retry', style: TextStyle(color: Colors.white)),
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-        ),
-      ]),
-    );
-  }
+
 }

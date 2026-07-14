@@ -10,16 +10,14 @@ import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/core/providers/network_providers.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/core/network/error_handler.dart';
+import 'package:quickfix/shared/widgets/error_widgets.dart';
+import 'package:quickfix/core/providers/connectivity_provider.dart';
 
 final _offersProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  try {
-    final client = ref.watch(dioClientProvider);
-    final res = await client.get('/offers');
-    final data = res.data as List;
-    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-  } catch (e) {
-    return [];
-  }
+  final client = ref.watch(dioClientProvider);
+  final res = await client.get('/offers');
+  final data = res.data as List;
+  return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
 
 // Static color palette cycling for coupon cards
@@ -39,6 +37,13 @@ class OffersScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(isDarkModeProvider);
     final offersAsync = ref.watch(_offersProvider);
+
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && offersAsync.hasError) {
+        ref.invalidate(_offersProvider);
+      }
+    });
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
@@ -65,25 +70,40 @@ class OffersScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: offersAsync.when(
-        loading: () => _buildSkeleton(isDark),
-        error: (err, st) => _buildError(isDark, ref, ErrorHandler.handle(err, st).message),
-        data: (offers) {
-          if (offers.isEmpty) {
-            return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.local_offer_outlined, size: 70, color: AppColors.textSecondaryLight),
-              const SizedBox(height: 16),
-              Text('No offers available', style: AppTextStyles.headingSmall(isDark)),
-              const SizedBox(height: 6),
-              Text('Check back later for exclusive deals!', style: AppTextStyles.bodySmall(isDark)),
-            ]));
-          }
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async => await ref.refresh(_offersProvider.future),
+        child: offersAsync.when(
+          loading: () => _buildSkeleton(isDark),
+          error: (err, st) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+              alignment: Alignment.center,
+              child: CommonErrorWidget(
+                message: ErrorHandler.handle(err, st).message,
+                onRetry: () => ref.invalidate(_offersProvider),
+              ),
+            ),
+          ),
+          data: (offers) {
+            if (offers.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+                  alignment: Alignment.center,
+                  child: const EmptyStateWidget(
+                    title: 'No offers available',
+                    message: 'Check back later for exclusive deals!',
+                    icon: Icons.local_offer_outlined,
+                  ),
+                ),
+              );
+            }
 
-          return RefreshIndicator(
-            color: AppColors.primary,
-            onRefresh: () async => await ref.refresh(_offersProvider.future),
-            child: ListView.builder(
-              physics: const BouncingScrollPhysics(),
+            return ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               itemCount: offers.length,
               itemBuilder: (context, index) {
@@ -94,9 +114,9 @@ class OffersScreen extends ConsumerWidget {
                     .fadeIn()
                     .slideY(begin: 0.08, end: 0, duration: 350.ms, curve: Curves.easeOutQuad);
               },
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -222,28 +242,7 @@ class OffersScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(bool isDark, WidgetRef ref, String error) {
-    return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.cloud_off_rounded, size: 64, color: AppColors.textSecondaryLight),
-      const SizedBox(height: 16),
-      Text('Could not load offers', style: AppTextStyles.headingSmall(isDark)),
-      const SizedBox(height: 6),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Text(
-          error,
-          style: AppTextStyles.bodySmall(isDark),
-          textAlign: TextAlign.center,
-        ),
-      ),
-      const SizedBox(height: 16),
-      ElevatedButton(
-        onPressed: () => ref.invalidate(_offersProvider),
-        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-        child: const Text('Retry', style: TextStyle(color: Colors.white)),
-      ),
-    ]));
-  }
+
 }
 
 class _TicketClipper extends CustomClipper<Path> {

@@ -8,6 +8,9 @@ import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/shared/widgets/glass_container.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
+import 'package:quickfix/shared/widgets/error_widgets.dart';
+import 'package:quickfix/core/providers/connectivity_provider.dart';
+import 'package:quickfix/core/network/error_handler.dart';
 
 class WishlistScreen extends ConsumerStatefulWidget {
   const WishlistScreen({super.key});
@@ -39,6 +42,14 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
     final shopsAsync = ref.watch(nearbyShopsProvider);
     final expertsAsync = ref.watch(topProfessionalsProvider);
 
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false) {
+        if (shopsAsync.hasError) ref.invalidate(nearbyShopsProvider);
+        if (expertsAsync.hasError) ref.invalidate(topProfessionalsProvider);
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text('My Wishlist', style: AppTextStyles.headingMedium(isDark)),
@@ -69,23 +80,55 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
         controller: _tabController,
         children: [
           // Shops Tab
-          shopsAsync.when(
-            data: (allShops) {
-              final favShops = allShops.where((shop) => wishlist.contains(shop.id)).toList();
-              return _buildShopsTab(favShops, isDark);
+          RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              await ref.refresh(nearbyShopsProvider.future);
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => _buildShopsTab([], isDark),
+            child: shopsAsync.when(
+              data: (allShops) {
+                final favShops = allShops.where((shop) => wishlist.contains(shop.id)).toList();
+                return _buildShopsTab(favShops, isDark);
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height - 200,
+                  alignment: Alignment.center,
+                  child: CommonErrorWidget(
+                    message: ErrorHandler.handle(err, stack).message,
+                    onRetry: () => ref.invalidate(nearbyShopsProvider),
+                  ),
+                ),
+              ),
+            ),
           ),
           
           // Experts Tab
-          expertsAsync.when(
-            data: (allExperts) {
-              final favExperts = allExperts.where((prof) => wishlist.contains(prof.id)).toList();
-              return _buildExpertsTab(favExperts, isDark);
+          RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              await ref.refresh(topProfessionalsProvider.future);
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => _buildExpertsTab([], isDark),
+            child: expertsAsync.when(
+              data: (allExperts) {
+                final favExperts = allExperts.where((prof) => wishlist.contains(prof.id)).toList();
+                return _buildExpertsTab(favExperts, isDark);
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height - 200,
+                  alignment: Alignment.center,
+                  child: CommonErrorWidget(
+                    message: ErrorHandler.handle(err, stack).message,
+                    onRetry: () => ref.invalidate(topProfessionalsProvider),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -319,58 +362,64 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> with SingleTick
   }
 
   Widget _buildEmptyState(bool isDark, {required IconData icon, required String title, required String subtitle}) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Glassmorphism Placeholder
-            GlassContainer(
-              width: 100,
-              height: 100,
-              borderRadius: BorderRadius.circular(50),
-              blur: 8,
-              border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
-                width: 1.5,
-              ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  size: 44,
-                  color: AppColors.primary,
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height - 250,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Glassmorphism Placeholder
+                GlassContainer(
+                  width: 100,
+                  height: 100,
+                  borderRadius: BorderRadius.circular(50),
+                  blur: 8,
+                  border: Border.all(
+                    color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
+                    width: 1.5,
+                  ),
+                  child: Center(
+                    child: Icon(
+                      icon,
+                      size: 44,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 24),
+                Text(
+                  title,
+                  style: AppTextStyles.headingMedium(isDark).copyWith(fontSize: 18),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.bodyMedium(isDark),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: () {
+                    AppHaptics.heavyTap();
+                    ref.read(currentNavIndexProvider.notifier).state = 0; // Home tab
+                    context.go('/home');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Explore Services', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-            Text(
-              title,
-              style: AppTextStyles.headingMedium(isDark).copyWith(fontSize: 18),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: AppTextStyles.bodyMedium(isDark),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                AppHaptics.heavyTap();
-                ref.read(currentNavIndexProvider.notifier).state = 0; // Home tab
-                context.go('/home');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Explore Services', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
+          ),
         ),
       ),
     );

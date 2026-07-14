@@ -8,6 +8,8 @@ import 'package:quickfix/shared/utils/haptics.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
 import 'package:quickfix/features/home/providers/home_providers.dart';
 import 'package:quickfix/features/booking/providers/cart_provider.dart';
+import 'package:quickfix/shared/widgets/error_widgets.dart';
+import 'package:quickfix/core/providers/connectivity_provider.dart';
 
 class ShopDetailsScreen extends ConsumerStatefulWidget {
   final String shopId;
@@ -147,42 +149,42 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
     final totalItems = ref.watch(cartTotalItemsProvider);
     final totalAmount = ref.watch(cartTotalAmountProvider);
 
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Shop Details')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && (_errorMessage.isNotEmpty || _shop == null)) {
+        _fetchShopDetails();
+      }
+    });
 
-    if (_errorMessage.isNotEmpty || _shop == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Shop Details')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-              const SizedBox(height: 16),
-              Text(_errorMessage.isNotEmpty ? _errorMessage : 'Shop details could not be found.'),
-              const SizedBox(height: 20),
-              ElevatedButton(onPressed: _fetchShopDetails, child: const Text('Retry')),
-            ],
+    Widget buildBody() {
+      if (_isLoading) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (_errorMessage.isNotEmpty || _shop == null) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+            alignment: Alignment.center,
+            child: CommonErrorWidget(
+              message: _errorMessage.isNotEmpty ? _errorMessage : 'Shop details could not be found.',
+              onRetry: _fetchShopDetails,
+            ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    final shop = _shop!;
-    final displayedServices = shop.services.where((s) => s.isEnabled != false && s.isAvailable != false).toList();
-    final imageToUse = shop.imagePath.isNotEmpty
-        ? shop.imagePath
-        : 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500';
+      final shop = _shop!;
+      final displayedServices = shop.services.where((s) => s.isEnabled != false && s.isAvailable != false).toList();
+      final imageToUse = shop.imagePath.isNotEmpty
+          ? shop.imagePath
+          : 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500';
 
-    return Scaffold(
-      body: Stack(
+      return Stack(
         children: [
           CustomScrollView(
-            physics: const BouncingScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             slivers: [
               // Cover Image Header with Back Button
               SliverAppBar(
@@ -716,6 +718,18 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
               ).animate().slideY(begin: 1.0, end: 0.0, duration: 250.ms, curve: Curves.easeOutQuad),
             ),
         ],
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      appBar: (_isLoading || _errorMessage.isNotEmpty || _shop == null)
+          ? AppBar(title: const Text('Shop Details'))
+          : null,
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _fetchShopDetails,
+        child: buildBody(),
       ),
     );
   }

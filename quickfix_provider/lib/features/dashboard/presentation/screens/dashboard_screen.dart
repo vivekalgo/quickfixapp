@@ -7,6 +7,8 @@ import 'package:quickfix_provider/features/auth/presentation/providers/auth_prov
 import 'package:quickfix_provider/features/bookings/presentation/providers/bookings_provider.dart';
 import 'package:quickfix_provider/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:quickfix_provider/features/bookings/presentation/screens/booking_detail_screen.dart';
+import 'package:quickfix_provider/core/widgets/error_widgets.dart';
+import 'package:quickfix_provider/core/network/connectivity_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -18,6 +20,13 @@ class DashboardScreen extends ConsumerWidget {
     final bookingsState = ref.watch(bookingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && dashboardState.errorMessage != null) {
+        ref.read(dashboardProvider.notifier).fetchStats();
+      }
+    });
+
     // Filter pending requests for this shop
     final pendingRequests = bookingsState.bookings
         .where((b) => b.status == 'pending')
@@ -27,16 +36,32 @@ class DashboardScreen extends ConsumerWidget {
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       body: SafeArea(
         child: RefreshIndicator(
+          color: AppColors.primary,
           onRefresh: () async {
             await ref.read(dashboardProvider.notifier).fetchStats();
             await ref.read(bookingsProvider.notifier).fetchBookings(silent: true);
           },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          child: dashboardState.errorMessage != null
+              ? SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Container(
+                    height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 100,
+                    alignment: Alignment.center,
+                    child: CommonErrorWidget(
+                      message: dashboardState.errorMessage!,
+                      onRetry: () {
+                        ref.read(dashboardProvider.notifier).fetchStats();
+                        ref.read(bookingsProvider.notifier).fetchBookings(silent: true);
+                      },
+                    ),
+                  ),
+                )
+              : SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                 // Header Profile Info & Online Toggle
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

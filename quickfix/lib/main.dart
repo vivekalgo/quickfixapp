@@ -8,6 +8,8 @@ import 'dart:ui';
 import 'package:quickfix/core/logging/app_logger.dart';
 import 'package:quickfix/core/logging/performance_monitor.dart';
 
+import 'package:quickfix/core/services/notification_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -48,6 +50,9 @@ void main() async {
       HiveService.init(),
     ]);
   });
+
+  // Initialize Notification Service
+  await NotificationService.init();
 
   runApp(
     const ProviderScope(

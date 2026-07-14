@@ -5,6 +5,8 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../providers/bookings_provider.dart';
 import 'booking_detail_screen.dart';
+import 'package:quickfix_provider/core/widgets/error_widgets.dart';
+import 'package:quickfix_provider/core/network/connectivity_provider.dart';
 
 class BookingsScreen extends ConsumerWidget {
   const BookingsScreen({super.key});
@@ -13,6 +15,13 @@ class BookingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(bookingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && state.errorMessage != null) {
+        ref.read(bookingsProvider.notifier).fetchBookings();
+      }
+    });
 
     return DefaultTabController(
       length: 4,
@@ -35,63 +44,93 @@ class BookingsScreen extends ConsumerWidget {
             ],
           ),
         ),
-        body: state.isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-            : TabBarView(
-                children: [
-                  _buildBookingsList(
-                    context,
-                    state.bookings.where((b) => ['accepted', 'navigating', 'arrived', 'work_started'].contains(b.status)).toList(),
-                    isDark,
-                    'No ongoing bookings. Go to "New Request" to accept some!',
+        body: state.errorMessage != null
+            ? RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: () async {
+                  await ref.read(bookingsProvider.notifier).fetchBookings();
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Container(
+                    height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+                    alignment: Alignment.center,
+                    child: CommonErrorWidget(
+                      message: state.errorMessage!,
+                      onRetry: () => ref.read(bookingsProvider.notifier).fetchBookings(),
+                    ),
                   ),
-                  _buildBookingsList(
-                    context,
-                    state.bookings.where((b) => b.status == 'pending').toList(),
-                    isDark,
-                    'No new booking requests at the moment.',
+                ),
+              )
+            : state.isLoading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : TabBarView(
+                    children: [
+                      _buildBookingsList(
+                        context,
+                        ref,
+                        state.bookings.where((b) => ['accepted', 'navigating', 'arrived', 'work_started'].contains(b.status)).toList(),
+                        isDark,
+                        'No ongoing bookings. Go to "New Request" to accept some!',
+                      ),
+                      _buildBookingsList(
+                        context,
+                        ref,
+                        state.bookings.where((b) => b.status == 'pending').toList(),
+                        isDark,
+                        'No new booking requests at the moment.',
+                      ),
+                      _buildBookingsList(
+                        context,
+                        ref,
+                        state.bookings.where((b) => ['completed', 'payment_completed', 'closed'].contains(b.status)).toList(),
+                        isDark,
+                        'No completed orders yet.',
+                      ),
+                      _buildBookingsList(
+                        context,
+                        ref,
+                        state.bookings.where((b) => ['cancelled', 'rejected'].contains(b.status)).toList(),
+                        isDark,
+                        'No cancelled orders.',
+                      ),
+                    ],
                   ),
-                  _buildBookingsList(
-                    context,
-                    state.bookings.where((b) => ['completed', 'payment_completed', 'closed'].contains(b.status)).toList(),
-                    isDark,
-                    'No completed orders yet.',
-                  ),
-                  _buildBookingsList(
-                    context,
-                    state.bookings.where((b) => ['cancelled', 'rejected'].contains(b.status)).toList(),
-                    isDark,
-                    'No cancelled orders.',
-                  ),
-                ],
-              ),
       ),
     );
   }
 
-  Widget _buildBookingsList(BuildContext context, List<dynamic> list, bool isDark, String emptyLabel) {
-    if (list.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.assignment_late_rounded, size: 48, color: Colors.white.withValues(alpha: 0.2)),
-              const SizedBox(height: 12),
-              Text(
-                emptyLabel,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13.5),
+  Widget _buildBookingsList(BuildContext context, WidgetRef ref, List<dynamic> list, bool isDark, String emptyLabel) {
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () async {
+        await ref.read(bookingsProvider.notifier).fetchBookings(silent: true);
+      },
+      child: list.isEmpty
+          ? SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Container(
+                height: MediaQuery.of(context).size.height - 250,
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.assignment_late_rounded, size: 48, color: Colors.white.withValues(alpha: 0.2)),
+                      const SizedBox(height: 12),
+                      Text(
+                        emptyLabel,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13.5),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
+            )
+          : ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
       itemCount: list.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
@@ -183,6 +222,7 @@ class BookingsScreen extends ConsumerWidget {
           ),
         );
       },
+    ),
     );
   }
 

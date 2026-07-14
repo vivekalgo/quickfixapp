@@ -6,6 +6,8 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/shop/presentation/providers/payments_provider.dart';
+import 'package:quickfix_provider/core/widgets/error_widgets.dart';
+import 'package:quickfix_provider/core/network/connectivity_provider.dart';
 
 class PaymentsScreen extends ConsumerWidget {
   const PaymentsScreen({super.key});
@@ -79,6 +81,13 @@ class PaymentsScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && paymentsState.errorMessage != null) {
+        ref.read(paymentsProvider.notifier).fetchEarnings();
+      }
+    });
+
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
@@ -86,15 +95,28 @@ class PaymentsScreen extends ConsumerWidget {
         centerTitle: true,
       ),
       body: RefreshIndicator(
+        color: AppColors.primary,
         onRefresh: () async {
           await ref.read(paymentsProvider.notifier).fetchEarnings();
         },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: paymentsState.errorMessage != null
+            ? SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 100,
+                  alignment: Alignment.center,
+                  child: CommonErrorWidget(
+                    message: paymentsState.errorMessage!,
+                    onRetry: () => ref.read(paymentsProvider.notifier).fetchEarnings(),
+                  ),
+                ),
+              )
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
               // Wallet balance display card
               Container(
                 padding: const EdgeInsets.all(20),

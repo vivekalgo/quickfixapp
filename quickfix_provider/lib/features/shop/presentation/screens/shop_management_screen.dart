@@ -7,6 +7,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../providers/shop_provider.dart';
+import 'package:quickfix_provider/core/network/connectivity_provider.dart';
 
 class ShopManagementScreen extends ConsumerStatefulWidget {
   const ShopManagementScreen({super.key});
@@ -715,6 +716,13 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
     final authState = ref.watch(authProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false) {
+        ref.read(authProvider.notifier).refreshProfile();
+      }
+    });
+
     if (authState.shop == null) {
       return Scaffold(
         backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
@@ -749,11 +757,18 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
         body: TabBarView(
           children: [
             // Tab 1: Operational Settings
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+            RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async {
+                setState(() => _initialized = false);
+                await ref.read(authProvider.notifier).refreshProfile();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   // ── Shop Card Appearance ──────────────────────────────────
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -1109,13 +1124,21 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                 ],
               ),
             ),
+            ),
 
             // Tab 2: Services Catalogue
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+            RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async {
+                setState(() => _initialized = false);
+                await ref.read(authProvider.notifier).refreshProfile();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -1276,10 +1299,18 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                 ],
               ),
             ),
+            ),
 
             // Tab 3: Gallery Portfolio
-            GridView.builder(
-              padding: const EdgeInsets.all(16),
+            RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async {
+                setState(() => _initialized = false);
+                await ref.read(authProvider.notifier).refreshProfile();
+              },
+              child: GridView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 crossAxisSpacing: 8,
@@ -1342,6 +1373,7 @@ class _ShopManagementScreenState extends ConsumerState<ShopManagementScreen> {
                   ],
                 );
               },
+            ),
             ),
           ],
         ),

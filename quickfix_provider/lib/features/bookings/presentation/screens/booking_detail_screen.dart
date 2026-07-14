@@ -7,6 +7,8 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../data/models/booking_model.dart';
 import '../providers/bookings_provider.dart';
+import 'package:quickfix_provider/core/widgets/error_widgets.dart';
+import 'package:quickfix_provider/core/network/connectivity_provider.dart';
 
 class BookingDetailScreen extends ConsumerStatefulWidget {
   final String bookingId;
@@ -90,44 +92,51 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
     final booking = state.selectedBookingDetails;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (state.isLoading && booking == null) {
-      return Scaffold(
-        backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        appBar: AppBar(title: const Text('Order Details')),
-        body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      );
-    }
+    // Auto-retry on internet reconnection if previously failed
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false && state.errorMessage != null) {
+        ref.read(bookingsProvider.notifier).fetchBookingDetails(widget.bookingId);
+      }
+    });
 
-    if (booking == null) {
-      return Scaffold(
-        backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        appBar: AppBar(title: const Text('Order Details')),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Booking not found', style: AppTextStyles.headingMedium(isDark)),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () => ref.read(bookingsProvider.notifier).fetchBookingDetails(widget.bookingId),
-                child: const Text('Retry'),
-              ),
-            ],
+    Widget buildBody() {
+      if (state.isLoading && booking == null) {
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      }
+
+      if (state.errorMessage != null && booking == null) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+            alignment: Alignment.center,
+            child: CommonErrorWidget(
+              message: state.errorMessage!,
+              onRetry: () => ref.read(bookingsProvider.notifier).fetchBookingDetails(widget.bookingId),
+            ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    final nextStatus = _getNextStatus(booking.status);
-    final actionLabel = _getStatusActionButtonLabel(booking.status);
+      if (booking == null) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 50,
+            alignment: Alignment.center,
+            child: CommonErrorWidget(
+              message: 'Booking details not found.',
+              onRetry: () => ref.read(bookingsProvider.notifier).fetchBookingDetails(widget.bookingId),
+            ),
+          ),
+        );
+      }
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: Text(booking.id),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
+      final nextStatus = _getNextStatus(booking.status);
+      final actionLabel = _getStatusActionButtonLabel(booking.status);
+
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -480,6 +489,21 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
             ],
           ],
         ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      appBar: AppBar(
+        title: Text(booking?.id ?? 'Order Details'),
+        centerTitle: true,
+      ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async {
+          await ref.read(bookingsProvider.notifier).fetchBookingDetails(widget.bookingId);
+        },
+        child: buildBody(),
       ),
     );
   }
