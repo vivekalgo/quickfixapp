@@ -175,7 +175,9 @@ class ErrorHandler {
             );
           case 401:
             return ApiException(
-              'Session expired. Please log in again.',
+              errorMessage != 'Something went wrong. Please try again.'
+                  ? errorMessage
+                  : 'Session expired. Please log in again.',
               statusCode,
               error,
               errorId,
