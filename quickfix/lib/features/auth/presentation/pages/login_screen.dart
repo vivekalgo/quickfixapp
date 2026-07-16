@@ -11,6 +11,7 @@ import 'package:quickfix/features/home/presentation/controllers/home_providers.d
 import 'package:quickfix/features/auth/presentation/controllers/auth_providers.dart';
 import 'package:quickfix/core/utils/input_sanitizer.dart';
 import 'package:quickfix/core/network/error_handler.dart';
+import 'package:quickfix/core/config/app_config.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -84,6 +85,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         },
         verificationFailed: (FirebaseAuthException e) {
           if (!mounted) return;
+          
+          if (!AppConfig.isProduction) {
+            debugPrint('Firebase phone verification failed: ${e.message}. Using development mock OTP fallback.');
+            setState(() {
+              _verificationId = 'mock-verification-id-$phone';
+              _isLoading = false;
+              _isOtpSent = true;
+              _timerCount = 30;
+            });
+            _startTimer();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Firebase failed. Switched to Mock OTP (use 123456) for local development.'),
+              ),
+            );
+            return;
+          }
+
           setState(() {
             _isLoading = false;
           });
@@ -119,6 +138,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
     } catch (e) {
       if (mounted) {
+        if (!AppConfig.isProduction) {
+          debugPrint('Firebase phone verification initiation failed: $e. Using dev mock OTP fallback.');
+          setState(() {
+            _verificationId = 'mock-verification-id-$phone';
+            _isLoading = false;
+            _isOtpSent = true;
+            _timerCount = 30;
+          });
+          _startTimer();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Firebase failed. Switched to Mock OTP (use 123456) for local development.'),
+            ),
+          );
+          return;
+        }
+
         setState(() {
           _isLoading = false;
         });
@@ -150,6 +186,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         throw Exception(
           "Verification session expired. Please request OTP again.",
         );
+      }
+
+      // Check if it's a mock session in development
+      if (_verificationId!.startsWith('mock-verification-id-')) {
+        if (otp != '123456') {
+          throw Exception("Invalid OTP code. Please enter '123456'.");
+        }
+        final phone = _phoneController.text.trim();
+        final mockToken = 'mock-firebase-token-for-$phone';
+        
+        await ref
+            .read(authProvider.notifier)
+            .login(phone, otp, firebaseToken: mockToken);
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          AppHaptics.successNotification();
+          final shouldCompletePermissionFlow =
+              !HiveService.isInitialPermissionFlowComplete();
+          context.go(shouldCompletePermissionFlow ? '/location' : '/home');
+        }
+        return;
       }
 
       final credential = PhoneAuthProvider.credential(
