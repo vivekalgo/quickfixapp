@@ -5,7 +5,11 @@ abstract class HomeRepository {
   Future<List<Shop>> getNearbyShops({String? filter, double? lat, double? lng});
   Future<List<Professional>> getTopProfessionals();
   Future<List<Review>> getCustomerReviews();
-  Future<List<Shop>> searchShops({required String query, double? lat, double? lng});
+  Future<List<Shop>> searchShops({
+    required String query,
+    double? lat,
+    double? lng,
+  });
   Future<List<PromoBanner>> getBanners();
   Future<List<Promotion>> getPromotions();
   Future<List<SpecialCard>> getSpecialCards();

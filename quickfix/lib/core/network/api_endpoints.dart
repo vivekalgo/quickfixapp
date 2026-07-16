@@ -1,5 +1,8 @@
 class ApiEndpoints {
-  static const String _configuredBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: '',
+  );
   static final String baseUrl = _configuredBaseUrl.isNotEmpty
       ? _configuredBaseUrl
       : 'https://quickfixapp-production.up.railway.app/api';
@@ -38,5 +41,6 @@ class ApiEndpoints {
   static const String ticketMessages = '/support/messages';
 
   // Payment Receipts
-  static String bookingLedger(String bookingId) => '/payments/ledger/$bookingId';
+  static String bookingLedger(String bookingId) =>
+      '/payments/ledger/$bookingId';
 }

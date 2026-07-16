@@ -1,30 +1,25 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 import 'package:quickfix_provider/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const QuickFixProviderApp());
+  setUpAll(() async {
+    final tempDir = await Directory.systemTemp.createTemp('hive_test');
+    Hive.init(tempDir.path);
+    await Hive.openBox('provider_settings');
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('Provider App smoke test', (WidgetTester tester) async {
+    await tester.pumpWidget(const ProviderScope(child: QuickFixProviderApp()));
+    expect(find.byType(QuickFixProviderApp), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    // Advance the virtual clock to allow the splash screen timer (2.2s) to fire
+    await tester.pump(const Duration(seconds: 3));
+
+    // Pump a few frames to let the routing and transition finalize
     await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
   });
 }

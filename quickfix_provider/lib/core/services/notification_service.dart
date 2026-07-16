@@ -8,13 +8,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../network/api_endpoints.dart';
-import '../storage/hive_service.dart';
-import '../router/app_router.dart';
-import '../../features/bookings/presentation/screens/booking_detail_screen.dart';
+import 'package:quickfix_provider/core/network/api_endpoints.dart';
+import 'package:quickfix_provider/core/network/dns_bypass_helper.dart';
+import 'package:quickfix_provider/core/storage/hive_service.dart';
+import 'package:quickfix_provider/core/router/app_router.dart';
+import 'package:quickfix_provider/features/bookings/presentation/pages/booking_detail_screen.dart';
 
 // ─── Background Handler ───────────────────────────────────────────────────────
 
+/// **Firebase & Notifications**: Captures background push notifications in a separate isolate.
+/// 
+/// Runs inside a custom VM isolate when the provider application is closed or in background.
+/// Initialized with `@pragma('vm:entry-point')` to prevent code stripping.
+/// Updates the local Hive box so the partner can see background alerts history immediately upon reopening.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -28,7 +34,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Map<String, dynamic> _parseMessage(RemoteMessage message) {
   final notification = message.notification;
   final data = message.data;
-  final id = message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
+  final id =
+      message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
   return {
     'id': id,
     'title': notification?.title ?? data['title'] ?? 'QuickFix Partner Update',
@@ -44,6 +51,10 @@ Map<String, dynamic> _parseMessage(RemoteMessage message) {
 
 // ─── NotificationService ─────────────────────────────────────────────────────
 
+/// Enterprise service for managing system push notifications and alerts in the Provider app.
+/// 
+/// Interfaces with [FirebaseMessaging] to catch incoming job dispatches and other alerts,
+/// registering two local notification channels (standard and custom ring alert) using [FlutterLocalNotificationsPlugin].
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -60,17 +71,20 @@ class NotificationService {
   );
 
   // Booking alert channel with custom ringtone
-  static const AndroidNotificationChannel _bookingChannel = AndroidNotificationChannel(
-    'booking_alert_channel',
-    'Booking Alerts',
-    description: 'Incoming booking requests — plays a custom alert ringtone.',
-    importance: Importance.max,
-    playSound: true,
-    sound: RawResourceAndroidNotificationSound('alert_ring'),
-    enableVibration: true,
-    showBadge: true,
-  );
+  static const AndroidNotificationChannel _bookingChannel =
+      AndroidNotificationChannel(
+        'booking_alert_channel',
+        'Booking Alerts',
+        description:
+            'Incoming booking requests — plays a custom alert ringtone.',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('alert_ring'),
+        enableVibration: true,
+        showBadge: true,
+      );
 
+  /// Initializes the messaging events, local alert controllers, and token synchronizers.
   static Future<void> init() async {
     try {
       // 1. Ensure Hive box is open
@@ -79,7 +93,9 @@ class NotificationService {
       }
 
       // 2. Register background handler FIRST
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
 
       // 3. Request permissions
       await requestPermissions();
@@ -107,7 +123,9 @@ class NotificationService {
 
       // 5. Create notification channels
       final androidPlugin = _localNotificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (androidPlugin != null) {
         await androidPlugin.createNotificationChannel(_channel);
         await androidPlugin.createNotificationChannel(_bookingChannel);
@@ -128,11 +146,14 @@ class NotificationService {
           ).query;
 
           final type = data['type']?.toString();
-          final isBookingRequest = type == 'booking' ||
+          final isBookingRequest =
+              type == 'booking' ||
               (notification.title ?? '').toLowerCase().contains('booking');
 
           final channelId = isBookingRequest ? _bookingChannel.id : _channel.id;
-          final channelName = isBookingRequest ? _bookingChannel.name : _channel.name;
+          final channelName = isBookingRequest
+              ? _bookingChannel.name
+              : _channel.name;
           final channelDesc = isBookingRequest
               ? _bookingChannel.description
               : _channel.description;
@@ -182,7 +203,6 @@ class NotificationService {
 
       // 9. Startup: terminated state + topic + token sync
       await _initStartup();
-
     } catch (e) {
       debugPrint('[FCM]: Failed to initialize NotificationService: $e');
     }
@@ -191,7 +211,8 @@ class NotificationService {
   static Future<void> _initStartup() async {
     // Terminated state launch
     try {
-      final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      final initialMessage = await FirebaseMessaging.instance
+          .getInitialMessage();
       if (initialMessage != null) {
         debugPrint('[FCM Terminated Click]: ${initialMessage.messageId}');
         Future.delayed(const Duration(milliseconds: 1500), () {
@@ -237,7 +258,9 @@ class NotificationService {
 
       if (Platform.isAndroid) {
         final androidPlugin = _localNotificationsPlugin
-            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
         await androidPlugin?.requestNotificationsPermission();
       }
     } catch (e) {
@@ -274,6 +297,11 @@ class NotificationService {
     }
   }
 
+  /// **API Usage & Firebase**: Updates the server registration token.
+  /// 
+  /// Appends the partner's JWT authorization header. If the local network has routing restrictions,
+  /// it routes requests through the [DnsBypassHelper] with custom certificate overrides.
+  /// After a successful synchronization, the token is written to Hive to avoid repetitive requests.
   static Future<void> syncTokenWithBackend(String token) async {
     final authToken = HiveService.getAuthToken();
     if (authToken == null) {
@@ -282,36 +310,35 @@ class NotificationService {
     }
 
     try {
-      final dioClient = Dio(BaseOptions(
-        baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: const Duration(seconds: 8),
-        receiveTimeout: const Duration(seconds: 8),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-          'Content-Type': 'application/json',
-        },
-      ));
+      final dioClient = Dio(
+        BaseOptions(
+          baseUrl: ApiEndpoints.baseUrl,
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+          headers: {
+            'Authorization': 'Bearer $authToken',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
 
-      const String railwayEdgeIp = '69.46.46.69';
-      const String railwayDomain = 'up.railway.app';
-      if (ApiEndpoints.baseUrl.contains(railwayDomain)) {
-        final originalHost = Uri.parse(ApiEndpoints.baseUrl).host;
-        dioClient.options.headers['Host'] = originalHost;
-        dioClient.options.baseUrl = ApiEndpoints.baseUrl.replaceFirst(originalHost, railwayEdgeIp);
-        ((dioClient.httpClientAdapter) as IOHttpClientAdapter).createHttpClient = () {
+      if (DnsBypassHelper.shouldBypass(ApiEndpoints.baseUrl)) {
+        dioClient.options.baseUrl = DnsBypassHelper.bypassUrl(
+          ApiEndpoints.baseUrl,
+          dioClient.options.headers,
+        );
+        ((dioClient.httpClientAdapter) as IOHttpClientAdapter)
+            .createHttpClient = () {
           final client = HttpClient();
-          client.badCertificateCallback = (cert, host, port) {
-            return (host == railwayEdgeIp || host.endsWith(railwayDomain)) &&
-                (cert.subject.contains('CN=*.up.railway.app') ||
-                    cert.subject.contains('CN=up.railway.app'));
-          };
+          client.badCertificateCallback = DnsBypassHelper.verifyCertificate;
           return client;
         };
       }
 
-      final response = await dioClient.post(ApiEndpoints.updateFcmToken, data: {
-        'fcmToken': token,
-      });
+      final response = await dioClient.post(
+        ApiEndpoints.updateFcmToken,
+        data: {'fcmToken': token},
+      );
 
       if (response.statusCode == 200) {
         debugPrint('[FCM]: Token synced to backend successfully');
@@ -340,6 +367,10 @@ class NotificationService {
     }
   }
 
+  /// **Important Logic & Routing**: Handles tap actions on provider notifications.
+  /// 
+  /// If the payload contains a valid `bookingId`, it pushes the [BookingDetailScreen]
+  /// directly onto the navigator stack, allowing the provider to accept or reject the job.
   static void handleNotificationClick(Map<String, dynamic> data) {
     final type = data['type']?.toString();
     final bookingId = data['bookingId']?.toString();

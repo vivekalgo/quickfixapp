@@ -80,14 +80,18 @@ void main() {
 
       // Test "Fast Delivery" filter (<= 25 mins)
       final List<Shop> shops = [shop15, shop30, shopDefault];
-      final fastShops = shops.where((s) => s.estimatedTimeMinutes <= 25).toList();
+      final fastShops = shops
+          .where((s) => s.estimatedTimeMinutes <= 25)
+          .toList();
       expect(fastShops.length, equals(2));
       expect(fastShops.any((s) => s.name == 'Plumbing Shop'), isTrue);
       expect(fastShops.any((s) => s.name == 'Default Shop'), isTrue);
       expect(fastShops.any((s) => s.name == 'Cleaning Shop'), isFalse);
 
       // Test "Affordable" filter (₹ or ₹₹)
-      final affordableShops = shops.where((s) => s.priceRange == '₹' || s.priceRange == '₹₹').toList();
+      final affordableShops = shops
+          .where((s) => s.priceRange == '₹' || s.priceRange == '₹₹')
+          .toList();
       expect(affordableShops.length, equals(2));
       expect(affordableShops.any((s) => s.name == 'Plumbing Shop'), isTrue);
       expect(affordableShops.any((s) => s.name == 'Default Shop'), isTrue);

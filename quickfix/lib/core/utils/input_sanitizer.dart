@@ -30,8 +30,7 @@ class InputSanitizer {
   );
 
   /// Returns true if [email] is a valid email address.
-  static bool isValidEmail(String email) =>
-      _emailRegExp.hasMatch(email.trim());
+  static bool isValidEmail(String email) => _emailRegExp.hasMatch(email.trim());
 
   // ── Referral Code ─────────────────────────────────────────────────────────
   static final RegExp _referralRegExp = RegExp(r'^[A-Za-z0-9]{4,12}$');
@@ -47,7 +46,10 @@ class InputSanitizer {
     return input
         .trim()
         .replaceAll(RegExp(r'<[^>]*>'), '') // strip HTML tags
-        .replaceAll(RegExp(r'[\x00-\x08\x0B-\x0C\x0E-\x1F]'), ''); // strip control chars
+        .replaceAll(
+          RegExp(r'[\x00-\x08\x0B-\x0C\x0E-\x1F]'),
+          '',
+        ); // strip control chars
   }
 
   /// Strips all characters except digits.

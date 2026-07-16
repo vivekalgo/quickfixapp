@@ -1,12 +1,9 @@
 abstract class BookingRepository {
-  Future<double> getCouponDiscount(String code, double orderAmount);
-  Future<String> placeOrder({
-    required List<Map<String, dynamic>> items,
-    required DateTime date,
-    required String slot,
-    required String address,
-    required String paymentMethod,
-    required double totalAmount,
-    String? couponCode,
-  });
+  Future<Map<String, dynamic>> createBooking(Map<String, dynamic> bookingData);
+  Future<Map<String, dynamic>> createQuickBooking(Map<String, dynamic> bookingData);
+  Future<Map<String, dynamic>> calculateCheckout(Map<String, dynamic> checkoutData);
+  Future<List<Map<String, dynamic>>> getOffers();
+  Future<Map<String, dynamic>> applyOffer(String code);
+  Future<Map<String, dynamic>> getBookingLedger(String bookingId);
+  Future<Map<String, dynamic>> getBookingReceipt(String bookingId);
 }

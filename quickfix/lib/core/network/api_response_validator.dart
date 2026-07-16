@@ -12,14 +12,14 @@ class ApiResponseValidator {
       throw FormatException('$context: Response body is null.');
     }
     if (data is! Map) {
-      throw FormatException(
-          '$context: Expected Map, got ${data.runtimeType}.');
+      throw FormatException('$context: Expected Map, got ${data.runtimeType}.');
     }
     final map = Map<String, dynamic>.from(data);
     for (final key in requiredKeys) {
       if (!map.containsKey(key)) {
         throw FormatException(
-            '$context: Missing required field "$key" in response.');
+          '$context: Missing required field "$key" in response.',
+        );
       }
     }
     return map;
@@ -36,7 +36,8 @@ class ApiResponseValidator {
     }
     if (data is! List) {
       throw FormatException(
-          '$context: Expected List, got ${data.runtimeType}.');
+        '$context: Expected List, got ${data.runtimeType}.',
+      );
     }
     return data;
   }
@@ -77,16 +78,14 @@ class ApiResponseValidator {
     Map<String, dynamic> map,
     String key, {
     double defaultValue = 0.0,
-  }) =>
-      getNum(map, key, defaultValue: defaultValue).toDouble();
+  }) => getNum(map, key, defaultValue: defaultValue).toDouble();
 
   /// Safely extracts an int from [map] at [key].
   static int getInt(
     Map<String, dynamic> map,
     String key, {
     int defaultValue = 0,
-  }) =>
-      getNum(map, key, defaultValue: defaultValue).toInt();
+  }) => getNum(map, key, defaultValue: defaultValue).toInt();
 
   /// Safely extracts a bool from [map] at [key].
   static bool getBool(

@@ -3,13 +3,33 @@ import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:quickfix/core/logging/app_logger.dart';
 
+enum ApiExceptionType {
+  networkOffline,
+  timeout,
+  unauthorized,
+  forbidden,
+  notFound,
+  badRequest,
+  serverError,
+  firebaseError,
+  parsingError,
+  unexpected,
+}
+
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
   final dynamic originalError;
   final String? errorId;
+  final ApiExceptionType type;
 
-  ApiException(this.message, [this.statusCode, this.originalError, this.errorId]);
+  ApiException(
+    this.message, [
+    this.statusCode,
+    this.originalError,
+    this.errorId,
+    this.type = ApiExceptionType.unexpected,
+  ]);
 
   @override
   String toString() => message;
@@ -39,6 +59,7 @@ class ErrorHandler {
         null,
         error,
         errorId,
+        ApiExceptionType.networkOffline,
       );
     } else if (error is FirebaseAuthException) {
       return _handleFirebaseAuthException(error, errorId);
@@ -48,6 +69,7 @@ class ErrorHandler {
         null,
         error,
         errorId,
+        ApiExceptionType.firebaseError,
       );
     } else if (error is FormatException) {
       return ApiException(
@@ -55,6 +77,7 @@ class ErrorHandler {
         null,
         error,
         errorId,
+        ApiExceptionType.parsingError,
       );
     } else if (error is TypeError) {
       return ApiException(
@@ -62,6 +85,7 @@ class ErrorHandler {
         null,
         error,
         errorId,
+        ApiExceptionType.parsingError,
       );
     }
 
@@ -78,6 +102,7 @@ class ErrorHandler {
         null,
         error,
         errorId,
+        ApiExceptionType.networkOffline,
       );
     }
 
@@ -90,15 +115,18 @@ class ErrorHandler {
         null,
         error,
         errorId,
+        ApiExceptionType.forbidden,
       );
     }
 
-    if (lowerErrorStr.contains('timeout') || lowerErrorStr.contains('timedout')) {
+    if (lowerErrorStr.contains('timeout') ||
+        lowerErrorStr.contains('timedout')) {
       return ApiException(
         'Connection timed out. The server could not be reached. Please try again.',
         null,
         error,
         errorId,
+        ApiExceptionType.timeout,
       );
     }
 
@@ -107,6 +135,7 @@ class ErrorHandler {
       null,
       error,
       errorId,
+      ApiExceptionType.unexpected,
     );
   }
 
@@ -116,10 +145,11 @@ class ErrorHandler {
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
         return ApiException(
-          'Connection timed out. The server could not be reached.\n\nTip: If you are using mobile data (Jio/Airtel), our server may be blocked by your operator. Try switching to Wi-Fi, using a VPN, or changing your phone\'s Private DNS to "dns.google" or "1.1.1.1".',
+          'Connection timed out. The server could not be reached. Please check your network and try again.',
           null,
           error,
           errorId,
+          ApiExceptionType.timeout,
         );
 
       case DioExceptionType.badResponse:
@@ -128,28 +158,74 @@ class ErrorHandler {
         String errorMessage = 'Something went wrong. Please try again.';
 
         if (responseData != null && responseData is Map) {
-          errorMessage = responseData['message']?.toString() ??
+          errorMessage =
+              responseData['message']?.toString() ??
               responseData['error']?.toString() ??
               errorMessage;
         }
 
         switch (statusCode) {
           case 400:
-            return ApiException(errorMessage, statusCode, error, errorId);
+            return ApiException(
+              errorMessage,
+              statusCode,
+              error,
+              errorId,
+              ApiExceptionType.badRequest,
+            );
           case 401:
-            return ApiException('Session expired. Please log in again.', statusCode, error, errorId);
+            return ApiException(
+              'Session expired. Please log in again.',
+              statusCode,
+              error,
+              errorId,
+              ApiExceptionType.unauthorized,
+            );
           case 403:
-            return ApiException('You do not have permission to access this resource.', statusCode, error, errorId);
+            return ApiException(
+              'You do not have permission to access this resource.',
+              statusCode,
+              error,
+              errorId,
+              ApiExceptionType.forbidden,
+            );
           case 404:
-            return ApiException(errorMessage, statusCode, error, errorId);
+            return ApiException(
+              errorMessage,
+              statusCode,
+              error,
+              errorId,
+              ApiExceptionType.notFound,
+            );
           case 500:
-            return ApiException('Internal Server Error. Please try again later.', statusCode, error, errorId);
+          case 502:
+          case 503:
+          case 504:
+            return ApiException(
+              'Internal Server Error. Please try again later.',
+              statusCode,
+              error,
+              errorId,
+              ApiExceptionType.serverError,
+            );
           default:
-            return ApiException(errorMessage, statusCode, error, errorId);
+            return ApiException(
+              errorMessage,
+              statusCode,
+              error,
+              errorId,
+              ApiExceptionType.unexpected,
+            );
         }
 
       case DioExceptionType.cancel:
-        return ApiException('Request was cancelled.', null, error, errorId);
+        return ApiException(
+          'Request was cancelled.',
+          null,
+          error,
+          errorId,
+          ApiExceptionType.unexpected,
+        );
 
       case DioExceptionType.connectionError:
         if (error.error is SocketException) {
@@ -158,13 +234,15 @@ class ErrorHandler {
             null,
             error,
             errorId,
+            ApiExceptionType.networkOffline,
           );
         }
         return ApiException(
-          'Connection error. The server could not be reached.\n\nTip: If you are using mobile data (Jio/Airtel), our server may be blocked by your operator. Try switching to Wi-Fi, using a VPN, or changing your phone\'s Private DNS to "dns.google" or "1.1.1.1".',
+          'Connection error. The server could not be reached. Please verify your internet settings and try again.',
           null,
           error,
           errorId,
+          ApiExceptionType.networkOffline,
         );
 
       default:
@@ -173,34 +251,56 @@ class ErrorHandler {
           null,
           error,
           errorId,
+          ApiExceptionType.networkOffline,
         );
     }
   }
 
-  static ApiException _handleFirebaseAuthException(FirebaseAuthException error, String errorId) {
+  static ApiException _handleFirebaseAuthException(
+    FirebaseAuthException error,
+    String errorId,
+  ) {
+    String msg;
     switch (error.code) {
       case 'invalid-email':
-        return ApiException('The email address is badly formatted.', null, error, errorId);
+        msg = 'The email address is badly formatted.';
+        break;
       case 'user-disabled':
-        return ApiException('This user account has been disabled.', null, error, errorId);
+        msg = 'This user account has been disabled.';
+        break;
       case 'user-not-found':
-        return ApiException('No account found with this email.', null, error, errorId);
+        msg = 'No account found with this email.';
+        break;
       case 'wrong-password':
-        return ApiException('Incorrect password. Please try again.', null, error, errorId);
+        msg = 'Incorrect password. Please try again.';
+        break;
       case 'email-already-in-use':
-        return ApiException('An account already exists with this email.', null, error, errorId);
+        msg = 'An account already exists with this email.';
+        break;
       case 'weak-password':
-        return ApiException('The password is too weak.', null, error, errorId);
+        msg = 'The password is too weak.';
+        break;
       case 'operation-not-allowed':
-        return ApiException('This operation is not enabled.', null, error, errorId);
+        msg = 'This operation is not enabled.';
+        break;
       case 'network-request-failed':
-        return ApiException('Network error during authentication. Please check if you are online.', null, error, errorId);
+        msg = 'Network error during authentication. Please check if you are online.';
+        break;
       case 'invalid-verification-code':
-        return ApiException('The verification code is invalid.', null, error, errorId);
+        msg = 'The verification code is invalid.';
+        break;
       case 'session-expired':
-        return ApiException('SMS verification code expired. Please request a new one.', null, error, errorId);
+        msg = 'SMS verification code expired. Please request a new one.';
+        break;
       default:
-        return ApiException(error.message ?? 'Authentication failed. Please try again.', null, error, errorId);
+        msg = error.message ?? 'Authentication failed. Please try again.';
     }
+    return ApiException(
+      msg,
+      null,
+      error,
+      errorId,
+      ApiExceptionType.firebaseError,
+    );
   }
 }

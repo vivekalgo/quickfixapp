@@ -47,29 +47,47 @@ function writeDb(data) {
 function matchesQuery(doc, query) {
   if (!query || Object.keys(query).length === 0) return true;
   for (const [key, val] of Object.entries(query)) {
+    if (key === '$or') {
+      if (!Array.isArray(val)) return false;
+      const anyMatch = val.some(subQuery => matchesQuery(doc, subQuery));
+      if (!anyMatch) return false;
+      continue;
+    }
+
+    const docVal = doc[key];
+
     if (val && typeof val === 'object' && !Array.isArray(val)) {
+      if (val instanceof RegExp) {
+        if (!val.test(String(docVal))) return false;
+        continue;
+      }
+
       const operators = Object.keys(val);
       for (const op of operators) {
         if (op === '$ne') {
-          if (doc[key] === val['$ne']) return false;
+          if (docVal === val['$ne']) return false;
         } else if (op === '$in') {
-          if (!Array.isArray(val['$in']) || !val['$in'].includes(doc[key])) return false;
+          if (!Array.isArray(val['$in']) || !val['$in'].includes(docVal)) return false;
         } else if (op === '$nin') {
-          if (Array.isArray(val['$nin']) && val['$nin'].includes(doc[key])) return false;
+          if (Array.isArray(val['$nin']) && val['$nin'].includes(docVal)) return false;
         } else if (op === '$gt') {
-          if (!(doc[key] > val['$gt'])) return false;
+          if (!(docVal > val['$gt'])) return false;
         } else if (op === '$gte') {
-          if (!(doc[key] >= val['$gte'])) return false;
+          if (!(docVal >= val['$gte'])) return false;
         } else if (op === '$lt') {
-          if (!(doc[key] < val['$lt'])) return false;
+          if (!(docVal < val['$lt'])) return false;
         } else if (op === '$lte') {
-          if (!(doc[key] <= val['$lte'])) return false;
+          if (!(docVal <= val['$lte'])) return false;
+        } else if (op === '$regex') {
+          const opts = val['$options'] || '';
+          const regex = new RegExp(val['$regex'], opts);
+          if (!regex.test(String(docVal))) return false;
         } else {
-          if (JSON.stringify(doc[key]) !== JSON.stringify(val)) return false;
+          if (JSON.stringify(docVal) !== JSON.stringify(val)) return false;
         }
       }
     } else {
-      if (doc[key] !== val) return false;
+      if (docVal !== val) return false;
     }
   }
   return true;
@@ -128,10 +146,11 @@ function wrapDoc(doc, collectionName) {
 // Custom array with mongoose-like sort() capability
 function makeResultArray(arr, collectionName) {
   const result = arr.map(doc => wrapDoc(doc, collectionName));
+  
   result.sort = function(sortObj) {
     const key = Object.keys(sortObj)[0];
     const dir = sortObj[key];
-    return Array.prototype.sort.call(result, (a, b) => {
+    const sorted = Array.prototype.sort.call(result, (a, b) => {
       let valA = a[key];
       let valB = b[key];
       if (valA instanceof Date) valA = valA.getTime();
@@ -143,7 +162,19 @@ function makeResultArray(arr, collectionName) {
       if (valA > valB) return dir === -1 ? -1 : 1;
       return 0;
     });
+    return makeResultArray(sorted, collectionName);
   };
+
+  result.skip = function(n) {
+    const sliced = result.slice(n);
+    return makeResultArray(sliced, collectionName);
+  };
+
+  result.limit = function(n) {
+    const sliced = result.slice(0, n);
+    return makeResultArray(sliced, collectionName);
+  };
+
   return result;
 }
 

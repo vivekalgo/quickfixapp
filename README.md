@@ -64,6 +64,29 @@ flutter run
 ```
 
 ---
+---
+
+## 📖 Developer Documentation Suite
+
+We have created an enterprise-level documentation suite inside the [docs/](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs) directory to onboard new developers rapidly.
+
+| Document | Purpose / Content |
+| :--- | :--- |
+| [Architecture.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/Architecture.md) | Multi-app architecture, repositories, and backend connections. |
+| [FolderStructure.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/FolderStructure.md) | Detailed folder layouts and source tree structures. |
+| [API.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/API.md) | REST API endpoints, HTTP client configurations, and interceptors. |
+| [StateManagement.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/StateManagement.md) | Riverpod providers, StateNotifier bindings, and reactivity maps. |
+| [Environment.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/Environment.md) | System configurations, Hive local caching, and secure token stores. |
+| [Deployment.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/Deployment.md) | Step-by-step build, obfuscation, and deployment instructions. |
+| [Firebase.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/Firebase.md) | Firebase Core, Cloud Messaging (FCM), and authentication. |
+| [Supabase.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/Supabase.md) | Relational database schema mappings and query structures. |
+| [NotificationFlow.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/NotificationFlow.md) | Push notifications payload routing and local display triggers. |
+| [PaymentFlow.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/PaymentFlow.md) | Razorpay transaction setup and backend webhook signature checks. |
+| [BookingFlow.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/BookingFlow.md) | Cart processing, checkout logic, and order status transitions. |
+| [ProviderFlow.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/ProviderFlow.md) | Partner dashboards, job queues, and incoming ring dispatch workflows. |
+| [CustomerFlow.md](file:///C:/Users/yadav/OneDrive/Desktop/quickfixx/docs/CustomerFlow.md) | User search journeys, nearby filtering, and booking feedback. |
+
+---
 
 ## 🛠️ Architecture & System Design
 

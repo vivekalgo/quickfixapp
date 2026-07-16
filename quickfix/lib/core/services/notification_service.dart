@@ -10,10 +10,16 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:quickfix/core/router/app_router.dart';
 import 'package:quickfix/core/logging/app_logger.dart';
 import 'package:quickfix/core/network/api_endpoints.dart';
-import 'package:quickfix/core/services/hive_service.dart';
+import 'package:quickfix/core/storage/hive_service.dart';
+import 'package:quickfix/core/network/dns_bypass_helper.dart';
 
 // ─── Background Handler (top-level, vm:entry-point required) ────────────────
 
+/// **Firebase & Notifications**: Handles incoming background push notifications.
+/// 
+/// Since this executes in a completely separate Dart VM isolate when the application
+/// is suspended or terminated, it must be annotated with `@pragma('vm:entry-point')`.
+/// It re-initializes Firebase and Hive independently to save notification histories to disk.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -21,13 +27,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final box = await Hive.openBox('local_notifications');
   final notificationData = _parseMessage(message);
   await box.put(notificationData['id'], notificationData);
-  AppLogger.info('Background message received: ${message.messageId}', tag: 'FCM');
+  AppLogger.info(
+    'Background message received: ${message.messageId}',
+    tag: 'FCM',
+  );
 }
 
 Map<String, dynamic> _parseMessage(RemoteMessage message) {
   final notification = message.notification;
   final data = message.data;
-  final id = message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
+  final id =
+      message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
   return {
     'id': id,
     'title': notification?.title ?? data['title'] ?? 'QuickFix Update',
@@ -44,6 +54,11 @@ Map<String, dynamic> _parseMessage(RemoteMessage message) {
 
 // ─── NotificationService ─────────────────────────────────────────────────────
 
+/// Enterprise service for managing system notifications and remote alerts.
+/// 
+/// Interacts with [FirebaseMessaging] to handle downstream cloud notifications
+/// and uses [FlutterLocalNotificationsPlugin] to display foreground banner alerts on mobile platforms.
+/// Includes support for token synchronization, background persistence, and deep-link routing on click.
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -58,6 +73,10 @@ class NotificationService {
     showBadge: true,
   );
 
+  /// Initializes the Firebase Messaging and Local Notification channels.
+  /// 
+  /// Performs background registration, checks for permissions, sets up local Android notifications,
+  /// attaches foreground listeners, and handles application launching via notification tapping.
   static Future<void> init() async {
     try {
       // 1. Ensure Hive notifications box is open
@@ -66,7 +85,9 @@ class NotificationService {
       }
 
       // 2. Register background message handler FIRST
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
 
       // 3. Request notification permissions immediately
       await requestPermissions();
@@ -86,7 +107,11 @@ class NotificationService {
               final Map<String, dynamic> data = Uri.splitQueryString(payload);
               handleNotificationClick(data);
             } catch (e) {
-              AppLogger.error('Failed to parse notification payload', tag: 'FCM', error: e);
+              AppLogger.error(
+                'Failed to parse notification payload',
+                tag: 'FCM',
+                error: e,
+              );
             }
           }
         },
@@ -94,7 +119,9 @@ class NotificationService {
 
       // 5. Create the Android notification channel
       final androidPlugin = _localNotificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (androidPlugin != null) {
         await androidPlugin.createNotificationChannel(_channel);
       }
@@ -142,7 +169,10 @@ class NotificationService {
 
       // 7. Background notification tap handler
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        AppLogger.info('Notification tap from background: ${message.messageId}', tag: 'FCM');
+        AppLogger.info(
+          'Notification tap from background: ${message.messageId}',
+          tag: 'FCM',
+        );
         handleNotificationClick(message.data);
       });
 
@@ -154,18 +184,26 @@ class NotificationService {
 
       // 9. Terminated state + topic subscription + initial token sync
       await _initStartup();
-
     } catch (e, s) {
-      AppLogger.error('NotificationService.init failed', tag: 'FCM', error: e, stackTrace: s);
+      AppLogger.error(
+        'NotificationService.init failed',
+        tag: 'FCM',
+        error: e,
+        stackTrace: s,
+      );
     }
   }
 
   static Future<void> _initStartup() async {
     // Handle app launch via notification (terminated state)
     try {
-      final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      final initialMessage = await FirebaseMessaging.instance
+          .getInitialMessage();
       if (initialMessage != null) {
-        AppLogger.info('App launched via terminated notification: ${initialMessage.messageId}', tag: 'FCM');
+        AppLogger.info(
+          'App launched via terminated notification: ${initialMessage.messageId}',
+          tag: 'FCM',
+        );
         Future.delayed(const Duration(milliseconds: 1200), () {
           handleNotificationClick(initialMessage.data);
         });
@@ -178,7 +216,11 @@ class NotificationService {
     try {
       await subscribeToTopic('customers');
     } catch (e) {
-      AppLogger.error('Failed to subscribe to customers topic', tag: 'FCM', error: e);
+      AppLogger.error(
+        'Failed to subscribe to customers topic',
+        tag: 'FCM',
+        error: e,
+      );
     }
 
     // ✅ FIX: Sync current FCM token to backend on EVERY app startup
@@ -215,11 +257,17 @@ class NotificationService {
       // Android 13+ — also request exact alarm permission for scheduled notifications
       if (Platform.isAndroid) {
         final androidPlugin = _localNotificationsPlugin
-            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
         await androidPlugin?.requestNotificationsPermission();
       }
     } catch (e) {
-      AppLogger.error('Error requesting notification permissions', tag: 'FCM', error: e);
+      AppLogger.error(
+        'Error requesting notification permissions',
+        tag: 'FCM',
+        error: e,
+      );
     }
   }
 
@@ -228,7 +276,11 @@ class NotificationService {
       await FirebaseMessaging.instance.subscribeToTopic(topic);
       AppLogger.info('Subscribed to topic: $topic', tag: 'FCM');
     } catch (e) {
-      AppLogger.error('Failed to subscribe to topic: $topic', tag: 'FCM', error: e);
+      AppLogger.error(
+        'Failed to subscribe to topic: $topic',
+        tag: 'FCM',
+        error: e,
+      );
     }
   }
 
@@ -237,7 +289,11 @@ class NotificationService {
       await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
       AppLogger.info('Unsubscribed from topic: $topic', tag: 'FCM');
     } catch (e) {
-      AppLogger.error('Failed to unsubscribe from topic: $topic', tag: 'FCM', error: e);
+      AppLogger.error(
+        'Failed to unsubscribe from topic: $topic',
+        tag: 'FCM',
+        error: e,
+      );
     }
   }
 
@@ -252,8 +308,11 @@ class NotificationService {
     }
   }
 
-  /// Syncs the FCM token to the backend so the server can send push notifications.
-  /// Called on every startup (if logged in) and on token refresh.
+  /// **API Usage & Firebase**: Transmits the registration token to the backend server.
+  /// 
+  /// Appends the user's JWT authorization header. If the local network has routing restrictions,
+  /// it routes requests through the [DnsBypassHelper] with custom certificate overrides.
+  /// After a successful synchronization, the token is written to Hive to avoid repetitive requests.
   static Future<void> syncTokenWithBackend(String token) async {
     final authToken = HiveService.getAuthToken();
     if (authToken == null) {
@@ -262,37 +321,35 @@ class NotificationService {
     }
 
     try {
-      final dioClient = Dio(BaseOptions(
-        baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: const Duration(seconds: 8),
-        receiveTimeout: const Duration(seconds: 8),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-          'Content-Type': 'application/json',
-        },
-      ));
+      final dioClient = Dio(
+        BaseOptions(
+          baseUrl: ApiEndpoints.baseUrl,
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+          headers: {
+            'Authorization': 'Bearer $authToken',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
 
-      // Jio/Airtel DNS bypass
-      const String railwayEdgeIp = '69.46.46.69';
-      const String railwayDomain = 'up.railway.app';
-      if (ApiEndpoints.baseUrl.contains(railwayDomain)) {
-        final originalHost = Uri.parse(ApiEndpoints.baseUrl).host;
-        dioClient.options.headers['Host'] = originalHost;
-        dioClient.options.baseUrl = ApiEndpoints.baseUrl.replaceFirst(originalHost, railwayEdgeIp);
-        ((dioClient.httpClientAdapter) as IOHttpClientAdapter).createHttpClient = () {
+      if (DnsBypassHelper.shouldBypass(ApiEndpoints.baseUrl)) {
+        dioClient.options.baseUrl = DnsBypassHelper.bypassUrl(
+          ApiEndpoints.baseUrl,
+          dioClient.options.headers,
+        );
+        ((dioClient.httpClientAdapter) as IOHttpClientAdapter)
+            .createHttpClient = () {
           final client = HttpClient();
-          client.badCertificateCallback = (cert, host, port) {
-            return (host == railwayEdgeIp || host.endsWith(railwayDomain)) &&
-                (cert.subject.contains('CN=*.up.railway.app') ||
-                    cert.subject.contains('CN=up.railway.app'));
-          };
+          client.badCertificateCallback = DnsBypassHelper.verifyCertificate;
           return client;
         };
       }
 
-      final response = await dioClient.post('/api/auth/profile/update', data: {
-        'fcmToken': token,
-      });
+      final response = await dioClient.post(
+        '/api/auth/profile/update',
+        data: {'fcmToken': token},
+      );
 
       if (response.statusCode == 200) {
         AppLogger.info('FCM Token synced to backend successfully', tag: 'FCM');
@@ -305,7 +362,11 @@ class NotificationService {
         }
       }
     } catch (e) {
-      AppLogger.error('Failed to sync FCM Token to backend', tag: 'FCM', error: e);
+      AppLogger.error(
+        'Failed to sync FCM Token to backend',
+        tag: 'FCM',
+        error: e,
+      );
     }
   }
 
@@ -318,10 +379,20 @@ class NotificationService {
       }
       await subscribeToTopic('customers');
     } catch (e) {
-      AppLogger.error('Failed to register FCM after login', tag: 'FCM', error: e);
+      AppLogger.error(
+        'Failed to register FCM after login',
+        tag: 'FCM',
+        error: e,
+      );
     }
   }
 
+  /// **Important Logic & Routing**: Maps push payload variables to GoRouter navigation paths.
+  /// 
+  /// Inspects parameter tags to direct users:
+  /// - `booking` / `booking_status`: Navigates to live GPS tracking (`/tracking/:id`).
+  /// - `offer` / `promotion`: Navigates to promotion list page (`/offers`).
+  /// - `support`: Navigates to support chat/email.
   static void handleNotificationClick(Map<String, dynamic> data) {
     final type = data['type']?.toString();
     final bookingId = data['bookingId']?.toString();

@@ -1,0 +1,513 @@
+const crypto = require('crypto');
+const { Booking, Shop, User, PaymentLedger, PaymentAuditLog } = require('../models');
+const { calculateCheckoutPriceInternal } = require('../pricingCalculator');
+const { sanitizeBookingForPrivacy, sendFcmNotification, paginate } = require('../helpers');
+
+async function getBookingsList(req, shopId) {
+  const result = await paginate(Booking, req, ['id', 'customerName', 'customerPhone', 'title', 'providerName'], { createdAt: -1 });
+  if (Array.isArray(result)) {
+    return result.map(b => shopId ? sanitizeBookingForPrivacy(b) : b);
+  } else {
+    result.data = result.data.map(b => shopId ? sanitizeBookingForPrivacy(b) : b);
+    return result;
+  }
+}
+
+async function getBookingDetails(bookingId) {
+  const booking = await Booking.findOne({ id: bookingId });
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+  return sanitizeBookingForPrivacy(booking);
+}
+
+async function placeBookingOrder(reqBody, userObjectFromToken) {
+  const {
+    customerId,
+    customerName,
+    customerPhone,
+    customerAddress,
+    shopId,
+    title,
+    slot,
+    date,
+    amount,
+    paymentMethod,
+    paymentDetails,
+    pricingType,
+    items,
+    couponCode,
+    latitude,
+    longitude,
+    durationText,
+    specialInstructions
+  } = reqBody;
+
+  const shop = await Shop.findOne({ id: shopId });
+  if (!shop) {
+    throw new Error('Shop not found');
+  }
+
+  let user = userObjectFromToken;
+  let parsedAmount = parseFloat(amount);
+  let visitingCharges = shop.visitingCharges || 150.0;
+  let bookingPricingType = pricingType || 'fixed';
+
+  if (items && Array.isArray(items) && items.length > 0) {
+    const calc = await calculateCheckoutPriceInternal(shop, items, couponCode);
+    parsedAmount = calc.grandTotal;
+    visitingCharges = calc.visitingCharge;
+    bookingPricingType = calc.pricingType;
+  }
+
+  if (paymentMethod === 'Razorpay') {
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (secret) {
+      const generatedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(paymentDetails.orderId + "|" + paymentDetails.paymentId)
+        .digest('hex');
+      if (generatedSignature !== paymentDetails.signature) {
+        throw new Error('Razorpay cryptographic signature verification failed');
+      }
+    } else {
+      console.warn("WARNING: RAZORPAY_KEY_SECRET is not configured. Signature validation was bypassed.");
+    }
+  }
+
+  if (paymentMethod === 'Wallet') {
+    if (!user) {
+      throw new Error('Unauthorized: Authentication required for wallet payment');
+    }
+    if ((user.walletBalance || 0) < parsedAmount) {
+      throw new Error('Insufficient wallet balance');
+    }
+    user.walletBalance = (user.walletBalance || 0) - parsedAmount;
+    user.walletTransactions = user.walletTransactions || [];
+    user.walletTransactions.push({
+      id: `TX-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      title: `Paid for ${title}`,
+      amount: parsedAmount,
+      type: 'debit',
+      date: new Date()
+    });
+    await user.save();
+  }
+
+  const bookingId = `QF-${Math.floor(100000 + Math.random() * 900000)}`;
+  const commissionRate = shop.commissionRate || 15.0;
+  const providerName = shop.ownerName || 'Assigning Expert...';
+  const estEarnings = parseFloat((parsedAmount * (1 - commissionRate / 100)).toFixed(2));
+  
+  const addr = customerAddress || (user && user.savedAddresses && user.savedAddresses[0]) || '113, Swaroop Nagar, Kanpur';
+  const addrParts = addr.split(',');
+  const approxAddress = addrParts.length > 1 
+    ? `${addrParts[addrParts.length - 2].trim()}, ${addrParts[addrParts.length - 1].trim()}`
+    : addr;
+
+  const newBooking = new Booking({
+    id: bookingId,
+    customerId: user ? user._id : (customerId || 'cust-123'),
+    customerName: user ? user.name : (customerName || 'John Doe'),
+    customerPhone: user ? user.phone : (customerPhone || '9999888877'),
+    customerAddress: addr,
+    approxAddress: approxAddress,
+    customerLat: latitude || (user && user.savedAddresses && user.savedAddresses[0] && user.savedAddresses[0].latitude) || 26.4912,
+    customerLng: longitude || (user && user.savedAddresses && user.savedAddresses[0] && user.savedAddresses[0].longitude) || 80.3156,
+    shopId,
+    title,
+    slot: slot || '09:00 AM - 10:00 AM',
+    date: date ? new Date(date) : new Date(),
+    amount: parsedAmount,
+    visitingCharges,
+    estEarnings,
+    estDuration: durationText || '1.5 hrs',
+    specialInstructions: specialInstructions || '',
+    status: 'pending',
+    providerName: providerName,
+    pricingType: bookingPricingType
+  });
+
+  await newBooking.save();
+
+  try {
+    const commRate = shop.commissionRate || 20.0;
+    const gross = parsedAmount;
+    const commAmt = parseFloat((gross * commRate / 100).toFixed(2));
+    const gatewayCharges = paymentMethod === 'Razorpay' ? parseFloat((gross * 0.02).toFixed(2)) : 0;
+    const providerEarn = parseFloat((gross - commAmt - gatewayCharges).toFixed(2));
+    const platformRev = parseFloat((commAmt + gatewayCharges).toFixed(2));
+
+    let pmEnum = 'cash';
+    if (paymentMethod === 'Razorpay') pmEnum = 'online';
+    else if (paymentMethod === 'Wallet') pmEnum = 'wallet';
+    else if (paymentMethod === 'UPI') pmEnum = 'upi';
+    else if (paymentMethod === 'Card' || paymentMethod === 'Credit Card' || paymentMethod === 'Debit Card') pmEnum = 'card';
+    else if (paymentMethod === 'Net Banking') pmEnum = 'netbanking';
+
+    let pStatus = 'cash_pending';
+    if (pmEnum === 'online') pStatus = 'pending';
+    else if (pmEnum === 'wallet') pStatus = 'paid';
+
+    let cStatus = 'pending';
+    if (pmEnum === 'wallet') cStatus = 'paid';
+
+    const ledgerId = `LDG-${bookingId}`;
+    const ledgerEntries = [
+      {
+        id: `LE-${Date.now()}-1`,
+        type: 'credit',
+        amount: gross,
+        party: 'platform',
+        description: `Booking ${bookingId} received - ${paymentMethod}`,
+        timestamp: new Date()
+      },
+      {
+        id: `LE-${Date.now()}-2`,
+        type: 'debit',
+        amount: commAmt,
+        party: 'platform',
+        description: `Platform commission ${commRate}% = ₹${commAmt}`,
+        timestamp: new Date()
+      },
+      {
+        id: `LE-${Date.now()}-3`,
+        type: 'credit',
+        amount: providerEarn,
+        party: 'provider',
+        description: `Provider earnings after ${commRate}% commission`,
+        timestamp: new Date()
+      }
+    ];
+
+    const ledger = new PaymentLedger({
+      id: ledgerId,
+      bookingId: bookingId,
+      customerId: newBooking.customerId,
+      providerId: shop.id,
+      shopId: shop.id,
+      providerName: shop.ownerName || shop.name,
+      customerName: newBooking.customerName,
+      serviceTitle: title,
+      grossAmount: gross,
+      commissionRate: commRate,
+      commissionAmount: commAmt,
+      gatewayCharges,
+      providerEarnings: providerEarn,
+      platformRevenue: platformRev,
+      paymentMethod: pmEnum,
+      paymentStatus: pStatus,
+      commissionStatus: cStatus,
+      ledgerEntries,
+      metadata: { slot: newBooking.slot, date: newBooking.date }
+    });
+    await ledger.save();
+
+    const auditLog = new PaymentAuditLog({
+      id: `PAL-${Date.now()}-BOOKING`,
+      eventType: 'booking_created',
+      bookingId: bookingId,
+      ledgerId: ledgerId,
+      shopId: shop.id,
+      customerId: newBooking.customerId,
+      amount: gross,
+      description: `Booking ${bookingId} created via ${paymentMethod}`,
+      actor: 'customer',
+      metadata: { paymentMethod, commissionRate: commRate }
+    });
+    await auditLog.save();
+
+    if (pmEnum === 'wallet') {
+      const walletAudit = new PaymentAuditLog({
+        id: `PAL-${Date.now()}-WALLET`,
+        eventType: 'payment_success',
+        bookingId: bookingId,
+        ledgerId: ledgerId,
+        shopId: shop.id,
+        customerId: newBooking.customerId,
+        amount: gross,
+        description: `Wallet payment of ₹${gross} processed`,
+        actor: 'system',
+        metadata: { paymentMethod: 'wallet' }
+      });
+      await walletAudit.save();
+    }
+  } catch (ledgerErr) {
+    console.error('Payment ledger creation failed (non-critical):', ledgerErr.message);
+  }
+
+  sendFcmNotification(
+    newBooking.customerId,
+    'Booking Created 🎉',
+    `Your booking QF-${bookingId} for "${title}" has been successfully created.`,
+    {
+      type: 'booking',
+      bookingId: bookingId,
+      iconColor: 'success'
+    }
+  );
+
+  sendFcmNotification(
+    shop.id,
+    'New Booking Request 📦',
+    `You have a new booking request for "${title}" on ${date || 'today'} during ${slot || 'your business hours'}.`,
+    {
+      type: 'booking',
+      bookingId: bookingId,
+      iconColor: 'info'
+    },
+    'partner'
+  );
+
+  return {
+    bookingId,
+    booking: newBooking,
+    walletBalance: user ? user.walletBalance : undefined
+  };
+}
+
+async function updateBookingStatus(id, status, providerName) {
+  const booking = await Booking.findOne({ id });
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+
+  const oldStatus = booking.status;
+  booking.status = status;
+  if (providerName) booking.providerName = providerName;
+  await booking.save();
+
+  try {
+    const ledger = await PaymentLedger.findOne({ bookingId: id });
+    if (ledger) {
+      if (status === 'completed' || status === 'closed') {
+        if (ledger.paymentMethod === 'cash') {
+          ledger.paymentStatus = 'paid';
+        }
+        if (ledger.commissionStatus === 'pending') {
+          const shop = await Shop.findOne({ id: booking.shopId });
+          if (shop) {
+            if (ledger.paymentMethod === 'cash') {
+              shop.walletBalance = (shop.walletBalance || 0) - ledger.commissionAmount;
+              ledger.commissionStatus = 'paid';
+              ledger.ledgerEntries.push({
+                id: `LE-${Date.now()}-COMM-DEDUCT`,
+                type: 'debit',
+                amount: ledger.commissionAmount,
+                party: 'provider',
+                description: `Commission ₹${ledger.commissionAmount} deducted from shop wallet for booking ${id}`,
+                timestamp: new Date()
+              });
+              await shop.save();
+            } else if (ledger.paymentMethod === 'online') {
+              shop.walletBalance = (shop.walletBalance || 0) + ledger.providerEarnings;
+              ledger.paymentStatus = 'paid';
+              ledger.commissionStatus = 'paid';
+              ledger.ledgerEntries.push({
+                id: `LE-${Date.now()}-EARN-CREDIT`,
+                type: 'credit',
+                amount: ledger.providerEarnings,
+                party: 'provider',
+                description: `Earnings ₹${ledger.providerEarnings} credited to shop wallet for online booking ${id}`,
+                timestamp: new Date()
+              });
+              await shop.save();
+            }
+          }
+        }
+        await ledger.save();
+
+        const audit = new PaymentAuditLog({
+          id: `PAL-${Date.now()}-SUCCESS`,
+          eventType: 'payment_success',
+          bookingId: id,
+          ledgerId: ledger.id,
+          shopId: booking.shopId,
+          customerId: booking.customerId,
+          amount: booking.amount,
+          description: `Payment for booking ${id} marked successful on completion`,
+          actor: 'system',
+          metadata: { oldStatus, newStatus: status }
+        });
+        await audit.save();
+      }
+    }
+  } catch (ledgerErr) {
+    console.error('Ledger state update failed:', ledgerErr.message);
+  }
+
+  const titleMap = {
+    navigating: 'Provider on the Way 🚀',
+    arrived: 'Provider Arrived 📍',
+    work_started: 'Work in Progress 🛠️',
+    completed: 'Booking Completed 🎉'
+  };
+
+  const bodyMap = {
+    navigating: `Our service provider has started navigating to your location for QF-${id}.`,
+    arrived: 'The service provider has arrived at your address.',
+    work_started: 'The service provider has started the job.',
+    completed: `Your booking QF-${id} for "${booking.title}" has been completed.`
+  };
+
+  if (titleMap[status]) {
+    sendFcmNotification(
+      booking.customerId,
+      titleMap[status],
+      bodyMap[status],
+      {
+        type: 'booking_status',
+        bookingId: id,
+        iconColor: status === 'completed' ? 'success' : 'info'
+      }
+    );
+  }
+
+  return booking;
+}
+
+async function cancelBooking(id) {
+  const booking = await Booking.findOne({ id });
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+
+  if (['on_the_way', 'navigating', 'arrived', 'work_started', 'work_completed', 'payment_completed', 'completed', 'closed'].includes(booking.status)) {
+    throw new Error('Cannot cancel order once provider has started travel or work is in progress!');
+  }
+
+  booking.status = 'cancelled';
+  await booking.save();
+
+  sendFcmNotification(
+    booking.customerId,
+    'Booking Cancelled ❌',
+    `Your booking QF-${id} for "${booking.title}" has been cancelled.`,
+    {
+      type: 'booking_status',
+      bookingId: id,
+      iconColor: 'error'
+    }
+  );
+
+  sendFcmNotification(
+    booking.shopId,
+    'Booking Cancelled ❌',
+    `The booking QF-${id} for "${booking.title}" has been cancelled by the customer.`,
+    {
+      type: 'booking',
+      bookingId: id,
+      iconColor: 'error'
+    },
+    'partner'
+  );
+
+  return booking;
+}
+
+async function uploadQuotation(bookingId, reqBody) {
+  const { labourCharge, spareParts, additionalMaterials, visitingCharges, discount, gst } = reqBody;
+  const booking = await Booking.findOne({ id: bookingId });
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+
+  const lC = parseFloat(labourCharge) || 0.0;
+  const sP = parseFloat(spareParts) || 0.0;
+  const aM = parseFloat(additionalMaterials) || 0.0;
+  const vC = parseFloat(visitingCharges) || 0.0;
+  const disc = parseFloat(discount) || 0.0;
+  const gstPct = parseFloat(gst) || 0.0;
+
+  const subtotal = lC + sP + aM + vC - disc;
+  const gstAmt = parseFloat((subtotal * (gstPct / 100)).toFixed(2));
+  const totalAmount = subtotal + gstAmt;
+
+  booking.quotation = {
+    labourCharge: lC,
+    spareParts: sP,
+    additionalMaterials: aM,
+    visitingCharges: vC,
+    discount: disc,
+    gst: gstAmt,
+    totalAmount: parseFloat(totalAmount.toFixed(2)),
+    status: 'pending',
+    updatedAt: new Date(),
+    createdAt: booking.quotation && booking.quotation.createdAt ? booking.quotation.createdAt : new Date()
+  };
+
+  booking.status = 'quote_sent';
+  
+  if (!booking.quotationHistory) {
+    booking.quotationHistory = [];
+  }
+  booking.quotationHistory.push({
+    ...booking.quotation,
+    date: new Date()
+  });
+
+  await booking.save();
+
+  sendFcmNotification(
+    booking.customerId,
+    'New Quotation Received 📋',
+    `A new quotation of ₹${totalAmount.toFixed(2)} has been sent for "${booking.title}".`,
+    {
+      type: 'booking_status',
+      bookingId: bookingId,
+      iconColor: 'info'
+    }
+  );
+
+  return booking;
+}
+
+async function respondToQuotation(bookingId, response, comment) {
+  const booking = await Booking.findOne({ id: bookingId });
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+
+  if (!booking.quotation) {
+    throw new Error('No quotation found to respond to');
+  }
+
+  booking.quotation.status = response;
+  booking.quotation.updatedAt = new Date();
+
+  if (!booking.quotationHistory) {
+    booking.quotationHistory = [];
+  }
+  booking.quotationHistory.push({
+    action: `respond_${response}`,
+    comment: comment || '',
+    date: new Date()
+  });
+
+  if (response === 'accepted') {
+    booking.status = 'work_started';
+    booking.amount = booking.quotation.totalAmount;
+    
+    const shop = await Shop.findOne({ id: booking.shopId });
+    const commissionRate = shop ? (shop.commissionRate || 15.0) : 15.0;
+    booking.estEarnings = parseFloat((booking.amount * (1 - commissionRate / 100)).toFixed(2));
+  } else if (response === 'rejected') {
+    booking.status = 'cancelled';
+  } else if (response === 'modify') {
+    booking.status = 'arrived';
+    booking.quotation.status = 'modified';
+  }
+
+  await booking.save();
+  return booking;
+}
+
+module.exports = {
+  getBookingsList,
+  getBookingDetails,
+  placeBookingOrder,
+  updateBookingStatus,
+  cancelBooking,
+  uploadQuotation,
+  respondToQuotation
+};

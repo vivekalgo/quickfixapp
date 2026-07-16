@@ -1,8 +1,12 @@
 import 'package:quickfix/features/auth/repositories/auth_repository.dart';
-import 'package:quickfix/features/auth/services/auth_remote_data_source.dart';
-import 'package:quickfix/core/services/hive_service.dart';
-import 'package:quickfix/core/services/secure_token_manager.dart';
+import 'package:quickfix/features/auth/datasources/auth_remote_data_source.dart';
+import 'package:quickfix/core/storage/hive_service.dart';
+import 'package:quickfix/core/storage/secure_token_manager.dart';
 
+/// Implementation of [AuthRepository] managing user security, credentials, and profile operations.
+/// 
+/// Interacts with [AuthRemoteDataSource] to query the remote REST server,
+/// and delegates authentication caching to [SecureTokenManager] and [HiveService].
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _remoteDataSource;
 
@@ -14,8 +18,16 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<String> verifyCode(String phone, String code, {String? firebaseToken}) async {
-    final data = await _remoteDataSource.verifyOtp(phone, code, firebaseToken: firebaseToken);
+  Future<String> verifyCode(
+    String phone,
+    String code, {
+    String? firebaseToken,
+  }) async {
+    final data = await _remoteDataSource.verifyOtp(
+      phone,
+      code,
+      firebaseToken: firebaseToken,
+    );
     final token = data['token']?.toString();
     if (token == null || token.isEmpty) {
       throw Exception('Verification failed: Token was not returned by server');
@@ -34,7 +46,9 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Map<String, dynamic>> updateUserProfile(Map<String, dynamic> updateData) async {
+  Future<Map<String, dynamic>> updateUserProfile(
+    Map<String, dynamic> updateData,
+  ) async {
     final response = await _remoteDataSource.updateProfile(updateData);
     final profile = response['profile'] as Map<String, dynamic>?;
     if (profile == null) {

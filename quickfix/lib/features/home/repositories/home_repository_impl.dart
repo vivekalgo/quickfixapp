@@ -1,7 +1,11 @@
 import 'package:quickfix/features/home/models/home_models.dart';
 import 'package:quickfix/features/home/repositories/home_repository.dart';
-import 'package:quickfix/features/home/services/home_remote_data_source.dart';
+import 'package:quickfix/features/home/datasources/home_remote_data_source.dart';
 
+/// Implementation of [HomeRepository] managing location-based shop queries, categories, search, and promotions.
+/// 
+/// Interacts with [HomeRemoteDataSource] to query the remote REST server,
+/// returning structured models like [ServiceCategory], [Shop], and [PromoBanner].
 class HomeRepositoryImpl implements HomeRepository {
   final HomeRemoteDataSource _remoteDataSource;
 
@@ -13,8 +17,16 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<List<Shop>> getNearbyShops({String? filter, double? lat, double? lng}) async {
-    return await _remoteDataSource.getNearbyShops(filter: filter, lat: lat, lng: lng);
+  Future<List<Shop>> getNearbyShops({
+    String? filter,
+    double? lat,
+    double? lng,
+  }) async {
+    return await _remoteDataSource.getNearbyShops(
+      filter: filter,
+      lat: lat,
+      lng: lng,
+    );
   }
 
   @override
@@ -28,8 +40,16 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<List<Shop>> searchShops({required String query, double? lat, double? lng}) async {
-    return await _remoteDataSource.searchShops(query: query, lat: lat, lng: lng);
+  Future<List<Shop>> searchShops({
+    required String query,
+    double? lat,
+    double? lng,
+  }) async {
+    return await _remoteDataSource.searchShops(
+      query: query,
+      lat: lat,
+      lng: lng,
+    );
   }
 
   @override

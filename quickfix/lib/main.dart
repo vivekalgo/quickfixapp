@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:quickfix/core/services/hive_service.dart';
+import 'package:quickfix/core/storage/hive_service.dart';
 import 'package:quickfix/app.dart';
 
 import 'dart:ui';
@@ -32,11 +32,11 @@ void main() async {
     );
     return true;
   };
-  
+
   // Set image cache limits to optimize memory consumption (50MB / 100 images)
   PaintingBinding.instance.imageCache.maximumSizeBytes = 50 * 1024 * 1024;
   PaintingBinding.instance.imageCache.maximumSize = 100;
-  
+
   // Initialize SDKs concurrently to optimize startup time
   await PerformanceMonitor.trace('Concurrent SDK Initialization', () async {
     await Future.wait([
@@ -54,9 +54,5 @@ void main() async {
   // Initialize Notification Service — must be awaited so Hive boxes are ready
   await NotificationService.init();
 
-  runApp(
-    const ProviderScope(
-      child: QuickFixApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: QuickFixApp()));
 }

@@ -10,7 +10,10 @@ class CrashReporter {
   static String generateErrorId() {
     final rand = Random();
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final code = List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join();
+    final code = List.generate(
+      6,
+      (_) => chars[rand.nextInt(chars.length)],
+    ).join();
     return 'ERR-$code';
   }
 
@@ -23,7 +26,12 @@ class CrashReporter {
   }
 
   /// Reports a fatal or non-fatal exception to the production logging collector
-  static void report(dynamic error, StackTrace? stackTrace, {required String errorId, String? reason}) {
+  static void report(
+    dynamic error,
+    StackTrace? stackTrace, {
+    required String errorId,
+    String? reason,
+  }) {
     if (kReleaseMode) {
       // PROD CODE: Here is where Firebase Crashlytics would be integrated:
       // FirebaseCrashlytics.instance.setCustomKey('error_id', errorId);

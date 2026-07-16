@@ -2,29 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'core/router/app_router.dart';
-import 'core/theme/app_colors.dart';
-import 'core/services/notification_service.dart';
+import 'package:quickfix_provider/core/router/app_router.dart';
+import 'package:quickfix_provider/core/theme/app_colors.dart';
+import 'package:quickfix_provider/core/services/notification_service.dart';
+import 'package:quickfix_provider/core/storage/hive_service.dart';
+
+import 'package:quickfix_provider/features/auth/presentation/controllers/auth_provider.dart';
+import 'package:quickfix_provider/core/widgets/offline_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await Hive.initFlutter();
-  await Hive.openBox('provider_settings');
+  await HiveService.init();
   await NotificationService.init();
 
-  runApp(
-    const ProviderScope(
-      child: QuickFixProviderApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: QuickFixProviderApp()));
 }
 
-class QuickFixProviderApp extends StatelessWidget {
+class QuickFixProviderApp extends ConsumerWidget {
   const QuickFixProviderApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (previous?.isAuthenticated == true && !next.isAuthenticated) {
+        providerRouter.go('/login');
+      }
+    });
+
     return MaterialApp.router(
       title: 'QuickFix Partner Portal',
       debugShowCheckedModeBanner: false,
@@ -54,6 +60,9 @@ class QuickFixProviderApp extends StatelessWidget {
         ),
       ),
       routerConfig: providerRouter,
+      builder: (context, child) {
+        return OfflineOverlay(child: child ?? const SizedBox.shrink());
+      },
     );
   }
 }

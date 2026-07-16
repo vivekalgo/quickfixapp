@@ -66,19 +66,24 @@ class ShopService {
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
       price: double.tryParse(json['price']?.toString() ?? '0.0') ?? 0.0,
-      originalPrice: double.tryParse(json['originalPrice']?.toString() ?? '0.0') ?? 0.0,
+      originalPrice:
+          double.tryParse(json['originalPrice']?.toString() ?? '0.0') ?? 0.0,
       rating: double.tryParse(json['rating']?.toString() ?? '5.0') ?? 5.0,
       reviewsCount: int.tryParse(json['reviewsCount']?.toString() ?? '0') ?? 0,
       durationText: json['durationText']?.toString() ?? '1 hr',
-      bulletPoints: (json['bulletPoints'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      bulletPoints:
+          (json['bulletPoints'] as List?)?.map((e) => e.toString()).toList() ??
+          [],
       imageUrl: json['imageUrl']?.toString() ?? '',
       pricingType: json['pricingType']?.toString() ?? 'fixed',
       minPrice: double.tryParse(json['minPrice']?.toString() ?? '0.0') ?? 0.0,
       maxPrice: double.tryParse(json['maxPrice']?.toString() ?? '0.0') ?? 0.0,
-      visitingCharges: double.tryParse(json['visitingCharges']?.toString() ?? '0.0') ?? 0.0,
+      visitingCharges:
+          double.tryParse(json['visitingCharges']?.toString() ?? '0.0') ?? 0.0,
       isFreeInspection: json['isFreeInspection'] == true,
       gst: double.tryParse(json['gst']?.toString() ?? '0.0') ?? 0.0,
-      extraCharges: double.tryParse(json['extraCharges']?.toString() ?? '0.0') ?? 0.0,
+      extraCharges:
+          double.tryParse(json['extraCharges']?.toString() ?? '0.0') ?? 0.0,
       extraChargesLabel: json['extraChargesLabel']?.toString() ?? '',
       isEnabled: json['isEnabled'] != false,
       isAvailable: json['isAvailable'] != false,
@@ -131,7 +136,10 @@ class Shop {
     required this.technicians,
   });
 
-  String get estimatedTimeDisplay => (estimatedServiceTime != null && estimatedServiceTime!.isNotEmpty) ? estimatedServiceTime! : '$deliveryTimeMins mins';
+  String get estimatedTimeDisplay =>
+      (estimatedServiceTime != null && estimatedServiceTime!.isNotEmpty)
+      ? estimatedServiceTime!
+      : '$deliveryTimeMins mins';
 
   int get estimatedTimeMinutes {
     if (estimatedServiceTime == null || estimatedServiceTime!.isEmpty) {
@@ -150,11 +158,15 @@ class Shop {
     return Shop(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
-      categories: (json['categories'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      categories:
+          (json['categories'] as List?)?.map((e) => e.toString()).toList() ??
+          [],
       rating: double.tryParse(json['rating']?.toString() ?? '4.0') ?? 4.0,
       reviewsCount: int.tryParse(json['reviewsCount']?.toString() ?? '0') ?? 0,
-      distanceKm: double.tryParse(json['distanceKm']?.toString() ?? '1.0') ?? 1.0,
-      deliveryTimeMins: int.tryParse(json['deliveryTimeMins']?.toString() ?? '15') ?? 15,
+      distanceKm:
+          double.tryParse(json['distanceKm']?.toString() ?? '1.0') ?? 1.0,
+      deliveryTimeMins:
+          int.tryParse(json['deliveryTimeMins']?.toString() ?? '15') ?? 15,
       estimatedServiceTime: json['estimatedServiceTime']?.toString(),
       priceRange: json['priceRange']?.toString() ?? '₹',
       imagePath: json['imagePath']?.toString() ?? '',
@@ -162,12 +174,24 @@ class Shop {
       phone: json['phone']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       address: json['address']?.toString() ?? '',
-      visitingCharges: double.tryParse(json['visitingCharges']?.toString() ?? '150.0') ?? 150.0,
+      visitingCharges:
+          double.tryParse(json['visitingCharges']?.toString() ?? '150.0') ??
+          150.0,
       timings: json['timings']?.toString() ?? '09:00 AM - 09:00 PM',
       isOpen: json['isOpen'] == null ? true : (json['isOpen'] as bool),
-      portfolioImages: (json['portfolioImages'] as List?)?.map((e) => e.toString()).toList() ?? [],
-      services: (json['services'] as List?)?.map((e) => ShopService.fromJson(e as Map<String, dynamic>)).toList() ?? [],
-      technicians: (json['technicians'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      portfolioImages:
+          (json['portfolioImages'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      services:
+          (json['services'] as List?)
+              ?.map((e) => ShopService.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      technicians:
+          (json['technicians'] as List?)?.map((e) => e.toString()).toList() ??
+          [],
     );
   }
 }
@@ -212,10 +236,12 @@ class Professional {
       specialty: json['specialty']?.toString() ?? '',
       rating: double.tryParse(json['rating']?.toString() ?? '5.0') ?? 5.0,
       reviewsCount: int.tryParse(json['reviewsCount']?.toString() ?? '0') ?? 0,
-      avatarUrl: json['imageUrl']?.toString() ?? json['avatarUrl']?.toString() ?? '',
+      avatarUrl:
+          json['imageUrl']?.toString() ?? json['avatarUrl']?.toString() ?? '',
       shopId: json['shopId']?.toString() ?? '',
       experience: json['experience']?.toString() ?? '',
-      completedJobs: int.tryParse(json['completedJobs']?.toString() ?? '0') ?? 0,
+      completedJobs:
+          int.tryParse(json['completedJobs']?.toString() ?? '0') ?? 0,
       location: json['location']?.toString() ?? '',
       verifiedBadge: json['verifiedBadge'] == true,
       availability: json['availability'] != false,
@@ -290,16 +316,16 @@ class UserLocation {
   });
 
   Map<String, dynamic> toJson() => {
-        'address': address,
-        'latitude': latitude,
-        'longitude': longitude,
-      };
+    'address': address,
+    'latitude': latitude,
+    'longitude': longitude,
+  };
 
   factory UserLocation.fromJson(Map<String, dynamic> json) => UserLocation(
-        address: json['address'] as String? ?? '',
-        latitude: (json['latitude'] as num?)?.toDouble() ?? 26.4912,
-        longitude: (json['longitude'] as num?)?.toDouble() ?? 80.3156,
-      );
+    address: json['address'] as String? ?? '',
+    latitude: (json['latitude'] as num?)?.toDouble() ?? 26.4912,
+    longitude: (json['longitude'] as num?)?.toDouble() ?? 80.3156,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -482,7 +508,9 @@ class CmsSection {
       type: json['type']?.toString() ?? '',
       priority: int.tryParse(json['priority']?.toString() ?? '0') ?? 0,
       isActive: json['isActive'] != false,
-      settings: json['settings'] is Map ? Map<String, dynamic>.from(json['settings'] as Map) : {},
+      settings: json['settings'] is Map
+          ? Map<String, dynamic>.from(json['settings'] as Map)
+          : {},
     );
   }
 }
@@ -562,8 +590,13 @@ class CustomSection {
       bannerActionValue: json['bannerActionValue']?.toString() ?? '',
       seeAllActionType: json['seeAllActionType']?.toString() ?? 'No Action',
       seeAllActionValue: json['seeAllActionValue']?.toString() ?? '',
-      serviceItems: (json['serviceItems'] as List?)
-              ?.map((e) => CustomSectionServiceItem.fromJson(e as Map<String, dynamic>))
+      serviceItems:
+          (json['serviceItems'] as List?)
+              ?.map(
+                (e) => CustomSectionServiceItem.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
               .toList() ??
           [],
       priority: int.tryParse(json['priority']?.toString() ?? '0') ?? 0,
@@ -571,7 +604,3 @@ class CustomSection {
     );
   }
 }
-
-
-
-

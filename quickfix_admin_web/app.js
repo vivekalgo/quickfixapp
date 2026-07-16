@@ -1,9 +1,10 @@
 const API_URL = 'https://quickfixapp-production.up.railway.app/api';
 
 // Global fetch interceptor for Admin Auth Token
+// TokenStore is defined in security.js (loaded before this file)
 const originalFetch = window.fetch;
 window.fetch = function (url, options = {}) {
-  const token = localStorage.getItem('admin_token');
+  const token = TokenStore.get();
   if (token) {
     options.headers = options.headers || {};
     if (!(options.headers instanceof Headers)) {
@@ -14,7 +15,8 @@ window.fetch = function (url, options = {}) {
   }
   return originalFetch(url, options).then(response => {
     if ((response.status === 401 || response.status === 403) && !url.includes('/admin/login')) {
-      localStorage.removeItem('admin_token');
+      TokenStore.clear();
+      stopPolling();
       showAdminLoginScreen();
     }
     return response;
@@ -55,10 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const data = await response.json();
         if (response.ok && data.token) {
-          localStorage.setItem('admin_token', data.token);
+          TokenStore.set(data.token);
           errorDiv.style.display = 'none';
           passwordInput.value = '';
           hideAdminLoginScreen();
+          startSessionWatchdog();
+          startPolling();
           refreshAllData().then(() => {
             renderShopCategoriesCheckbox();
           });
@@ -74,9 +78,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Check auth state immediately
-  const token = localStorage.getItem('admin_token');
+  const token = TokenStore.get();
   if (!token) {
     showAdminLoginScreen();
+  } else {
+    startSessionWatchdog();
   }
 });
 
@@ -91,9 +97,15 @@ let categories = [];
 let settings = {};
 let auditLogs = [];
 let demands = [];
+let allReviews = [];
+
+// ApexCharts instances
+let apexRevenueTrend = null;
+let apexCategorySplit = null;
+let apexFulfillment = null;
 
 // DOM Elements
-const navItems = document.querySelectorAll('.nav-item');
+const navItems = document.querySelectorAll('.nav-item[data-tab]');
 const tabPanes = document.querySelectorAll('.tab-pane');
 const tabTitle = document.getElementById('tab-title');
 const themeToggle = document.getElementById('theme-toggle');
@@ -110,7 +122,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCmsForms();
   setupCategoryImageUpload();
   setupBannerImageUpload();
-  
+  setupSidebarCollapse();
+  setupMobileNav();
+  setupGlobalSearch();
+  setupConfirmModal();
+  setupCredentialsModal();
+  setupPaySubtabs();
+
   // Custom Filters & Dropdowns
   const statusFilter = document.getElementById('booking-filter-status');
   if (statusFilter) {
@@ -126,22 +144,267 @@ document.addEventListener('DOMContentLoaded', () => {
       renderShopsList();
     });
   });
-  
+
+  // Notification bell navigates to broadcast tab
+  const btnNotif = document.getElementById('btn-notif');
+  if (btnNotif) {
+    btnNotif.addEventListener('click', () => {
+      const broadcastNav = document.querySelector('[data-tab="broadcast-tab"]');
+      if (broadcastNav) broadcastNav.click();
+    });
+  }
+
+  // Logout
+  const btnLogout = document.getElementById('btn-logout-nav');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', (e) => {
+      e.preventDefault();
+      showConfirmModal('Logout', 'You will be signed out of the Admin Console.', () => {
+        TokenStore.clear();
+        stopPolling();
+        showAdminLoginScreen();
+        showToast('Logged out successfully', 'success');
+      }, 'warning');
+    });
+  }
+
+  // Wallet tab search filter
+  const walletSearch = document.getElementById('wallet-search');
+  if (walletSearch) {
+    walletSearch.addEventListener('input', () => {
+      const q = walletSearch.value.toLowerCase();
+      document.querySelectorAll('#wallet-tab-tbody tr').forEach(tr => {
+        tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+  }
+
+  // Copy credentials
+  const btnCopyCred = document.getElementById('btn-copy-credentials');
+  if (btnCopyCred) {
+    btnCopyCred.addEventListener('click', () => {
+      const shopId = document.getElementById('cred-shop-id').textContent;
+      const pass = document.getElementById('cred-temp-pass').textContent;
+      navigator.clipboard.writeText(`Shop ID: ${shopId}\nTemp Password: ${pass}`)
+        .then(() => showToast('Credentials copied to clipboard', 'success'))
+        .catch(() => showToast('Copy failed â€” please copy manually', 'error'));
+    });
+  }
+
   // Initial loading sequence
-  const token = localStorage.getItem('admin_token');
+  const token = TokenStore.get();
   if (token) {
+    checkSessionExpiry(); // check age immediately on load
+    startPolling();
     refreshAllData().then(() => {
       renderShopCategoriesCheckbox();
     });
   }
-  
-  // Refresh loop every 10 seconds to keep stats and live stream up to date
-  setInterval(() => {
-    if (localStorage.getItem('admin_token')) {
-      refreshAllData();
-    }
-  }, 10000);
 });
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ SIDEBAR COLLAPSE & MOBILE NAV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function setupSidebarCollapse() {
+  const sidebar = document.getElementById('sidebar');
+  const mainContent = document.getElementById('main-content');
+  const toggleBtn = document.getElementById('sidebar-toggle');
+  if (!sidebar || !toggleBtn) return;
+
+  const collapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+  if (collapsed) {
+    sidebar.classList.add('collapsed');
+    if (mainContent) mainContent.classList.add('sidebar-collapsed');
+    toggleBtn.querySelector('i').className = 'fa-solid fa-angles-right';
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    if (mainContent) mainContent.classList.toggle('sidebar-collapsed', isCollapsed);
+    toggleBtn.querySelector('i').className = isCollapsed ? 'fa-solid fa-angles-right' : 'fa-solid fa-angles-left';
+    localStorage.setItem('sidebar-collapsed', isCollapsed);
+  });
+}
+
+function setupMobileNav() {
+  const hamburger = document.getElementById('hamburger-btn');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (!hamburger || !sidebar || !overlay) return;
+
+  const openMobile = () => { sidebar.classList.add('mobile-open'); overlay.classList.add('active'); document.body.style.overflow = 'hidden'; };
+  const closeMobile = () => { sidebar.classList.remove('mobile-open'); overlay.classList.remove('active'); document.body.style.overflow = ''; };
+
+  hamburger.addEventListener('click', openMobile);
+  overlay.addEventListener('click', closeMobile);
+
+  // Close on nav item click on mobile
+  document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+    item.addEventListener('click', () => { if (window.innerWidth <= 1024) closeMobile(); });
+  });
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ BREADCRUMB UPDATE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function updateBreadcrumb(tabName) {
+  const el = document.getElementById('tab-title');
+  if (el) el.textContent = tabName;
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ GLOBAL SEARCH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function setupGlobalSearch() {
+  const searchInput = document.getElementById('global-search');
+  const sidebarSearch = document.getElementById('sidebar-search-input');
+  if (!searchInput) return;
+
+  // Ctrl+K shortcut
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      searchInput.focus();
+    }
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      searchInput.blur();
+    }
+  });
+
+  // Filter nav items based on search (sidebar search)
+  if (sidebarSearch) {
+    sidebarSearch.addEventListener('input', () => {
+      const q = sidebarSearch.value.toLowerCase();
+      document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+        const label = item.querySelector('.sidebar-label');
+        if (!label) return;
+        const match = label.textContent.toLowerCase().includes(q);
+        item.style.display = q === '' || match ? '' : 'none';
+      });
+    });
+  }
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ CONFIRM MODAL (replaces window.confirm) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+let _confirmCallback = null;
+
+function setupConfirmModal() {
+  const modal = document.getElementById('confirm-modal');
+  const cancelBtn = document.getElementById('confirm-modal-cancel');
+  const okBtn = document.getElementById('confirm-modal-ok');
+  if (!modal || !cancelBtn || !okBtn) return;
+
+  cancelBtn.addEventListener('click', () => { modal.classList.remove('active'); _confirmCallback = null; });
+  okBtn.addEventListener('click', () => {
+    modal.classList.remove('active');
+    if (typeof _confirmCallback === 'function') _confirmCallback();
+    _confirmCallback = null;
+  });
+}
+
+function showConfirmModal(title, message, onConfirm, type = 'danger') {
+  const modal = document.getElementById('confirm-modal');
+  const titleEl = document.getElementById('confirm-modal-title');
+  const msgEl = document.getElementById('confirm-modal-message');
+  const iconEl = document.getElementById('confirm-modal-icon');
+  const okBtn = document.getElementById('confirm-modal-ok');
+  if (!modal) { if (window.confirm(message) && onConfirm) onConfirm(); return; }
+
+  titleEl.textContent = title;
+  msgEl.textContent = message;
+  iconEl.className = `confirm-modal-icon ${type}`;
+  iconEl.querySelector('i').className = type === 'danger' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-exclamation';
+  okBtn.className = type === 'danger' ? 'btn btn-danger' : 'btn btn-warning';
+  okBtn.textContent = 'Confirm';
+  _confirmCallback = onConfirm;
+  modal.classList.add('active');
+}
+
+function setupCredentialsModal() {
+  // Close modal triggers
+  document.querySelectorAll('.close-modal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modalId = btn.getAttribute('data-modal');
+      if (modalId) document.getElementById(modalId)?.classList.remove('active');
+    });
+  });
+}
+
+function showCredentialsModal(shopDisplayId, tempPassword) {
+  document.getElementById('cred-shop-id').textContent = shopDisplayId;
+  document.getElementById('cred-temp-pass').textContent = tempPassword;
+  document.getElementById('credentials-modal').classList.add('active');
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ PAY SUB-TABS SETUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function setupPaySubtabs() {
+  // Already wired via onclick="switchPaySubtab(this)" in HTML
+}
+
+function switchPaySubtab(btn) {
+  document.querySelectorAll('.pay-subtab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.pay-pane').forEach(p => p.style.display = 'none');
+  btn.classList.add('active');
+  const targetId = btn.getAttribute('data-pay-tab');
+  const target = document.getElementById(targetId);
+  if (target) target.style.display = 'block';
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ TABLE SEARCH HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function filterBookingsTable() {
+  const q = (document.getElementById('bookings-search')?.value || '').toLowerCase();
+  document.querySelectorAll('#manage-bookings-tbody tr').forEach(tr => {
+    tr.style.display = q === '' || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function filterCustomersTable() {
+  const q = (document.getElementById('customers-search')?.value || '').toLowerCase();
+  document.querySelectorAll('#customers-tbody tr').forEach(tr => {
+    tr.style.display = q === '' || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function filterReviewsTable() {
+  const q = (document.getElementById('reviews-search')?.value || '').toLowerCase();
+  const ratingFilter = document.getElementById('reviews-filter-rating')?.value || 'all';
+  document.querySelectorAll('#reviews-tbody tr').forEach(tr => {
+    const matchQ = q === '' || tr.textContent.toLowerCase().includes(q);
+    const matchR = ratingFilter === 'all' || tr.getAttribute('data-rating') === ratingFilter;
+    tr.style.display = matchQ && matchR ? '' : 'none';
+  });
+}
+
+function filterProvidersTable() {
+  const q = (document.getElementById('providers-search')?.value || '').toLowerCase();
+  document.querySelectorAll('#providers-tbody tr').forEach(tr => {
+    tr.style.display = q === '' || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// Export CSV for bookings
+function exportBookingsCSV() {
+  let csv = 'data:text/csv;charset=utf-8,Booking ID,Customer,Provider,Amount,Date,Status\n';
+  document.querySelectorAll('#manage-bookings-tbody tr').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length > 1) {
+      csv += Array.from(cells).slice(0,6).map(td => `"${td.textContent.trim()}"`).join(',') + '\n';
+    }
+  });
+  const link = document.createElement('a');
+  link.setAttribute('href', encodeURI(csv));
+  link.setAttribute('download', `bookings_${Date.now()}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('Bookings CSV exported', 'success');
+}
 
 // Toast notification helper
 function showToast(message, type = 'success') {
@@ -178,7 +441,7 @@ async function logAdminActivity(action, target, details) {
       body: JSON.stringify({ action, target, details })
     });
   } catch (e) {
-    console.error('Audit logging failed:', e);
+    logError('Audit logging failed:', e);
   }
 }
 
@@ -209,27 +472,38 @@ function updateThemeIcon(theme) {
 
 // Setup tab switches
 function setupTabs() {
-  navItems.forEach(item => {
+  const allNavItems = document.querySelectorAll('.nav-item[data-tab]');
+  const allTabPanes = document.querySelectorAll('.tab-pane');
+
+  allNavItems.forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       const tabId = item.getAttribute('data-tab');
-      
-      navItems.forEach(i => i.classList.remove('active'));
-      tabPanes.forEach(pane => pane.classList.remove('active'));
-      
+
+      allNavItems.forEach(i => i.classList.remove('active'));
+      allTabPanes.forEach(pane => pane.classList.remove('active'));
+
       item.classList.add('active');
-      document.getElementById(tabId).classList.add('active');
-      tabTitle.textContent = item.textContent.trim();
+      const pane = document.getElementById(tabId);
+      if (pane) pane.classList.add('active');
+
+      // Update breadcrumb
+      const label = item.querySelector('.sidebar-label');
+      const name = label ? label.textContent.trim() : item.textContent.trim();
+      updateBreadcrumb(name);
 
       // Hook tab-specific fetch sequences
-      if (tabId === 'demand-tab') loadDemands();
-      if (tabId === 'customers-tab') loadCustomers();
-      if (tabId === 'payments-tab') loadPaymentStats();
-      if (tabId === 'categories-tab') loadCategories();
-      if (tabId === 'reports-tab') loadReports();
-      if (tabId === 'settings-tab') loadSettings();
-      if (tabId === 'audit-logs-tab') loadAuditLogs();
-      if (tabId === 'cms-tab') loadCmsData();
+      if (tabId === 'demand-tab')      loadDemands();
+      if (tabId === 'customers-tab')   loadCustomers();
+      if (tabId === 'payments-tab')    loadPaymentStats();
+      if (tabId === 'categories-tab')  loadCategories();
+      if (tabId === 'reports-tab')     loadReports();
+      if (tabId === 'settings-tab')    loadSettings();
+      if (tabId === 'audit-logs-tab')  loadAuditLogs();
+      if (tabId === 'cms-tab')         loadCmsData();
+      if (tabId === 'providers-tab')   renderProvidersTable();
+      if (tabId === 'reviews-tab')     loadReviews();
+      if (tabId === 'wallet-tab')      loadWalletTab();
     });
   });
 }
@@ -237,38 +511,48 @@ function setupTabs() {
 // Setup modals opening/closing
 function setupModals() {
   // Banner modal
-  document.getElementById('btn-add-banner-modal').addEventListener('click', () => {
-    document.getElementById('banner-modal-title').textContent = "Create Carousel Banner";
-    document.getElementById('edit-banner-id').value = "";
-    document.getElementById('banner-form').reset();
-    
-    // Clear banner file input and preview
-    const fileInput = document.getElementById('banner-image-file');
-    if (fileInput) fileInput.value = '';
-    const fileNameSpan = document.getElementById('banner-image-file-name');
-    if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
-    const previewImg = document.getElementById('banner-image-preview');
-    if (previewImg) previewImg.src = '';
-    const previewContainer = document.getElementById('banner-image-preview-container');
-    if (previewContainer) previewContainer.style.display = 'none';
-    
-    document.getElementById('banner-modal').classList.add('active');
-  });
-  
+  const addBannerBtn = document.getElementById('btn-add-banner-modal');
+  if (addBannerBtn) {
+    addBannerBtn.addEventListener('click', () => {
+      document.getElementById('banner-modal-title').textContent = 'Create Carousel Banner';
+      document.getElementById('edit-banner-id').value = '';
+      document.getElementById('banner-form').reset();
+      const fileInput = document.getElementById('banner-image-file');
+      if (fileInput) fileInput.value = '';
+      const fileNameSpan = document.getElementById('banner-image-file-name');
+      if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+      const previewImg = document.getElementById('banner-image-preview');
+      if (previewImg) previewImg.src = '';
+      const previewContainer = document.getElementById('banner-image-preview-container');
+      if (previewContainer) previewContainer.style.display = 'none';
+      document.getElementById('banner-modal').classList.add('active');
+    });
+  }
+
   // Offer modal
-  document.getElementById('btn-add-offer-modal').addEventListener('click', () => {
-    document.getElementById('offer-modal-title').textContent = "Create Promo Coupon";
-    document.getElementById('edit-offer-mode').value = "create";
-    document.getElementById('offer-code').disabled = false;
-    document.getElementById('offer-form').reset();
-    document.getElementById('offer-modal').classList.add('active');
-  });
-  
-  // Close triggers
+  const addOfferBtn = document.getElementById('btn-add-offer-modal');
+  if (addOfferBtn) {
+    addOfferBtn.addEventListener('click', () => {
+      document.getElementById('offer-modal-title').textContent = 'Create Promo Coupon';
+      document.getElementById('edit-offer-mode').value = 'create';
+      document.getElementById('offer-code').disabled = false;
+      document.getElementById('offer-form').reset();
+      document.getElementById('offer-modal').classList.add('active');
+    });
+  }
+
+  // Close triggers (handled also in setupCredentialsModal)
   document.querySelectorAll('.close-modal').forEach(btn => {
     btn.addEventListener('click', () => {
       const modalId = btn.getAttribute('data-modal');
-      document.getElementById(modalId).classList.remove('active');
+      if (modalId) document.getElementById(modalId)?.classList.remove('active');
+    });
+  });
+
+  // Close modals on backdrop click
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('active');
     });
   });
 }
@@ -299,7 +583,7 @@ async function fetchShops() {
     const res = await fetch(`${API_URL}/shops/all`);
     shops = await res.json();
   } catch (e) {
-    console.error('Error fetching shops:', e);
+    logError('Error fetching shops:', e);
   }
 }
 
@@ -308,7 +592,7 @@ async function fetchBookings() {
     const res = await fetch(`${API_URL}/bookings`);
     bookings = await res.json();
   } catch (e) {
-    console.error('Error fetching bookings:', e);
+    logError('Error fetching bookings:', e);
   }
 }
 
@@ -317,7 +601,7 @@ async function fetchBanners() {
     const res = await fetch(`${API_URL}/banners`);
     banners = await res.json();
   } catch (e) {
-    console.error('Error fetching banners:', e);
+    logError('Error fetching banners:', e);
   }
 }
 
@@ -326,7 +610,7 @@ async function fetchOffers() {
     const res = await fetch(`${API_URL}/offers`);
     offers = await res.json();
   } catch (e) {
-    console.error('Error fetching offers:', e);
+    logError('Error fetching offers:', e);
   }
 }
 
@@ -335,7 +619,7 @@ async function fetchAlerts() {
     const res = await fetch(`${API_URL}/notifications`);
     alerts = await res.json();
   } catch (e) {
-    console.error('Error fetching alerts:', e);
+    logError('Error fetching alerts:', e);
   }
 }
 
@@ -344,7 +628,7 @@ async function fetchCategories() {
     const res = await fetch(`${API_URL}/categories`);
     categories = await res.json();
   } catch (e) {
-    console.error('Error fetching categories:', e);
+    logError('Error fetching categories:', e);
   }
 }
 
@@ -390,7 +674,7 @@ async function updateDashboardStats() {
     document.getElementById('stat-weekly-reports').textContent = `₹${(stats.revenue * 0.25).toFixed(0).toLocaleString()}`;
     document.getElementById('stat-monthly-reports').textContent = `₹${stats.revenue.toLocaleString()}`;
   } catch (e) {
-    console.error('Error updating dashboard stats:', e);
+    logError('Error updating dashboard stats:', e);
   }
 }
 
@@ -408,12 +692,12 @@ function renderBookingsTable() {
   bookings.slice(0, 10).forEach(b => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${b.id}</td>
-      <td>${b.customerName}</td>
-      <td>${b.providerName}</td>
-      <td style="color:var(--primary-solid); font-weight: 600;">₹${b.amount}</td>
-      <td>${new Date(b.date).toLocaleDateString('en-GB')} • ${b.slot}</td>
-      <td><span class="badge badge-${b.status}">${b.status.replace('_', ' ')}</span></td>
+      <td>${esc(b.id)}</td>
+      <td>${esc(b.customerName)}</td>
+      <td>${esc(b.providerName)}</td>
+      <td style="color:var(--primary-solid); font-weight: 600;">&#8377;${esc(b.amount)}</td>
+      <td>${esc(new Date(b.date).toLocaleDateString('en-GB'))} &bull; ${esc(b.slot)}</td>
+      <td><span class="badge badge-${esc(b.status)}">${esc(b.status.replace('_', ' '))}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -460,41 +744,41 @@ function renderShopsList() {
 
     div.innerHTML = `
       <div class="shop-info" style="flex-grow: 1;">
-        <h4 style="display:flex; align-items:center; gap:8px;">${s.name} <span style="font-size:11px;color:var(--text-muted);">(${s.shopDisplayId || 'No ID'})</span> ${verifyBadge} ${suspendBadge}</h4>
-        <p>Owner: ${s.ownerName} • Phone: ${s.phone} • Email: ${s.email || 'N/A'}</p>
-        <p style="font-size:11px;color:var(--primary-solid);margin-top:4px;">Coords: ${s.latitude}, ${s.longitude} • Radius: ${s.serviceRadius}km • Visiting Charges: ₹${s.visitingCharges}</p>
-        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">GST: ${s.gst || 'N/A'} • PAN: ${s.pan || 'N/A'} • Aadhaar: ${s.aadhaar || 'N/A'}</p>
-        <p style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Bank Acc: ${s.bankAccountNumber || 'N/A'} • IFSC: ${s.ifscCode || 'N/A'} • UPI ID: ${s.upiId || 'N/A'}</p>
-        <p style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Owner Phone: ${s.ownerPhone || 'N/A'} • Owner Email: ${s.ownerEmail || 'N/A'}</p>
-        <p style="font-size:11px;color:var(--text-primary);margin-top:2px;font-weight:600;">Wallet: ₹${(s.walletBalance || 0).toFixed(2)} • Commission: ${s.commissionRate !== undefined ? s.commissionRate : 15}% • Onboarding: ${s.isFirstLogin === false ? '✅ Completed' : '⏳ Pending'}</p>
-        <p style="font-size:11px;color:var(--warning);margin-top:2px; font-family: monospace;">Login ID: ${s.shopDisplayId || 'N/A'} • Password: ${s.tempPassword || 'N/A'}</p>
-        <p style="font-size:12px;color:var(--accent);margin-top:4px;font-weight:600;">⭐ ${(s.rating || 5.0).toFixed(1)} <span style="font-weight:400;color:var(--text-muted);">(${ (s.reviewsCount || 0)} reviews)</span></p>
+        <h4 style="display:flex; align-items:center; gap:8px;">${esc(s.name)} <span style="font-size:11px;color:var(--text-muted);">(${esc(s.shopDisplayId || 'No ID')})</span> ${verifyBadge} ${suspendBadge}</h4>
+        <p>Owner: ${esc(s.ownerName)} &bull; Phone: ${esc(s.phone)} &bull; Email: ${esc(s.email || 'N/A')}</p>
+        <p style="font-size:11px;color:var(--primary-solid);margin-top:4px;">Coords: ${esc(s.latitude)}, ${esc(s.longitude)} &bull; Radius: ${esc(s.serviceRadius)}km &bull; Visiting: &#8377;${esc(s.visitingCharges)}</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">GST: ${maskKyc(s.gst, 4, 'GST')} &bull; PAN: ${maskKyc(s.pan, 4, 'PAN')} &bull; Aadhaar: ${maskKyc(s.aadhaar, 4, 'Aadhaar')}</p>
+        <p style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Bank Acc: ${maskKyc(s.bankAccountNumber, 4, 'Bank Account')} &bull; IFSC: ${maskKyc(s.ifscCode, 4, 'IFSC')} &bull; UPI: ${maskKyc(s.upiId, 4, 'UPI ID')}</p>
+        <p style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Owner Phone: ${esc(s.ownerPhone || 'N/A')} &bull; Owner Email: ${esc(s.ownerEmail || 'N/A')}</p>
+        <p style="font-size:11px;color:var(--text-primary);margin-top:2px;font-weight:600;">Wallet: &#8377;${esc((s.walletBalance || 0).toFixed(2))} &bull; Commission: ${esc(s.commissionRate !== undefined ? s.commissionRate : 15)}% &bull; Onboarding: ${s.isFirstLogin === false ? '&#10003; Done' : '&#8987; Pending'}</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Login ID: <code>${esc(s.shopDisplayId || 'N/A')}</code> &nbsp;<span style="color:var(--text-muted);font-size:10px;">(Credentials via Reset Password button)</span></p>
+        <p style="font-size:12px;color:var(--accent);margin-top:4px;font-weight:600;">&#9733; ${esc((s.rating || 5.0).toFixed(1))} <span style="font-weight:400;color:var(--text-muted);">(${esc(s.reviewsCount || 0)} reviews)</span></p>
       </div>
       <div class="shop-actions">
         <div style="display:flex; gap:12px; align-items:center; font-size:11px;">
           <div style="display:flex; align-items:center; gap:4px;">
             <span>Online</span>
             <label class="switch">
-              <input type="checkbox" ${isOnlineChecked} onchange="toggleShopOnline('${s.id}', ${!s.isOnline})">
+              <input type="checkbox" ${isOnlineChecked} onchange="toggleShopOnline('${esc(s.id)}', ${!s.isOnline})">
               <span class="slider"></span>
             </label>
           </div>
           <div style="display:flex; align-items:center; gap:4px;">
             <span>Disable Login</span>
             <label class="switch">
-              <input type="checkbox" ${isLoginDisabled} onchange="toggleShopLogin('${s.id}', ${!s.loginDisabled})">
+              <input type="checkbox" ${isLoginDisabled} onchange="toggleShopLogin('${esc(s.id)}', ${!s.loginDisabled})">
               <span class="slider"></span>
             </label>
           </div>
         </div>
         <div style="display:flex; gap:6px; margin-top:8px;">
-          ${s.verificationStatus === 'pending' ? `<button class="btn btn-primary btn-sm" onclick="approveShop('${s.id}', 'approved')"><i class="fa-solid fa-check"></i> Approve</button>` : ''}
-          ${s.verificationStatus === 'pending' ? `<button class="btn btn-danger btn-sm" onclick="approveShop('${s.id}', 'rejected')"><i class="fa-solid fa-xmark"></i> Reject</button>` : ''}
-          ${s.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="suspendShop('${s.id}', true)"><i class="fa-solid fa-ban"></i> Suspend</button>` : `<button class="btn btn-secondary btn-sm" onclick="suspendShop('${s.id}', false)"><i class="fa-solid fa-unlock"></i> Unsuspend</button>`}
-          <button class="btn btn-secondary btn-sm" onclick="resetShopPassword('${s.id}')"><i class="fa-solid fa-key"></i> Pass Reset</button>
-          <button class="btn btn-secondary btn-sm" onclick="openServicesModal('${s.id}')"><i class="fa-solid fa-gears"></i> Services</button>
-          <button class="btn btn-secondary btn-sm" onclick="editShop('${s.id}')"><i class="fa-solid fa-pen"></i></button>
-          <button class="btn btn-danger btn-sm btn-icon" onclick="deleteShop('${s.id}')" title="Delete Shop"><i class="fa-solid fa-trash-can"></i></button>
+          ${s.verificationStatus === 'pending' ? `<button class="btn btn-primary btn-sm" onclick="approveShop('${esc(s.id)}', 'approved')"><i class="fa-solid fa-check"></i> Approve</button>` : ''}
+          ${s.verificationStatus === 'pending' ? `<button class="btn btn-danger btn-sm" onclick="approveShop('${esc(s.id)}', 'rejected')"><i class="fa-solid fa-xmark"></i> Reject</button>` : ''}
+          ${s.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="suspendShop('${esc(s.id)}', true)"><i class="fa-solid fa-ban"></i> Suspend</button>` : `<button class="btn btn-secondary btn-sm" onclick="suspendShop('${esc(s.id)}', false)"><i class="fa-solid fa-unlock"></i> Unsuspend</button>`}
+          <button class="btn btn-secondary btn-sm" onclick="resetShopPassword('${esc(s.id)}')"><i class="fa-solid fa-key"></i> Pass Reset</button>
+          <button class="btn btn-secondary btn-sm" onclick="openServicesModal('${esc(s.id)}')"><i class="fa-solid fa-gears"></i> Services</button>
+          <button class="btn btn-secondary btn-sm" onclick="editShop('${esc(s.id)}')"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="deleteShop('${esc(s.id)}')" title="Delete Shop"><i class="fa-solid fa-trash-can"></i></button>
         </div>
       </div>
     `;
@@ -517,24 +801,24 @@ function renderBannersGrid() {
     const div = document.createElement('div');
     div.className = 'banner-item';
     div.innerHTML = `
-      <img src="${b.imageUrl}" alt="${b.title}">
+      <img src="${esc(b.imageUrl)}" alt="${esc(b.title)}">
       <div class="banner-details">
-        <h4>${b.title}</h4>
-        <p>Code: ${b.code} • Tag: ${b.percent}</p>
-        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Redirect: ${b.redirectUrl || 'None'} • Order: ${b.priority || 0}</p>
-        <p style="font-size:11px;color:var(--text-muted);">Expires: ${b.expiryDate || 'Never'}</p>
+        <h4>${esc(b.title)}</h4>
+        <p>Code: ${esc(b.code)} &bull; Tag: ${esc(b.percent)}</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Redirect: ${esc(b.redirectUrl || 'None')} &bull; Order: ${esc(b.priority || 0)}</p>
+        <p style="font-size:11px;color:var(--text-muted);">Expires: ${esc(b.expiryDate || 'Never')}</p>
       </div>
       <div class="toggle-switch">
         <div style="display:flex; align-items:center; gap:8px;">
           <span>Active State</span>
           <label class="switch">
-            <input type="checkbox" ${b.isActive ? 'checked' : ''} onchange="toggleBanner('${b.id}')">
+            <input type="checkbox" ${b.isActive ? 'checked' : ''} onchange="toggleBanner('&quot;${esc(b.id)}&quot;')">
             <span class="slider"></span>
           </label>
         </div>
         <div>
-          <button class="btn btn-icon" onclick="editBanner('${b.id}')" title="Edit Banner" style="padding: 4px; font-size:12px; color:var(--primary-solid);"><i class="fa-solid fa-pen"></i></button>
-          <button class="btn btn-icon btn-delete" onclick="deleteBanner('${b.id}')" title="Delete Banner" style="padding: 4px; font-size:12px; color:var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
+          <button class="btn btn-icon" onclick="editBanner('${esc(b.id)}')" title="Edit Banner" style="padding: 4px; font-size:12px; color:var(--primary-solid);"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-icon btn-delete" onclick="deleteBanner('${esc(b.id)}')" title="Delete Banner" style="padding: 4px; font-size:12px; color:var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
         </div>
       </div>
     `;
@@ -558,23 +842,23 @@ function renderOffersGrid() {
     div.className = 'offer-item';
     div.innerHTML = `
       <div class="offer-details">
-        <h4 style="color:var(--primary-solid); font-weight:700;">Code: ${o.code}</h4>
-        <p><strong>${o.title}</strong></p>
-        <p>${o.description}</p>
-        <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Min Order: ₹${o.minOrderAmount || 0} • Max Discount: ₹${o.maxDiscount || 0}</p>
-        <p style="font-size:11px;color:var(--text-muted);">Expiry: ${o.expiryDate || 'N/A'} • Limit: ${o.usageLimit || 0} (Used: ${o.usedCount || 0})</p>
+        <h4 style="color:var(--primary-solid); font-weight:700;">Code: ${esc(o.code)}</h4>
+        <p><strong>${esc(o.title)}</strong></p>
+        <p>${esc(o.description)}</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Min Order: &#8377;${esc(o.minOrderAmount || 0)} &bull; Max Discount: &#8377;${esc(o.maxDiscount || 0)}</p>
+        <p style="font-size:11px;color:var(--text-muted);">Expiry: ${esc(o.expiryDate || 'N/A')} &bull; Limit: ${esc(o.usageLimit || 0)} (Used: ${esc(o.usedCount || 0)})</p>
       </div>
       <div class="toggle-switch">
         <div style="display:flex; align-items:center; gap:8px;">
           <span>Active State</span>
           <label class="switch">
-            <input type="checkbox" ${o.isActive ? 'checked' : ''} onchange="toggleOffer('${o.code}')">
+            <input type="checkbox" ${o.isActive ? 'checked' : ''} onchange="toggleOffer('${esc(o.code)}')">
             <span class="slider"></span>
           </label>
         </div>
         <div>
-          <button class="btn btn-icon" onclick="editOffer('${o.code}')" title="Edit Coupon" style="padding: 4px; font-size:12px; color:var(--primary-solid);"><i class="fa-solid fa-pen"></i></button>
-          <button class="btn btn-icon btn-delete" onclick="deleteOffer('${o.code}')" title="Delete Offer" style="padding: 4px; font-size:12px; color:var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
+          <button class="btn btn-icon" onclick="editOffer('${esc(o.code)}')" title="Edit Coupon" style="padding: 4px; font-size:12px; color:var(--primary-solid);"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-icon btn-delete" onclick="deleteOffer('${esc(o.code)}')" title="Delete Offer" style="padding: 4px; font-size:12px; color:var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
         </div>
       </div>
     `;
@@ -598,8 +882,8 @@ function renderAlertsHistory() {
     div.className = 'alert-history-item';
     div.style = "border-bottom:1px solid var(--border); padding: 12px 0;";
     div.innerHTML = `
-      <h4 style="display:flex; justify-content:space-between; font-size:13px;">${a.title} <span style="font-size:10px; color:var(--text-muted);">${new Date(a.createdAt || Date.now()).toLocaleString()}</span></h4>
-      <p style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${a.body}</p>
+      <h4 style="display:flex; justify-content:space-between; font-size:13px;">${esc(a.title)} <span style="font-size:10px; color:var(--text-muted);">${esc(new Date(a.createdAt || Date.now()).toLocaleString())}</span></h4>
+      <p style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${esc(a.body)}</p>
     `;
     container.appendChild(div);
   });
@@ -616,7 +900,7 @@ async function toggleBanner(id) {
     showToast('Banner visibility toggled', 'success');
     refreshAllData();
   } catch (e) {
-    console.error('Error toggling banner:', e);
+    logError('Error toggling banner:', e);
   }
 }
 
@@ -631,7 +915,7 @@ async function toggleOffer(code) {
     showToast('Coupon status updated', 'success');
     refreshAllData();
   } catch (e) {
-    console.error('Error toggling offer:', e);
+    logError('Error toggling offer:', e);
   }
 }
 
@@ -707,7 +991,7 @@ function setupForms() {
           await logAdminActivity('Register Shop', data.shop.shopDisplayId, `Registered new shop ${bodyData.name}`);
           
           // Display credentials copy dialog
-          alert(`Shop Partner Credentials Generated!\n\nShop ID: ${data.shop.shopDisplayId}\nTemporary Password: ${data.shop.tempPassword}\n\nPlease share these credentials securely with the provider.`);
+          showCredentialsModal(data.shop.shopDisplayId, data.shop.tempPassword);
         } else {
           showToast(data.error || 'Failed to create shop', 'error');
         }
@@ -720,7 +1004,7 @@ function setupForms() {
       
       refreshAllData();
     } catch (err) {
-      console.error('Error registering shop:', err);
+      logError('Error registering shop:', err);
       showToast('Backend connection failed', 'error');
     }
   });
@@ -769,7 +1053,7 @@ function setupForms() {
           return;
         }
       } catch (uploadErr) {
-        console.error('Banner image upload failed:', uploadErr);
+        logError('Banner image upload failed:', uploadErr);
         showToast('Image upload failed', 'error');
         return;
       }
@@ -833,7 +1117,7 @@ function setupForms() {
       
       refreshAllData();
     } catch (err) {
-      console.error('Error saving banner:', err);
+      logError('Error saving banner:', err);
       showToast('Failed to save banner', 'error');
     }
   });
@@ -883,7 +1167,7 @@ function setupForms() {
       document.getElementById('offer-form').reset();
       refreshAllData();
     } catch (err) {
-      console.error('Error saving offer:', err);
+      logError('Error saving offer:', err);
       showToast('Failed to save coupon', 'error');
     }
   });
@@ -910,7 +1194,7 @@ function setupForms() {
       await logAdminActivity('Broadcast Alert', 'ALL', `Alert: ${bodyData.title}`);
       refreshAllData();
     } catch (err) {
-      console.error('Error sending broadcast:', err);
+      logError('Error sending broadcast:', err);
     }
   });
 
@@ -947,7 +1231,7 @@ function setupForms() {
             return;
           }
         } catch (uploadErr) {
-          console.error('Category icon upload failed:', uploadErr);
+          logError('Category icon upload failed:', uploadErr);
           showToast('Image upload failed', 'error');
           return;
         }
@@ -979,7 +1263,7 @@ function setupForms() {
           showToast(data.error || 'Failed to process category request', 'error');
         }
       } catch (err) {
-        console.error(err);
+        logError('Error', err);
       }
     });
   }
@@ -1004,12 +1288,12 @@ function setupForms() {
         const data = await res.json();
         if (data.success) {
           showToast('Wallet balance adjusted successfully', 'success');
-          await logAdminActivity('Adjust Wallet', bodyData.userId, `${bodyData.type} ₹${bodyData.amount} for ${bodyData.title}`);
+          await logAdminActivity('Adjust Wallet', bodyData.userId, `${bodyData.type} â‚¹${bodyData.amount} for ${bodyData.title}`);
           document.getElementById('wallet-modal').classList.remove('active');
           loadCustomers();
         }
       } catch (err) {
-        console.error(err);
+        logError('Error', err);
       }
     });
   }
@@ -1042,7 +1326,7 @@ function setupForms() {
           await logAdminActivity('Update Settings', 'SYSTEM', 'Saved platform variables');
         }
       } catch (err) {
-        console.error(err);
+        logError('Error', err);
       }
     });
   }
@@ -1052,7 +1336,7 @@ function setupForms() {
 async function deleteShop(id) {
   const shop = shops.find(s => s.id === id);
   if (!shop) return;
-  if (confirm(`Are you sure you want to delete the shop "${shop.name}"? This action cannot be undone.`)) {
+  showConfirmModal('Delete Shop Partner', `Permanently delete "<strong>${esc(shop.name)}</strong>"? This cannot be undone.`, async () => {
     try {
       const res = await fetch(`${API_URL}/shops/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -1062,9 +1346,9 @@ async function deleteShop(id) {
         refreshAllData();
       }
     } catch (e) {
-      console.error(e);
+      logError('deleteShop', e);
     }
-  }
+  }, 'danger');
 }
 
 // Approve / Reject Shop
@@ -1082,7 +1366,7 @@ async function approveShop(id, status) {
       refreshAllData();
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -1101,7 +1385,7 @@ async function suspendShop(id, suspend) {
       refreshAllData();
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -1120,13 +1404,13 @@ async function toggleShopLogin(id, disabled) {
       refreshAllData();
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
 // Reset Shop password
 async function resetShopPassword(id) {
-  if (confirm('Are you sure you want to reset password and generate new credentials for this provider?')) {
+  showConfirmModal('Reset Provider Password', 'Generate new login credentials? The old password will be invalidated immediately.', async () => {
     try {
       const res = await fetch(`${API_URL}/shops/reset-password`, {
         method: 'POST',
@@ -1137,13 +1421,13 @@ async function resetShopPassword(id) {
       if (data.success) {
         showToast('Password credentials generated!', 'success');
         await logAdminActivity('Reset Shop Password', id, 'Regenerated credentials');
-        alert(`New Shop Credentials Generated!\n\nShop ID: ${data.shop.shopDisplayId}\nTemporary Password: ${data.tempPassword}\n\nPlease share this immediately with the provider.`);
+        showCredentialsModal(data.shop.shopDisplayId, data.tempPassword);
         refreshAllData();
       }
     } catch (e) {
-      console.error(e);
+      logError('resetShopPassword', e);
     }
-  }
+  }, 'warning');
 }
 
 // Load shop data into form for editing
@@ -1175,7 +1459,7 @@ function editShop(id) {
   document.getElementById('shop-wallet-balance').value = shop.walletBalance !== undefined ? shop.walletBalance : 0.0;
   document.getElementById('shop-docs').value = (shop.verificationDocs || []).join('\n');
   document.getElementById('shop-estimated-time').value = shop.estimatedServiceTime || '20 mins';
-  document.getElementById('shop-price-range').value = shop.priceRange || '₹₹';
+  document.getElementById('shop-price-range').value = shop.priceRange || 'â‚¹â‚¹';
   document.getElementById('shop-rating').value = (shop.rating || 5.0).toFixed(1);
   document.getElementById('shop-reviews-count').value = shop.reviewsCount || 0;
   
@@ -1204,7 +1488,7 @@ async function toggleShopOnline(id, nextState) {
       refreshAllData();
     }
   } catch (e) {
-    console.error('Error toggling shop online:', e);
+    logError('Error toggling shop online:', e);
   }
 }
 
@@ -1243,7 +1527,7 @@ function editBanner(id) {
 
 // Delete Banner
 async function deleteBanner(id) {
-  if (confirm('Are you sure you want to delete this banner?')) {
+  showConfirmModal('Delete Banner', 'Remove this carousel banner permanently? It will disappear from the app immediately.', async () => {
     try {
       const res = await fetch(`${API_URL}/banners/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -1253,9 +1537,9 @@ async function deleteBanner(id) {
         refreshAllData();
       }
     } catch (e) {
-      console.error(e);
+      logError('deleteBanner', e);
     }
-  }
+  }, 'danger');
 }
 
 // Edit Coupon code
@@ -1279,7 +1563,7 @@ function editOffer(code) {
 
 // Delete Offer
 async function deleteOffer(code) {
-  if (confirm(`Are you sure you want to delete coupon code "${code}"?`)) {
+  showConfirmModal('Delete Coupon', `Permanently delete coupon <strong>${esc(code)}</strong>? Users can no longer apply this discount.`, async () => {
     try {
       const res = await fetch(`${API_URL}/offers/${code}`, { method: 'DELETE' });
       const data = await res.json();
@@ -1289,9 +1573,9 @@ async function deleteOffer(code) {
         refreshAllData();
       }
     } catch (e) {
-      console.error('Error deleting offer:', e);
+      logError('deleteOffer', e);
     }
-  }
+  }, 'danger');
 }
 
 // Render detailed booking management table
@@ -1314,23 +1598,23 @@ function renderManageBookingsTable() {
   filteredBookings.forEach(b => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${b.id}</td>
+      <td>${esc(b.id)}</td>
       <td>
-        <div style="font-weight:600;">${b.customerName}</div>
-        <div style="font-size:11px;color:var(--text-muted);">${b.customerPhone} • ${b.customerAddress}</div>
+        <div style="font-weight:600;">${esc(b.customerName)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${esc(b.customerPhone)} &bull; ${esc(b.customerAddress)}</div>
       </td>
       <td>
-        <div style="font-weight:600;">${b.providerName}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Shop ID: ${b.shopId}</div>
+        <div style="font-weight:600;">${esc(b.providerName)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Shop ID: ${esc(b.shopId)}</div>
       </td>
-      <td style="color:var(--primary-solid);font-weight:600;">₹${b.amount}</td>
-      <td>${new Date(b.date).toLocaleDateString('en-GB')} • ${b.slot}</td>
-      <td><span class="badge badge-${b.status}">${b.status.replace('_', ' ')}</span></td>
+      <td style="color:var(--primary-solid);font-weight:600;">&#8377;${esc(b.amount)}</td>
+      <td>${esc(new Date(b.date).toLocaleDateString('en-GB'))} &bull; ${esc(b.slot)}</td>
+      <td><span class="badge badge-${esc(b.status)}">${esc(b.status.replace('_', ' '))}</span></td>
       <td>
-        <input type="text" value="${b.providerName}" class="form-group" style="margin-bottom:0; padding:4px 8px; font-size:12px; width:130px;" onchange="updateProviderName('${b.id}', this.value)">
+        <input type="text" value="${esc(b.providerName)}" class="form-group" style="margin-bottom:0; padding:4px 8px; font-size:12px; width:130px;" onchange="updateProviderName('${esc(b.id)}', this.value)">
       </td>
       <td>
-        <select class="table-action-select" onchange="changeBookingStatus('${b.id}', this.value)">
+        <select class="table-action-select" onchange="changeBookingStatus('${esc(b.id)}', this.value)">
           <option value="pending" ${b.status === 'pending' ? 'selected' : ''}>Pending</option>
           <option value="accepted" ${b.status === 'accepted' ? 'selected' : ''}>Accept</option>
           <option value="on_the_way" ${b.status === 'on_the_way' ? 'selected' : ''}>On The Way</option>
@@ -1367,7 +1651,7 @@ async function changeBookingStatus(bookingId, newStatus) {
       refreshAllData();
     }
   } catch (e) {
-    console.error('Error changing booking status:', e);
+    logError('Error changing booking status:', e);
     refreshAllData();
   }
 }
@@ -1387,7 +1671,7 @@ async function updateProviderName(bookingId, providerName) {
       refreshAllData();
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -1653,7 +1937,7 @@ function setupServicesEvents() {
         showToast('Failed to save shop services: ' + (data.error || 'Server error'), 'error');
       }
     } catch (e) {
-      console.error('Error saving services:', e);
+      logError('Error saving services:', e);
       showToast('Network error while saving services', 'error');
     }
   });
@@ -1698,7 +1982,7 @@ async function loadCustomers() {
       tbody.appendChild(tr);
     });
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -1726,7 +2010,7 @@ async function toggleUserBlock(userId) {
       loadCustomers();
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -1746,7 +2030,7 @@ async function loadSettings() {
     document.getElementById('set-privacy').value = settings.privacy || '';
     document.getElementById('set-maintenance').checked = settings.maintenanceMode || false;
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -1786,7 +2070,7 @@ async function loadCategories() {
       container.appendChild(div);
     });
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -1942,7 +2226,7 @@ function setupBannerImageUpload() {
 
 // Delete category
 async function deleteCategory(id) {
-  if (confirm('Are you sure you want to delete this category? All service items under this label will remain active but category filters will break.')) {
+  showConfirmModal('Delete Category', 'Delete this service category? Existing services remain active but category filters will stop working.', async () => {
     try {
       const res = await fetch(`${API_URL}/categories/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -1955,9 +2239,9 @@ async function deleteCategory(id) {
         });
       }
     } catch (e) {
-      console.error(e);
+      logError('deleteCategory', e);
     }
-  }
+  }, 'danger');
 }
 
 // Load financial stats page
@@ -2002,8 +2286,8 @@ function loadPaymentStats() {
     }
   });
   
-  payComm.textContent = `₹${platformCommission.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-  payDue.textContent = `₹${settlementsDue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  payComm.textContent = `â‚¹${platformCommission.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  payDue.textContent = `â‚¹${settlementsDue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
   
   // Populate settlements table
   Object.entries(shopSettlementMap).forEach(([shopId, s]) => {
@@ -2017,11 +2301,11 @@ function loadPaymentStats() {
         <td>${shopId}</td>
         <td><strong>${s.name}</strong></td>
         <td>${s.phone}</td>
-        <td>₹${s.visiting}</td>
+        <td>â‚¹${s.visiting}</td>
         <td>${s.bookingsCount} Completed</td>
-        <td style="font-weight:600;">₹${s.grossAmount.toFixed(2)}</td>
-        <td style="color:var(--success); font-weight:600;">₹${earned.toFixed(2)}</td>
-        <td style="color:var(--warning); font-weight:600;">₹${commission.toFixed(2)}</td>
+        <td style="font-weight:600;">â‚¹${s.grossAmount.toFixed(2)}</td>
+        <td style="color:var(--success); font-weight:600;">â‚¹${earned.toFixed(2)}</td>
+        <td style="color:var(--warning); font-weight:600;">â‚¹${commission.toFixed(2)}</td>
       `;
       setTbody.appendChild(tr);
     }
@@ -2042,7 +2326,7 @@ function loadPaymentStats() {
         tr.innerHTML = `
           <td>${t.id || 'TX-'+txIndex}</td>
           <td>${u.name || u.phone}</td>
-          <td style="font-weight:600;">₹${t.amount}</td>
+          <td style="font-weight:600;">â‚¹${t.amount}</td>
           <td><span class="badge ${badgeClass}">${t.type}</span></td>
           <td>${t.title || 'Escrow adjustment'}</td>
         `;
@@ -2093,22 +2377,22 @@ async function refreshPaymentDashboard() {
     if (!data.today) return;
 
     // Update KPI cards
-    document.getElementById('pay-kpi-today-gross').textContent = `₹${(data.today.grossRevenue || 0).toFixed(2)}`;
-    document.getElementById('pay-kpi-today-comm').textContent = `₹${(data.today.commissionEarned || 0).toFixed(2)}`;
-    document.getElementById('pay-kpi-total-comm').textContent = `₹${(data.overall.totalCommissionEarned || 0).toFixed(2)}`;
-    document.getElementById('pay-kpi-outstanding-comm').textContent = `₹${(data.overall.outstandingCommission || 0).toFixed(2)}`;
-    document.getElementById('pay-kpi-pending-set').textContent = `₹${(data.settlements.pendingAmount || 0).toFixed(2)}`;
-    document.getElementById('pay-kpi-total-settled').textContent = `₹${(data.settlements.totalSettled || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-today-gross').textContent = `â‚¹${(data.today.grossRevenue || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-today-comm').textContent = `â‚¹${(data.today.commissionEarned || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-total-comm').textContent = `â‚¹${(data.overall.totalCommissionEarned || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-outstanding-comm').textContent = `â‚¹${(data.overall.outstandingCommission || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-pending-set').textContent = `â‚¹${(data.settlements.pendingAmount || 0).toFixed(2)}`;
+    document.getElementById('pay-kpi-total-settled').textContent = `â‚¹${(data.settlements.totalSettled || 0).toFixed(2)}`;
 
     // Update top bar commission stats
     const globalRateEl = document.getElementById('pay-global-rate');
     if (globalRateEl) globalRateEl.textContent = 'Per-Shop Config';
     const outstandingEl = document.getElementById('pay-outstanding-comm');
-    if (outstandingEl) outstandingEl.textContent = `₹${(data.overall.outstandingCommission || 0).toFixed(2)}`;
+    if (outstandingEl) outstandingEl.textContent = `â‚¹${(data.overall.outstandingCommission || 0).toFixed(2)}`;
     const platformCommEl = document.getElementById('pay-platform-comm');
-    if (platformCommEl) platformCommEl.textContent = `₹${(data.overall.totalCommissionEarned || 0).toFixed(2)}`;
+    if (platformCommEl) platformCommEl.textContent = `â‚¹${(data.overall.totalCommissionEarned || 0).toFixed(2)}`;
     const providerDueEl = document.getElementById('pay-provider-due');
-    if (providerDueEl) providerDueEl.textContent = `₹${(data.overall.totalProviderEarnings || 0).toFixed(2)}`;
+    if (providerDueEl) providerDueEl.textContent = `â‚¹${(data.overall.totalProviderEarnings || 0).toFixed(2)}`;
 
     // Settlement badge
     const badge = document.getElementById('pay-queue-badge');
@@ -2128,9 +2412,9 @@ async function refreshPaymentDashboard() {
       const cash = (data.overall.cashCollection || 0);
       const online = (data.overall.onlineCollection || 0);
       methodSplit.innerHTML = `
-        <div class="set-row"><span>💵 Cash Payments</span><strong style="color:var(--warning);">₹${cash.toFixed(2)}</strong></div>
-        <div class="set-row"><span>💳 Online Payments</span><strong style="color:var(--success);">₹${online.toFixed(2)}</strong></div>
-        <div class="set-row"><span>📊 Total Gross Volume</span><strong>₹${total.toFixed(2)}</strong></div>
+        <div class="set-row"><span>ðŸ’µ Cash Payments</span><strong style="color:var(--warning);">â‚¹${cash.toFixed(2)}</strong></div>
+        <div class="set-row"><span>ðŸ’³ Online Payments</span><strong style="color:var(--success);">â‚¹${online.toFixed(2)}</strong></div>
+        <div class="set-row"><span>ðŸ“Š Total Gross Volume</span><strong>â‚¹${total.toFixed(2)}</strong></div>
       `;
     }
 
@@ -2140,18 +2424,18 @@ async function refreshPaymentDashboard() {
       const outstanding = (data.overall.outstandingCommission || 0);
       const collected = totalComm - outstanding;
       commStatus.innerHTML = `
-        <div class="set-row"><span>✅ Commission Collected</span><strong style="color:var(--success);">₹${collected.toFixed(2)}</strong></div>
-        <div class="set-row"><span>⚠️ Outstanding (Cash)</span><strong style="color:var(--warning);">₹${outstanding.toFixed(2)}</strong></div>
-        <div class="set-row"><span>📊 Total Commission</span><strong>₹${totalComm.toFixed(2)}</strong></div>
+        <div class="set-row"><span>âœ… Commission Collected</span><strong style="color:var(--success);">â‚¹${collected.toFixed(2)}</strong></div>
+        <div class="set-row"><span>âš ï¸ Outstanding (Cash)</span><strong style="color:var(--warning);">â‚¹${outstanding.toFixed(2)}</strong></div>
+        <div class="set-row"><span>ðŸ“Š Total Commission</span><strong>â‚¹${totalComm.toFixed(2)}</strong></div>
       `;
     }
 
     const settleOverview = document.getElementById('pay-settlement-overview');
     if (settleOverview) {
       settleOverview.innerHTML = `
-        <div class="set-row"><span>⏳ Pending Requests</span><strong style="color:var(--warning);">${data.settlements.pendingCount || 0} (₹${(data.settlements.pendingAmount || 0).toFixed(2)})</strong></div>
-        <div class="set-row"><span>✅ Completed</span><strong style="color:var(--success);">${data.settlements.completedCount || 0}</strong></div>
-        <div class="set-row"><span>💸 Total Settled</span><strong>₹${(data.settlements.totalSettled || 0).toFixed(2)}</strong></div>
+        <div class="set-row"><span>â³ Pending Requests</span><strong style="color:var(--warning);">${data.settlements.pendingCount || 0} (â‚¹${(data.settlements.pendingAmount || 0).toFixed(2)})</strong></div>
+        <div class="set-row"><span>âœ… Completed</span><strong style="color:var(--success);">${data.settlements.completedCount || 0}</strong></div>
+        <div class="set-row"><span>ðŸ’¸ Total Settled</span><strong>â‚¹${(data.settlements.totalSettled || 0).toFixed(2)}</strong></div>
       `;
     }
 
@@ -2166,7 +2450,7 @@ async function refreshPaymentDashboard() {
           <td><strong>${p.shopName}</strong></td>
           <td style="font-size:11px;color:var(--text-muted);">${p.shopId}</td>
           <td>${p.commissionRate}%</td>
-          <td style="font-weight:700; color: ${isNegative ? 'var(--danger)' : 'var(--success)'};">₹${p.walletBalance.toFixed(2)}${isNegative ? ' ⚠️' : ''}</td>
+          <td style="font-weight:700; color: ${isNegative ? 'var(--danger)' : 'var(--success)'};">â‚¹${p.walletBalance.toFixed(2)}${isNegative ? ' âš ï¸' : ''}</td>
           <td>${isNegative ? '<span class="badge badge-cancelled">Commission Due</span>' : '<span class="badge badge-completed">OK</span>'}</td>
         `;
         walletsTbody.appendChild(tr);
@@ -2177,7 +2461,7 @@ async function refreshPaymentDashboard() {
     }
 
   } catch (e) {
-    console.error('Payment dashboard error:', e);
+    logError('Payment dashboard error:', e);
   }
 }
 
@@ -2224,15 +2508,15 @@ async function loadLedgerTable() {
       const methBadge = renderMethodBadge(l.paymentMethod);
       tr.innerHTML = `
         <td style="font-size:11px;font-family:monospace;">${l.bookingId}</td>
-        <td style="font-size:11px;">${l.customerName || '—'}</td>
-        <td style="font-size:11px;">${l.providerName || '—'}</td>
-        <td style="font-weight:700;color:var(--primary-solid);">₹${(l.grossAmount || 0).toFixed(2)}</td>
-        <td style="font-weight:600;color:var(--warning);">₹${(l.commissionAmount || 0).toFixed(2)} <span style="font-size:9px;color:var(--text-muted);">(${l.commissionRate || 20}%)</span></td>
-        <td style="font-weight:600;color:var(--success);">₹${(l.providerEarnings || 0).toFixed(2)}</td>
+        <td style="font-size:11px;">${l.customerName || 'â€”'}</td>
+        <td style="font-size:11px;">${l.providerName || 'â€”'}</td>
+        <td style="font-weight:700;color:var(--primary-solid);">â‚¹${(l.grossAmount || 0).toFixed(2)}</td>
+        <td style="font-weight:600;color:var(--warning);">â‚¹${(l.commissionAmount || 0).toFixed(2)} <span style="font-size:9px;color:var(--text-muted);">(${l.commissionRate || 20}%)</span></td>
+        <td style="font-weight:600;color:var(--success);">â‚¹${(l.providerEarnings || 0).toFixed(2)}</td>
         <td>${methBadge}</td>
         <td>${payBadge}</td>
         <td>${commBadge}</td>
-        <td style="font-size:11px;">${l.createdAt ? new Date(l.createdAt).toLocaleString('en-IN', {dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+        <td style="font-size:11px;">${l.createdAt ? new Date(l.createdAt).toLocaleString('en-IN', {dateStyle:'short',timeStyle:'short'}) : 'â€”'}</td>
         <td>
           ${l.paymentMethod === 'cash' && l.commissionStatus === 'pending' ?
             `<button class="btn btn-primary btn-sm" style="font-size:10px;padding:3px 8px;" onclick="collectCommissionForBooking('${l.shopId}', '${l.bookingId}', ${l.commissionAmount})">Collect Comm</button>` : ''}
@@ -2241,7 +2525,7 @@ async function loadLedgerTable() {
       tbody.appendChild(tr);
     });
   } catch (e) {
-    console.error('Ledger load error:', e);
+    logError('Ledger load error:', e);
     tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--danger);">Failed to load ledger data.</td></tr>';
   }
 }
@@ -2273,10 +2557,10 @@ async function loadSettlementQueue() {
             <h4 style="margin:0;display:flex;align-items:center;gap:8px;">${s.providerName || s.shopId} <span class="badge badge-pending" style="font-size:10px;">Pending</span></h4>
             <p style="font-size:12px;color:var(--text-muted);margin:4px 0;">Settlement ID: <strong>${s.id}</strong></p>
             <p style="font-size:12px;color:var(--text-muted);margin:4px 0;">Bank: ${s.bankAccount ? '****' + s.bankAccount.slice(-4) : 'N/A'} | IFSC: ${s.ifscCode || 'N/A'} | UPI: ${s.upiId || 'N/A'}</p>
-            <p style="font-size:12px;color:var(--text-muted);">Requested: ${s.requestedAt ? new Date(s.requestedAt).toLocaleString('en-IN') : '—'}</p>
+            <p style="font-size:12px;color:var(--text-muted);">Requested: ${s.requestedAt ? new Date(s.requestedAt).toLocaleString('en-IN') : 'â€”'}</p>
           </div>
           <div style="text-align:right;">
-            <p style="font-size:28px;font-weight:800;color:var(--primary-solid);margin:0;">₹${(s.amount || 0).toFixed(2)}</p>
+            <p style="font-size:28px;font-weight:800;color:var(--primary-solid);margin:0;">â‚¹${(s.amount || 0).toFixed(2)}</p>
             <p style="font-size:11px;color:var(--text-muted);">Requested Amount</p>
           </div>
         </div>
@@ -2289,7 +2573,7 @@ async function loadSettlementQueue() {
       listEl.appendChild(card);
     });
   } catch (e) {
-    console.error('Settlement queue error:', e);
+    logError('Settlement queue error:', e);
     listEl.innerHTML = '<p style="color:var(--danger);text-align:center;">Failed to load settlement queue.</p>';
   }
 }
@@ -2316,18 +2600,18 @@ async function loadSettlementHistory() {
       tr.innerHTML = `
         <td style="font-size:11px;font-family:monospace;">${s.id}</td>
         <td><strong>${s.providerName || s.shopId}</strong></td>
-        <td style="font-weight:700;color:var(--primary-solid);">₹${(s.amount || 0).toFixed(2)}</td>
+        <td style="font-weight:700;color:var(--primary-solid);">â‚¹${(s.amount || 0).toFixed(2)}</td>
         <td><span style="color:${statusColors[s.status] || 'var(--text-primary)'};font-weight:600;">${s.status.toUpperCase()}</span></td>
         <td style="font-size:11px;">${s.bankAccount ? '****' + s.bankAccount.slice(-4) + (s.ifscCode ? ' | ' + s.ifscCode : '') : (s.upiId || 'N/A')}</td>
-        <td style="font-size:11px;font-family:monospace;">${s.transactionId || '—'}</td>
-        <td style="font-size:11px;">${s.requestedAt ? new Date(s.requestedAt).toLocaleDateString('en-IN') : '—'}</td>
-        <td style="font-size:11px;">${s.completedAt ? new Date(s.completedAt).toLocaleDateString('en-IN') : '—'}</td>
-        <td style="font-size:11px;color:var(--text-muted);">${s.adminNote || '—'}</td>
+        <td style="font-size:11px;font-family:monospace;">${s.transactionId || 'â€”'}</td>
+        <td style="font-size:11px;">${s.requestedAt ? new Date(s.requestedAt).toLocaleDateString('en-IN') : 'â€”'}</td>
+        <td style="font-size:11px;">${s.completedAt ? new Date(s.completedAt).toLocaleDateString('en-IN') : 'â€”'}</td>
+        <td style="font-size:11px;color:var(--text-muted);">${s.adminNote || 'â€”'}</td>
       `;
       tbody.appendChild(tr);
     });
   } catch (e) {
-    console.error('Settlement history error:', e);
+    logError('Settlement history error:', e);
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--danger);">Failed to load settlement history.</td></tr>';
   }
 }
@@ -2382,25 +2666,25 @@ async function completeSettlement(id) {
 async function rejectSettlement(id) {
   const reason = prompt('Reason for rejection (required):');
   if (!reason) { showToast('Rejection reason is required', 'warning'); return; }
-  if (!confirm(`Reject this settlement request? Reason: "${reason}"`)) return;
-  try {
-    const res = await fetch(`${API_URL}/payments/settlements/${id}/reject`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminNote: reason })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Settlement rejected. Provider has been notified.', 'success');
-      await logAdminActivity('Reject Settlement', id, `Settlement ${id} rejected. Reason: ${reason}`);
-      loadSettlementQueue();
-      loadSettlementHistory();
-    } else {
-      showToast(data.error || 'Failed to reject settlement', 'error');
+  showConfirmModal('Reject Settlement Request', `Reject this settlement request? Reason: "<strong>${esc(reason)}</strong>"`, async () => {
+    try {
+      const res = await fetch(`${API_URL}/payments/settlements/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNote: reason })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Settlement rejected. Provider has been notified.', 'success');
+        await logAdminActivity('Reject Settlement', id, `Settlement ${id} rejected. Reason: ${reason}`);
+        loadSettlementQueue();
+        loadSettlementHistory();
+        refreshAllData();
+      }
+    } catch (e) {
+      logError('rejectSettlement', e);
     }
-  } catch (e) {
-    showToast('Failed to reject settlement', 'error');
-  }
+  }, 'danger');
 }
 
 async function loadPaymentAuditLog() {
@@ -2438,18 +2722,18 @@ async function loadPaymentAuditLog() {
       };
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td style="font-size:11px;">${l.createdAt ? new Date(l.createdAt).toLocaleString('en-IN') : '—'}</td>
+        <td style="font-size:11px;">${l.createdAt ? new Date(l.createdAt).toLocaleString('en-IN') : 'â€”'}</td>
         <td><span style="font-size:10px;font-weight:700;color:${eventColors[l.eventType] || 'var(--text-primary)'};">${l.eventType.toUpperCase().replace(/_/g, ' ')}</span></td>
-        <td style="font-size:11px;font-family:monospace;">${l.bookingId || '—'}</td>
-        <td style="font-size:11px;">${l.shopId || '—'}</td>
-        <td style="font-weight:600;">${l.amount ? '₹' + l.amount.toFixed(2) : '—'}</td>
+        <td style="font-size:11px;font-family:monospace;">${l.bookingId || 'â€”'}</td>
+        <td style="font-size:11px;">${l.shopId || 'â€”'}</td>
+        <td style="font-weight:600;">${l.amount ? 'â‚¹' + l.amount.toFixed(2) : 'â€”'}</td>
         <td><span class="badge ${l.actor === 'admin' ? 'badge-active' : l.actor === 'provider' ? 'badge-pending' : 'badge-completed'}">${l.actor || 'system'}</span></td>
-        <td style="font-size:11px;color:var(--text-secondary);">${l.description || '—'}</td>
+        <td style="font-size:11px;color:var(--text-secondary);">${l.description || 'â€”'}</td>
       `;
       tbody.appendChild(tr);
     });
   } catch (e) {
-    console.error('Audit log error:', e);
+    logError('Audit log error:', e);
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);">Failed to load audit logs.</td></tr>';
   }
 }
@@ -2463,7 +2747,7 @@ async function loadCommissionConfig() {
     if (rateEl) rateEl.value = data.defaultCommissionRate || 20;
     if (typeEl) typeEl.value = data.commissionType || 'percentage';
   } catch (e) {
-    console.error('Commission config load error:', e);
+    logError('Commission config load error:', e);
   }
 }
 
@@ -2492,16 +2776,16 @@ async function loadCommissionReport() {
           <span style="font-size:11px;color:var(--text-muted);">${r.jobCount} jobs</span>
         </div>
         <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;flex-wrap:wrap;">
-          <span>Gross: <strong>₹${r.totalGross.toFixed(2)}</strong></span>
-          <span>Commission: <strong style="color:var(--warning);">₹${r.totalCommission.toFixed(2)}</strong></span>
-          <span>Collected: <strong style="color:var(--success);">₹${r.commissionPaid.toFixed(2)}</strong></span>
-          ${r.commissionPending > 0 ? `<span>Pending: <strong style="color:var(--danger);">₹${r.commissionPending.toFixed(2)}</strong></span>` : ''}
+          <span>Gross: <strong>â‚¹${r.totalGross.toFixed(2)}</strong></span>
+          <span>Commission: <strong style="color:var(--warning);">â‚¹${r.totalCommission.toFixed(2)}</strong></span>
+          <span>Collected: <strong style="color:var(--success);">â‚¹${r.commissionPaid.toFixed(2)}</strong></span>
+          ${r.commissionPending > 0 ? `<span>Pending: <strong style="color:var(--danger);">â‚¹${r.commissionPending.toFixed(2)}</strong></span>` : ''}
         </div>
       `;
       listEl.appendChild(div);
     });
   } catch (e) {
-    console.error('Commission report error:', e);
+    logError('Commission report error:', e);
   }
 }
 
@@ -2555,49 +2839,53 @@ async function collectCommission() {
   if (!shopId) { showToast('Please select a provider', 'warning'); return; }
   if (!amount || amount <= 0) { showToast('Please enter a valid amount', 'warning'); return; }
 
-  if (!confirm(`Mark ₹${amount} as commission collected from ${shops.find(s => s.id === shopId)?.name || shopId}?`)) return;
-
-  try {
-    const res = await fetch(`${API_URL}/payments/commission-collect/${shopId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, note, bookingIds: [] })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`Commission ₹${amount} marked as collected!`, 'success');
-      await logAdminActivity('Collect Commission', shopId, `₹${amount} collected. ${note}`);
-      document.getElementById('comm-collect-amount').value = '';
-      document.getElementById('comm-collect-note').value = '';
-      loadCommissionReport();
-      refreshAllData();
-    } else {
-      showToast(data.error || 'Failed to record commission', 'error');
+  const shopName = shops.find(s => s.id === shopId)?.name || shopId;
+  showConfirmModal('Collect Commission', `Mark <strong>&#8377;${esc(amount)}</strong> as commission collected from <strong>${esc(shopName)}</strong>?`, async () => {
+    try {
+      const res = await fetch(`${API_URL}/payments/commission-collect/${shopId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, note, bookingIds: [] })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Commission &#8377;${amount} marked as collected!`, 'success');
+        await logAdminActivity('Collect Commission', shopId, `&#8377;${amount} collected. ${note}`);
+        document.getElementById('comm-collect-amount').value = '';
+        document.getElementById('comm-collect-note').value = '';
+        loadCommissionReport();
+        refreshAllData();
+      } else {
+        showToast(data.error || 'Failed to record commission', 'error');
+      }
+    } catch (e) {
+      logError('collectCommission', e);
+      showToast('Failed to collect commission', 'error');
     }
-  } catch (e) {
-    showToast('Failed to collect commission', 'error');
-  }
+  }, 'warning');
 }
 
 async function collectCommissionForBooking(shopId, bookingId, amount) {
-  if (!confirm(`Mark commission ₹${amount.toFixed(2)} as collected for booking ${bookingId}?`)) return;
-  try {
-    const res = await fetch(`${API_URL}/payments/commission-collect/${shopId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, note: `Booking ${bookingId}`, bookingIds: [bookingId] })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Commission marked as collected!', 'success');
-      loadLedgerTable();
-      refreshAllData();
-    } else {
-      showToast(data.error || 'Failed', 'error');
+  showConfirmModal('Collect Booking Commission', `Mark commission <strong>&#8377;${esc(amount.toFixed(2))}</strong> as collected for booking <strong>${esc(bookingId)}</strong>?`, async () => {
+    try {
+      const res = await fetch(`${API_URL}/payments/commission-collect/${shopId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, note: `Booking ${bookingId}`, bookingIds: [bookingId] })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Commission &#8377;${amount.toFixed(2)} collected!`, 'success');
+        await logAdminActivity('Collect Booking Commission', shopId, `Collected &#8377;${amount} for booking ${bookingId}`);
+        loadCommissionReport();
+        refreshAllData();
+      } else {
+        showToast(data.error || 'Failed to collect commission', 'error');
+      }
+    } catch (e) {
+      logError('collectCommissionForBooking', e);
     }
-  } catch (e) {
-    showToast('Failed to collect commission', 'error');
-  }
+  }, 'warning');
 }
 
 function exportLedgerCSV() {
@@ -2623,14 +2911,14 @@ function exportLedgerCSV() {
 // Badge helper functions for payment system
 function renderPayStatusBadge(status) {
   const map = {
-    cash_pending: ['badge-pending', '💵 Cash Pending'],
-    cash_collected: ['badge-active', '✅ Cash Collected'],
-    paid: ['badge-completed', '💳 Paid'],
-    settlement_pending: ['badge-pending', '⏳ Settlement Pending'],
-    settled: ['badge-completed', '✅ Settled'],
-    pending: ['badge-pending', '⏳ Pending'],
-    failed: ['badge-cancelled', '❌ Failed'],
-    refunded: ['badge-cancelled', '↩️ Refunded']
+    cash_pending: ['badge-pending', 'ðŸ’µ Cash Pending'],
+    cash_collected: ['badge-active', 'âœ… Cash Collected'],
+    paid: ['badge-completed', 'ðŸ’³ Paid'],
+    settlement_pending: ['badge-pending', 'â³ Settlement Pending'],
+    settled: ['badge-completed', 'âœ… Settled'],
+    pending: ['badge-pending', 'â³ Pending'],
+    failed: ['badge-cancelled', 'âŒ Failed'],
+    refunded: ['badge-cancelled', 'â†©ï¸ Refunded']
   };
   const [cls, label] = map[status] || ['badge-pending', status];
   return `<span class="badge ${cls}" style="font-size:10px;">${label}</span>`;
@@ -2638,10 +2926,10 @@ function renderPayStatusBadge(status) {
 
 function renderCommStatusBadge(status) {
   const map = {
-    pending: ['badge-pending', '⏳ Pending'],
-    paid: ['badge-completed', '✅ Paid'],
-    waived: ['badge-active', '🎁 Waived'],
-    na: ['', '—']
+    pending: ['badge-pending', 'â³ Pending'],
+    paid: ['badge-completed', 'âœ… Paid'],
+    waived: ['badge-active', 'ðŸŽ Waived'],
+    na: ['', 'â€”']
   };
   const [cls, label] = map[status] || ['badge-pending', status];
   return cls ? `<span class="badge ${cls}" style="font-size:10px;">${label}</span>` : label;
@@ -2649,15 +2937,15 @@ function renderCommStatusBadge(status) {
 
 function renderMethodBadge(method) {
   const map = {
-    cash: ['⚠️', '#f59e0b'],
-    online: ['💳', 'var(--success)'],
-    wallet: ['👛', 'var(--primary-solid)'],
-    upi: ['📱', 'var(--accent)'],
-    card: ['💳', 'var(--success)'],
-    netbanking: ['🏦', 'var(--success)']
+    cash: ['âš ï¸', '#f59e0b'],
+    online: ['ðŸ’³', 'var(--success)'],
+    wallet: ['ðŸ‘›', 'var(--primary-solid)'],
+    upi: ['ðŸ“±', 'var(--accent)'],
+    card: ['ðŸ’³', 'var(--success)'],
+    netbanking: ['ðŸ¦', 'var(--success)']
   };
-  const [icon, color] = map[method] || ['💰', 'var(--text-primary)'];
-  return `<span style="font-size:11px;font-weight:600;color:${color};">${icon} ${method ? method.toUpperCase() : '—'}</span>`;
+  const [icon, color] = map[method] || ['ðŸ’°', 'var(--text-primary)'];
+  return `<span style="font-size:11px;font-weight:600;color:${color};">${icon} ${method ? method.toUpperCase() : 'â€”'}</span>`;
 }
 
 // Load Audit logs tab
@@ -2690,7 +2978,7 @@ async function loadAuditLogs() {
       tbody.appendChild(tr);
     });
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -2723,7 +3011,7 @@ async function loadDemands() {
       tbody.appendChild(tr);
     });
   } catch (e) {
-    console.error('Failed to load demands:', e);
+    logError('Failed to load demands:', e);
   }
 }
 
@@ -2751,8 +3039,8 @@ async function loadReports() {
   const totalFulfill = completed + cancelled;
   const rate = totalFulfill > 0 ? ((completed / totalFulfill) * 100).toFixed(1) : 100;
   
-  document.getElementById('report-gross-volume').textContent = `₹${totalGross.toLocaleString()}`;
-  document.getElementById('report-commission').textContent = `₹${(totalGross * 0.10).toFixed(0).toLocaleString()}`;
+  document.getElementById('report-gross-volume').textContent = `â‚¹${totalGross.toLocaleString()}`;
+  document.getElementById('report-commission').textContent = `â‚¹${(totalGross * 0.10).toFixed(0).toLocaleString()}`;
   document.getElementById('report-fulfillment-rate').textContent = `${rate}%`;
   
   // Render Top shops
@@ -2775,7 +3063,7 @@ async function loadReports() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><strong>${s.name}</strong></td>
-        <td>⭐ ${s.rating.toFixed(1)}</td>
+        <td>â­ ${s.rating.toFixed(1)}</td>
         <td>${s.bookingsCount} orders</td>
       `;
       topShopsTbody.appendChild(tr);
@@ -2793,108 +3081,275 @@ async function renderCharts() {
   try {
     const res = await fetch(`${API_URL}/reports/summary`);
     const summary = await res.json();
-    
+
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const textColor = isDark ? '#94a3b8' : '#475569';
-    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+    const textColor = isDark ? '#8fa8c8' : '#475569';
+    const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    const tooltipBg = isDark ? '#111827' : '#ffffff';
+    const borderColor = isDark ? '#182035' : '#f1f5f9';
 
-    // 1. Revenue trend Chart
-    if (revenueTrendChart) revenueTrendChart.destroy();
-    const revCtx = document.getElementById('revenueTrendChart');
-    if (revCtx) {
-      revenueTrendChart = new Chart(revCtx, {
-        type: 'line',
-        data: {
-          labels: summary.daily.map(d => d.date),
-          datasets: [
-            {
-              label: 'Platform Gross Revenue (₹)',
-              data: summary.daily.map(d => d.revenue),
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: true,
-              tension: 0.3,
-              borderWidth: 2
-            },
-            {
-              label: 'Total Orders Placed',
-              data: summary.daily.map(d => d.bookings),
-              borderColor: '#8b5cf6',
-              backgroundColor: 'rgba(139, 92, 246, 0.1)',
-              fill: false,
-              tension: 0.1,
-              borderWidth: 1.5,
-              yAxisID: 'y1'
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { color: textColor, font: { family: 'Outfit' } } }
-          },
-          scales: {
-            x: { grid: { color: gridColor }, ticks: { color: textColor } },
-            y: { grid: { color: gridColor }, ticks: { color: textColor } },
-            y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: textColor } }
-          }
-        }
+    // â”€â”€ 1. REVENUE TREND (ApexCharts Area) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const revEl = document.getElementById('revenueTrendChart');
+    if (revEl) {
+      if (apexRevenueTrend) { apexRevenueTrend.destroy(); apexRevenueTrend = null; }
+      const labels = summary.daily.map(d => d.date);
+      const revenues = summary.daily.map(d => d.revenue);
+      const bookingCounts = summary.daily.map(d => d.bookings);
+
+      apexRevenueTrend = new ApexCharts(revEl, {
+        series: [
+          { name: 'Revenue (â‚¹)', type: 'area', data: revenues },
+          { name: 'Bookings', type: 'line', data: bookingCounts }
+        ],
+        chart: { height: 260, type: 'line', toolbar: { show: false }, background: 'transparent', animations: { enabled: true, speed: 600 } },
+        colors: ['#6366f1', '#10b981'],
+        stroke: { curve: 'smooth', width: [2.5, 2] },
+        fill: { type: ['gradient', 'solid'], gradient: { shade: 'dark', type: 'vertical', shadeIntensity: 0.4, opacityFrom: 0.5, opacityTo: 0.05, stops: [0, 100] } },
+        dataLabels: { enabled: false },
+        grid: { borderColor: gridColor, strokeDashArray: 4, padding: { left: 10, right: 10 } },
+        xaxis: { categories: labels, labels: { style: { colors: textColor, fontFamily: 'Outfit' }, rotate: -20 }, axisBorder: { show: false }, axisTicks: { show: false } },
+        yaxis: [
+          { labels: { style: { colors: textColor, fontFamily: 'Outfit' }, formatter: v => 'â‚¹' + v.toLocaleString() } },
+          { opposite: true, labels: { style: { colors: textColor, fontFamily: 'Outfit' } } }
+        ],
+        tooltip: { theme: isDark ? 'dark' : 'light', style: { fontFamily: 'Outfit' } },
+        legend: { labels: { colors: textColor }, fontFamily: 'Outfit', fontSize: '12px' },
+        theme: { mode: isDark ? 'dark' : 'light' }
       });
+      apexRevenueTrend.render();
     }
 
-    // 2. Category split chart
-    if (categorySplitChart) categorySplitChart.destroy();
-    const catCtx = document.getElementById('categorySplitChart');
-    if (catCtx) {
-      categorySplitChart = new Chart(catCtx, {
-        type: 'doughnut',
-        data: {
-          labels: summary.categories.map(c => c.name),
-          datasets: [{
-            data: summary.categories.map(c => c.bookings),
-            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#64748b']
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { color: textColor, font: { family: 'Outfit' } } }
-          }
-        }
+    // â”€â”€ 2. BOOKING STATUS DONUT (ApexCharts Donut) â”€â”€â”€â”€â”€â”€â”€â”€
+    const catEl = document.getElementById('categorySplitChart');
+    if (catEl) {
+      if (apexCategorySplit) { apexCategorySplit.destroy(); apexCategorySplit = null; }
+      const catLabels = summary.categories.map(c => c.name);
+      const catData = summary.categories.map(c => c.bookings);
+
+      apexCategorySplit = new ApexCharts(catEl, {
+        series: catData,
+        chart: { height: 260, type: 'donut', background: 'transparent', animations: { enabled: true, speed: 600 } },
+        labels: catLabels,
+        colors: ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#0ea5e9', '#64748b'],
+        dataLabels: { enabled: false },
+        plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: 'Total', color: textColor, fontSize: '13px', fontFamily: 'Outfit', formatter: w => w.globals.seriesTotals.reduce((a,b) => a+b, 0) } } } } },
+        legend: { position: 'bottom', labels: { colors: textColor }, fontFamily: 'Outfit', fontSize: '11.5px' },
+        tooltip: { theme: isDark ? 'dark' : 'light', style: { fontFamily: 'Outfit' } },
+        stroke: { colors: [borderColor], width: 2 },
+        theme: { mode: isDark ? 'dark' : 'light' }
       });
+      apexCategorySplit.render();
     }
 
-    // 3. Fulfillment Rate pie chart (in reports tab)
-    if (fulfillmentStatusChart) fulfillmentStatusChart.destroy();
-    const fulfillCtx = document.getElementById('fulfillmentStatusChart');
-    if (fulfillCtx) {
-      let pending = bookings.filter(b => b.status === 'pending').length;
-      let completed = bookings.filter(b => b.status === 'completed').length;
-      let cancelled = bookings.filter(b => b.status === 'cancelled').length;
-      let ongoing = bookings.filter(b => b.status === 'accepted' || b.status === 'on_the_way').length;
+    // â”€â”€ 3. FULFILLMENT STATUS (ApexCharts Donut in Reports) â”€
+    const fulfillEl = document.getElementById('fulfillmentStatusChart');
+    if (fulfillEl) {
+      if (apexFulfillment) { apexFulfillment.destroy(); apexFulfillment = null; }
+      const pending   = bookings.filter(b => b.status === 'pending').length;
+      const completed = bookings.filter(b => b.status === 'completed').length;
+      const cancelled = bookings.filter(b => b.status === 'cancelled').length;
+      const ongoing   = bookings.filter(b => b.status === 'accepted' || b.status === 'on_the_way').length;
 
-      fulfillmentStatusChart = new Chart(fulfillCtx, {
-        type: 'pie',
-        data: {
-          labels: ['Completed', 'Cancelled', 'Ongoing', 'Pending'],
-          datasets: [{
-            data: [completed, cancelled, ongoing, pending],
-            backgroundColor: ['#10b981', '#ef4444', '#3b82f6', '#f59e0b']
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { color: textColor, font: { family: 'Outfit' } } }
-          }
-        }
+      apexFulfillment = new ApexCharts(fulfillEl, {
+        series: [completed, ongoing, pending, cancelled],
+        chart: { height: 240, type: 'donut', background: 'transparent', animations: { enabled: true, speed: 600 } },
+        labels: ['Completed', 'Ongoing', 'Pending', 'Cancelled'],
+        colors: ['#10b981', '#6366f1', '#f59e0b', '#ef4444'],
+        dataLabels: { enabled: true, style: { fontFamily: 'Outfit', fontWeight: 600, fontSize: '11px' } },
+        plotOptions: { pie: { donut: { size: '60%' } } },
+        legend: { position: 'bottom', labels: { colors: textColor }, fontFamily: 'Outfit', fontSize: '11.5px' },
+        tooltip: { theme: isDark ? 'dark' : 'light', style: { fontFamily: 'Outfit' } },
+        stroke: { colors: [borderColor], width: 2 },
+        theme: { mode: isDark ? 'dark' : 'light' }
       });
+      apexFulfillment.render();
     }
   } catch (e) {
-    console.error('Failed to render reports summary charts:', e);
+    logError('Failed to render charts:', e);
+  }
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ PROVIDERS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function renderProvidersTable() {
+  const tbody = document.getElementById('providers-tbody');
+  if (!tbody) return;
+
+  const statusFilter = document.getElementById('providers-filter-status')?.value || 'all';
+  const searchQ = (document.getElementById('providers-search')?.value || '').toLowerCase();
+
+  // Update KPI cards
+  const total = shops.length;
+  const approved = shops.filter(s => s.verificationStatus === 'approved').length;
+  const pending = shops.filter(s => s.verificationStatus === 'pending').length;
+  const suspended = shops.filter(s => s.status === 'suspended').length;
+  const setKpi = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setKpi('prov-stat-total', total);
+  setKpi('prov-stat-approved', approved);
+  setKpi('prov-stat-pending', pending);
+  setKpi('prov-stat-suspended', suspended);
+
+  let filtered = shops.filter(s => {
+    if (statusFilter === 'approved') return s.verificationStatus === 'approved';
+    if (statusFilter === 'pending')  return s.verificationStatus === 'pending';
+    if (statusFilter === 'rejected') return s.verificationStatus === 'rejected';
+    if (statusFilter === 'suspended') return s.status === 'suspended';
+    return true;
+  }).filter(s => {
+    if (!searchQ) return true;
+    return [s.name, s.ownerName, s.phone, s.email, s.shopDisplayId].join(' ').toLowerCase().includes(searchQ);
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="padding:48px;"><div class="empty-state" style="padding:0;"><div class="empty-icon"><i class="fa-solid fa-user-tie"></i></div><h4>No Providers Found</h4><p>Adjust filters or register a new shop.</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(s => {
+    const stars = '&#9733;'.repeat(Math.round(s.rating || 5)) + '&#9734;'.repeat(5 - Math.round(s.rating || 5));
+    let verifyBadge = s.verificationStatus === 'approved'
+      ? '<span class="badge badge-approved">Approved</span>'
+      : s.verificationStatus === 'pending'
+      ? '<span class="badge badge-pending">Pending</span>'
+      : '<span class="badge badge-danger">Rejected</span>';
+    if (s.status === 'suspended') verifyBadge += ' <span class="badge badge-suspended">Suspended</span>';
+
+    return `<tr>
+      <td><strong>${esc(s.name)}</strong><br><span class="text-mono text-muted">${esc(s.shopDisplayId || 'N/A')}</span></td>
+      <td>${esc(s.ownerName)}<br><span class="fs-11 text-muted">${esc(s.phone)}</span></td>
+      <td>${esc(s.phone || 'N/A')}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${esc(s.latitude?.toFixed(4))}, ${esc(s.longitude?.toFixed(4))}<br>${esc(s.serviceRadius)}km radius</td>
+      <td><span style="color:var(--warning);">${stars}</span><br><span class="fs-11 text-muted">${esc((s.rating||5).toFixed(1))} (${esc(s.reviewsCount||0)})</span></td>
+      <td><strong>${esc(s.commissionRate !== undefined ? s.commissionRate : 15)}%</strong></td>
+      <td><strong style="color:var(--success);">&#8377;${esc((s.walletBalance||0).toFixed(2))}</strong></td>
+      <td>${verifyBadge}</td>
+      <td>
+        <label class="switch" style="transform:scale(0.85);">
+          <input type="checkbox" ${s.isOnline ? 'checked' : ''} onchange="toggleShopOnline('${esc(s.id)}', ${!s.isOnline})">
+          <span class="slider"></span>
+        </label>
+      </td>
+      <td>
+        <div class="d-flex gap-2">
+          ${s.verificationStatus === 'pending' ? `<button class="btn btn-success btn-xs" onclick="approveShop('${esc(s.id)}', 'approved')"><i class="fa-solid fa-check"></i></button>` : ''}
+          ${s.verificationStatus === 'pending' ? `<button class="btn btn-danger btn-xs" onclick="approveShop('${esc(s.id)}', 'rejected')"><i class="fa-solid fa-xmark"></i></button>` : ''}
+          ${s.status !== 'suspended' ? `<button class="btn btn-secondary btn-xs" onclick="suspendShop('${esc(s.id)}', true)"><i class="fa-solid fa-ban"></i></button>` : `<button class="btn btn-secondary btn-xs" onclick="suspendShop('${esc(s.id)}', false)"><i class="fa-solid fa-unlock"></i></button>`}
+          <button class="btn btn-secondary btn-xs" onclick="editShop('${esc(s.id)}')"><i class="fa-solid fa-pen"></i></button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ REVIEWS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+async function loadReviews() {
+  const tbody = document.getElementById('reviews-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;"><div class="empty-state" style="padding:0;"><div class="empty-icon"><i class="fa-solid fa-star"></i></div><h4>Loading Reviewsâ€¦</h4></div></td></tr>`;
+
+  try {
+    const res = await fetch(`${API_URL}/reviews`);
+    if (!res.ok) throw new Error('Reviews API not available');
+    allReviews = await res.json();
+    renderReviewsTable();
+  } catch (e) {
+    // If no reviews endpoint exists, derive from bookings
+    allReviews = bookings
+      .filter(b => b.rating && b.rating > 0)
+      .map(b => ({
+        id: b.id,
+        customerName: b.customerName,
+        shopName: b.providerName || 'Unknown',
+        serviceName: b.service || 'Service',
+        rating: b.rating,
+        comment: b.review || 'No comment',
+        date: b.date || b.createdAt,
+        status: 'approved'
+      }));
+    renderReviewsTable();
+  }
+}
+
+function renderReviewsTable() {
+  const tbody = document.getElementById('reviews-tbody');
+  if (!tbody) return;
+
+  // Update KPI cards
+  const total = allReviews.length;
+  const avg = total > 0 ? (allReviews.reduce((s, r) => s + (r.rating || 0), 0) / total).toFixed(1) : '0.0';
+  const pendingCount = allReviews.filter(r => r.status === 'pending').length;
+  const fiveStars = allReviews.filter(r => r.rating === 5).length;
+  const setKpi = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setKpi('rev-stat-total', total);
+  setKpi('rev-stat-avg', avg);
+  setKpi('rev-stat-pending', pendingCount);
+  setKpi('rev-stat-five-star', fiveStars);
+
+  if (allReviews.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:56px;"><div class="empty-state" style="padding:0;"><div class="empty-icon"><i class="fa-solid fa-star"></i></div><h4>No Reviews Yet</h4><p>Customer reviews from bookings will appear here.</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = allReviews.map(r => {
+    const stars = `<span style="color:var(--warning);letter-spacing:2px;">${'&#9733;'.repeat(Math.round(r.rating || 0))}${'&#9734;'.repeat(5 - Math.round(r.rating || 0))}</span> <strong>${esc((r.rating || 0).toFixed(1))}</strong>`;
+    const status = r.status === 'approved'
+      ? '<span class="badge badge-approved">Approved</span>'
+      : r.status === 'pending'
+      ? '<span class="badge badge-pending">Pending</span>'
+      : '<span class="badge badge-danger">Rejected</span>';
+    return `<tr data-rating="&quot;${Math.round(r.rating || 0)}&quot;">
+      <td><strong>${esc(r.customerName || 'Anonymous')}</strong></td>
+      <td>${esc(r.shopName || r.providerName || 'N/A')}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${esc(r.serviceName || r.service || 'Service')}</td>
+      <td>${stars}</td>
+      <td style="font-size:12.5px;max-width:240px;">${esc((r.comment || r.review || '&mdash;').slice(0, 120))}${(r.comment || r.review || '').length > 120 ? '&hellip;' : ''}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${esc(r.date ? new Date(r.date).toLocaleDateString('en-GB') : '&mdash;')}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ WALLET TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+async function loadWalletTab() {
+  const tbody = document.getElementById('wallet-tab-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Loading wallet transactionsâ€¦</td></tr>`;
+
+  try {
+    const res = await fetch(`${API_URL}/wallet/transactions`);
+    if (!res.ok) throw new Error('Wallet API unavailable');
+    const txns = await res.json();
+
+    let totalCredit = 0, totalDebit = 0;
+    txns.forEach(t => {
+      if (t.type === 'credit') totalCredit += (t.amount || 0);
+      else totalDebit += (t.amount || 0);
+    });
+
+    const setKpi = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setKpi('wallet-stat-escrow', 'â‚¹' + (totalCredit - totalDebit).toFixed(2));
+    setKpi('wallet-stat-credited', 'â‚¹' + totalCredit.toFixed(2));
+    setKpi('wallet-stat-debited', 'â‚¹' + totalDebit.toFixed(2));
+
+    if (txns.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:48px;"><div class="empty-state" style="padding:0;"><div class="empty-icon"><i class="fa-solid fa-wallet"></i></div><h4>No Transactions</h4><p>Wallet transactions will appear here.</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = txns.map(t => `<tr>
+      <td class="text-mono">${esc(t.id || t._id || 'N/A')}</td>
+      <td>${esc(t.userName || t.userId || 'Customer')}</td>
+      <td><strong style="color:${t.type==='credit'?'var(--success)':'var(--danger)'};">&#8377;${esc((t.amount||0).toFixed(2))}</strong></td>
+      <td><span class="badge badge-${t.type==='credit'?'success':'warning'}">${esc(t.type)}</span></td>
+      <td style="font-size:12px;color:var(--text-muted);">${esc(t.description || t.reason || '&mdash;')}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${esc(t.createdAt ? new Date(t.createdAt).toLocaleString('en-GB') : '&mdash;')}</td>
+    </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;"><div class="empty-state" style="padding:0;"><div class="empty-icon"><i class="fa-solid fa-wallet"></i></div><h4>Wallet Data Unavailable</h4><p>Check /api/wallet/transactions endpoint.</p></div></td></tr>`;
   }
 }
 
@@ -2980,7 +3435,7 @@ async function fetchCmsLayout() {
     const res = await fetch(`${API_URL}/admin/homepage/layout`);
     cmsLayout = await res.json();
   } catch (e) {
-    console.error('Error fetching CMS layout:', e);
+    logError('Error fetching CMS layout:', e);
   }
 }
 
@@ -2989,7 +3444,7 @@ async function fetchCmsPromotions() {
     const res = await fetch(`${API_URL}/admin/promotions`);
     cmsPromotions = await res.json();
   } catch (e) {
-    console.error('Error fetching promotions:', e);
+    logError('Error fetching promotions:', e);
   }
 }
 
@@ -2998,7 +3453,7 @@ async function fetchCmsSpecials() {
     const res = await fetch(`${API_URL}/admin/special-cards`);
     cmsSpecials = await res.json();
   } catch (e) {
-    console.error('Error fetching special cards:', e);
+    logError('Error fetching special cards:', e);
   }
 }
 
@@ -3007,7 +3462,7 @@ async function fetchCmsExperts() {
     const res = await fetch(`${API_URL}/admin/professionals`);
     cmsExperts = await res.json();
   } catch (e) {
-    console.error('Error fetching featured experts:', e);
+    logError('Error fetching featured experts:', e);
   }
 }
 
@@ -3016,7 +3471,7 @@ async function fetchCmsReviews() {
     const res = await fetch(`${API_URL}/admin/reviews`);
     cmsReviews = await res.json();
   } catch (e) {
-    console.error('Error fetching reviews:', e);
+    logError('Error fetching reviews:', e);
   }
 }
 
@@ -3099,7 +3554,7 @@ async function saveCmsLayoutOrder() {
     await logAdminActivity('Save CMS Layout Order', 'Homepage Layout', `Reordered layout configuration`);
     loadCmsData();
   } catch (e) {
-    console.error('Failed to save layout order:', e);
+    logError('Failed to save layout order:', e);
     showToast('Failed to save layout order changes', 'error');
   }
 }
@@ -3190,12 +3645,12 @@ async function togglePromoActive(id, isActive) {
       fetchCmsPromotions().then(renderCmsPromotions);
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
 async function deletePromo(id) {
-  if (confirm('Delete this promotional ribbon permanently?')) {
+  showConfirmModal('Delete Promotion', 'Delete this promotional ribbon permanently? It will be removed from the app homepage immediately.', async () => {
     try {
       const res = await fetch(`${API_URL}/promotions/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -3205,9 +3660,9 @@ async function deletePromo(id) {
         loadCmsData();
       }
     } catch (e) {
-      console.error(e);
+      logError('deletePromo', e);
     }
-  }
+  }, 'danger');
 }
 
 function renderCmsSpecials() {
@@ -3282,12 +3737,12 @@ async function toggleSpecialActive(id, isActive) {
       fetchCmsSpecials().then(renderCmsSpecials);
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
 async function deleteSpecial(id) {
-  if (confirm('Delete this Special For You card permanently?')) {
+  showConfirmModal('Delete Special Card', 'Delete this Special For You card permanently? It will disappear from the app homepage immediately.', async () => {
     try {
       const res = await fetch(`${API_URL}/special-cards/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -3297,9 +3752,9 @@ async function deleteSpecial(id) {
         loadCmsData();
       }
     } catch (e) {
-      console.error(e);
+      logError('deleteSpecial', e);
     }
-  }
+  }, 'danger');
 }
 
 function renderCmsExperts() {
@@ -3327,13 +3782,13 @@ function renderCmsExperts() {
           <div>
             <strong>${exp.name}</strong>
             ${exp.verifiedBadge ? '<span style="font-size:10px; color:var(--success); margin-left:4px;"><i class="fa-solid fa-circle-check"></i></span>' : ''}
-            <div style="font-size:10px; color:var(--text-muted);">${exp.experience || 'N/A exp'} • ${exp.completedJobs || 0} jobs</div>
+            <div style="font-size:10px; color:var(--text-muted);">${exp.experience || 'N/A exp'} â€¢ ${exp.completedJobs || 0} jobs</div>
           </div>
         </div>
       </td>
       <td><strong>${exp.specialty}</strong></td>
       <td>${linkedShopName}</td>
-      <td>⭐ ${exp.rating ? exp.rating.toFixed(1) : '5.0'}</td>
+      <td>â­ ${exp.rating ? exp.rating.toFixed(1) : '5.0'}</td>
       <td>
         <span class="badge ${exp.availability ? 'badge-active' : 'badge-inactive'}">${exp.availability ? 'Available' : 'Busy/Offline'}</span>
       </td>
@@ -3404,12 +3859,12 @@ async function toggleExpertActive(id, isActive) {
       fetchCmsExperts().then(renderCmsExperts);
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
 async function deleteExpert(id) {
-  if (confirm('Delete this expert profile permanently?')) {
+  showConfirmModal('Delete Expert Profile', 'Delete this featured expert permanently? Their card will be removed from the app homepage.', async () => {
     try {
       const res = await fetch(`${API_URL}/professionals/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -3419,9 +3874,9 @@ async function deleteExpert(id) {
         loadCmsData();
       }
     } catch (e) {
-      console.error(e);
+      logError('deleteExpert', e);
     }
-  }
+  }, 'danger');
 }
 
 function renderCmsReviews() {
@@ -3454,7 +3909,7 @@ function renderCmsReviews() {
         <div style="max-width:300px; white-space:normal; font-size:12px;">"${rev.comment}"</div>
         ${rev.reply ? `<div style="font-size:11px; color:var(--primary-solid); margin-top:4px;"><strong>Reply:</strong> ${rev.reply}</div>` : ''}
       </td>
-      <td>⭐ ${rev.rating ? rev.rating.toFixed(1) : '5.0'}</td>
+      <td>â­ ${rev.rating ? rev.rating.toFixed(1) : '5.0'}</td>
       <td>
         <label class="switch">
           <input type="checkbox" onchange="toggleReviewFeatured('${rev.id}', this.checked)" ${rev.isFeatured ? 'checked' : ''}>
@@ -3513,7 +3968,7 @@ async function changeReviewStatus(id, status) {
       fetchCmsReviews().then(renderCmsReviews);
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -3533,7 +3988,7 @@ async function toggleReviewFeatured(id, isFeatured) {
       fetchCmsReviews().then(renderCmsReviews);
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
@@ -3557,12 +4012,12 @@ async function promptReviewReply(id) {
       fetchCmsReviews().then(renderCmsReviews);
     }
   } catch (e) {
-    console.error(e);
+    logError('Error', e);
   }
 }
 
 async function deleteReview(id) {
-  if (confirm('Delete this customer review permanently?')) {
+  showConfirmModal('Delete Customer Review', 'Delete this testimonial review permanently? This cannot be reversed.', async () => {
     try {
       const res = await fetch(`${API_URL}/reviews/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -3572,9 +4027,9 @@ async function deleteReview(id) {
         loadCmsData();
       }
     } catch (e) {
-      console.error(e);
+      logError('deleteReview', e);
     }
-  }
+  }, 'danger');
 }
 
 function setupCmsEvents() {
@@ -3668,7 +4123,7 @@ function setupCmsForms() {
           loadCmsData();
         }
       } catch (err) {
-        console.error(err);
+        logError('Error', err);
         showToast('Failed to save promotion ribbon', 'error');
       }
     });
@@ -3705,7 +4160,7 @@ function setupCmsForms() {
           loadCmsData();
         }
       } catch (err) {
-        console.error(err);
+        logError('Error', err);
         showToast('Failed to save special card', 'error');
       }
     });
@@ -3743,7 +4198,7 @@ function setupCmsForms() {
           loadCmsData();
         }
       } catch (err) {
-        console.error(err);
+        logError('Error', err);
         showToast('Failed to save expert profile', 'error');
       }
     });
@@ -3782,7 +4237,7 @@ function setupCmsForms() {
           loadCmsData();
         }
       } catch (err) {
-        console.error(err);
+        logError('Error', err);
         showToast('Failed to save testimonial', 'error');
       }
     });
@@ -3842,7 +4297,7 @@ async function fetchCmsCustomSections() {
     const res = await fetch(`${API_URL}/admin/custom-sections`);
     cmsCustomSections = await res.json();
   } catch (e) {
-    console.error('Error fetching custom sections:', e);
+    logError('Error fetching custom sections:', e);
     cmsCustomSections = [];
   }
 }
@@ -3885,7 +4340,7 @@ function renderCustomSectionsList() {
                 ${item.imageUrl ? `<img src="${item.imageUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-wrench" style="color:var(--text-muted);"></i></div>`}
               </div>
               <div style="font-size:10px; margin-top:4px; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500;">${item.title}</div>
-              <div style="font-size:9px; color:var(--text-muted);">${item.startingPrice ? `${item.startingPrice}` : ''} ${item.rating ? `⭐${item.rating}` : ''}</div>
+              <div style="font-size:9px; color:var(--text-muted);">${item.startingPrice ? `${item.startingPrice}` : ''} ${item.rating ? `â­${item.rating}` : ''}</div>
             </div>
           `).join('')}
          </div>`
@@ -3979,7 +4434,7 @@ function addServiceItemRow(data = {}) {
     <div class="form-row">
       <div class="form-group" style="margin-bottom:8px;">
         <label style="font-size:11px; margin-bottom:2px;">Starting Price</label>
-        <input type="text" class="si-price" value="${data.startingPrice || ''}" placeholder="e.g. ₹599" style="padding: 6px; font-size:12px;">
+        <input type="text" class="si-price" value="${data.startingPrice || ''}" placeholder="e.g. â‚¹599" style="padding: 6px; font-size:12px;">
       </div>
       <div class="form-group" style="margin-bottom:8px;">
         <label style="font-size:11px; margin-bottom:2px;">On Click Action</label>
@@ -4061,24 +4516,22 @@ function editCustomSection(id) {
 }
 
 async function deleteCustomSection(id) {
-  if (!confirm('Delete this custom section? It will be removed from layouts and the application.')) return;
-  try {
-    const res = await fetch(`${API_URL}/custom-sections/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Custom section deleted', 'success');
-      await logAdminActivity('Delete Custom Section', id, 'Deleted custom homepage section');
-      await fetchCmsCustomSections();
-      renderCustomSectionsList();
-      await fetchCmsLayout();
-      renderCmsLayout();
-    } else {
-      showToast(data.error || 'Delete failed', 'error');
+  showConfirmModal('Delete Custom Section', 'Delete this custom section? It will be removed from layouts and the application permanently.', async () => {
+    try {
+      const res = await fetch(`${API_URL}/custom-sections/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Custom section deleted', 'success');
+        await logAdminActivity('Delete Custom Section', id, 'Deleted custom homepage section');
+        await fetchCmsCustomSections();
+        renderCustomSectionsList();
+        await fetchCmsLayout();
+        renderCmsLayout();
+      }
+    } catch (e) {
+      logError('deleteCustomSection', e);
     }
-  } catch (e) {
-    console.error(e);
-    showToast('Failed to delete custom section', 'error');
-  }
+  }, 'danger');
 }
 
 function setupCustomSectionEvents() {
@@ -4137,7 +4590,7 @@ function setupCustomSectionEvents() {
           showToast('Failed to save section: ' + (data.error || 'Unknown error'), 'error');
         }
       } catch (err) {
-        console.error(err);
+        logError('Error', err);
         showToast('Failed to save custom section', 'error');
       }
     });
@@ -4152,4 +4605,9 @@ window.deleteCustomSection = deleteCustomSection;
 window.fetchCmsCustomSections = fetchCmsCustomSections;
 window.renderCustomSectionsList = renderCustomSectionsList;
 window.setupCustomSectionEvents = setupCustomSectionEvents;
+
+
+
+
+
 

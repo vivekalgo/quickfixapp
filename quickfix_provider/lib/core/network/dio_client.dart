@@ -1,18 +1,21 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
-import 'api_endpoints.dart';
-import 'error_handler.dart';
-import '../storage/hive_service.dart';
+import 'package:quickfix_provider/core/network/api_endpoints.dart';
+import 'package:quickfix_provider/core/network/error_handler.dart';
+import 'package:quickfix_provider/core/storage/hive_service.dart';
+import 'package:quickfix_provider/core/logging/app_logger.dart';
 
-/// Railway edge IP address used to bypass Jio/Airtel operator DNS blocks.
-/// When `*.up.railway.app` is blocked by DNS, we connect directly to this IP
-/// and pass the original hostname in the 'Host' header for server-side routing.
-const String _railwayEdgeIp = '69.46.46.69';
-const String _railwayDomain = 'up.railway.app';
+import 'package:quickfix_provider/core/network/dns_bypass_helper.dart';
+
+import 'package:quickfix_provider/core/network/retry_interceptor.dart';
+import 'dart:async';
 
 class DioClient {
   late final Dio _dio;
+  final StreamController<void> _unauthorizedController = StreamController<void>.broadcast();
+
+  Stream<void> get onUnauthorized => _unauthorizedController.stream;
 
   DioClient() {
     _dio = Dio(
@@ -25,18 +28,10 @@ class DioClient {
     );
 
     // ── Operator-Block Bypass (Jio / Airtel) ─────────────────────────────────
-    // Jio and Airtel block `*.up.railway.app` at the DNS level.
-    // We work around this by connecting directly to Railway's edge IP address
-    // and setting the `Host` header so Railway can route the request correctly.
-    // The custom `badCertificateCallback` trusts the TLS certificate when the
-    // connection target is the raw IP instead of the hostname.
-    if (ApiEndpoints.baseUrl.contains(_railwayDomain)) {
+    if (DnsBypassHelper.shouldBypass(ApiEndpoints.baseUrl)) {
       ((_dio.httpClientAdapter) as IOHttpClientAdapter).createHttpClient = () {
         final client = HttpClient();
-        client.badCertificateCallback = (cert, host, port) {
-          // Trust Railway's cert when connecting via IP
-          return host == _railwayEdgeIp || host.endsWith(_railwayDomain);
-        };
+        client.badCertificateCallback = DnsBypassHelper.verifyCertificate;
         return client;
       };
     }
@@ -45,11 +40,12 @@ class DioClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          // Jio/Airtel operator DNS bypass: rewrite baseUrl to use edge IP
-          if (options.baseUrl.contains(_railwayDomain)) {
-            final originalHost = Uri.parse(options.baseUrl).host;
-            options.headers['Host'] = originalHost;
-            options.baseUrl = options.baseUrl.replaceFirst(originalHost, _railwayEdgeIp);
+          // Jio/Airtel operator DNS bypass
+          if (DnsBypassHelper.shouldBypass(options.baseUrl)) {
+            options.baseUrl = DnsBypassHelper.bypassUrl(
+              options.baseUrl,
+              options.headers,
+            );
           }
 
           // Fetch token from local storage
@@ -63,18 +59,55 @@ class DioClient {
           // Auto logout on unauthorized error
           if (e.response?.statusCode == 401) {
             HiveService.clearSession();
+            _unauthorizedController.add(null);
           }
           return handler.next(e);
         },
       ),
     );
 
-    // Add debug logger interceptor
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (obj) => print('[Dio API Log]: $obj'),
-    ));
+    _dio.interceptors.add(RetryInterceptor(dio: _dio));
+
+    // Structured sanitized API logging interceptor for runtime troubleshooting
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          final sanitizedHeaders = AppLogger.sanitize(options.headers);
+          final sanitizedData = AppLogger.sanitize(options.data);
+
+          AppLogger.info('--> ${options.method} ${options.uri}', tag: 'API');
+          AppLogger.info('Request Headers: $sanitizedHeaders', tag: 'API');
+          if (sanitizedData != null) {
+            AppLogger.info('Request Payload: $sanitizedData', tag: 'API');
+          }
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          final sanitizedResponseData = AppLogger.sanitize(response.data);
+
+          AppLogger.info(
+            '<-- ${response.statusCode} ${response.requestOptions.uri}',
+            tag: 'API',
+          );
+          if (sanitizedResponseData != null) {
+            AppLogger.info(
+              'Response Payload: $sanitizedResponseData',
+              tag: 'API',
+            );
+          }
+          return handler.next(response);
+        },
+        onError: (DioException e, handler) {
+          AppLogger.warning(
+            'API Error [${e.response?.statusCode}]: ${e.message}',
+            tag: 'API',
+            error: e,
+            stackTrace: e.stackTrace,
+          );
+          return handler.next(e);
+        },
+      ),
+    );
   }
 
   Future<Response> get(

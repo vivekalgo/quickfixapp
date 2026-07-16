@@ -1,6 +1,9 @@
 class ApiEndpoints {
-  static const String _configuredBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-  
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: '',
+  );
+
   static final String baseUrl = _configuredBaseUrl.isNotEmpty
       ? _configuredBaseUrl
       : 'https://quickfixapp-production.up.railway.app/api';
@@ -13,11 +16,12 @@ class ApiEndpoints {
   // Dashboard
   static String dashboard(String shopId) => '/provider/dashboard/$shopId';
   static const String toggleOnline = '/provider/toggle-online';
-  
+
   // Bookings
   static const String bookings = '/bookings';
   static const String updateBookingStatus = '/bookings/update-status';
-  static String bookingDetails(String bookingId) => '/bookings/details/$bookingId';
+  static String bookingDetails(String bookingId) =>
+      '/bookings/details/$bookingId';
 
   // Shop & Services
   static const String updateHours = '/provider/update-hours';
@@ -29,12 +33,17 @@ class ApiEndpoints {
   static String earnings(String shopId) => '/provider/earnings/$shopId';
 
   // Payment System
-  static String paymentDashboard(String shopId) => '/payments/dashboard/provider/$shopId';
-  static String providerSettlements(String shopId) => '/payments/settlements/shop/$shopId';
-  static String providerLedger(String shopId) => '/payments/ledger/shop/$shopId';
+  static String paymentDashboard(String shopId) =>
+      '/payments/dashboard/provider/$shopId';
+  static String providerSettlements(String shopId) =>
+      '/payments/settlements/shop/$shopId';
+  static String providerLedger(String shopId) =>
+      '/payments/ledger/shop/$shopId';
   static const String requestSettlement = '/payments/settlements/request';
-  static String cashConfirm(String bookingId) => '/payments/cash-confirm/$bookingId';
-  static String bookingLedger(String bookingId) => '/payments/ledger/$bookingId';
+  static String cashConfirm(String bookingId) =>
+      '/payments/cash-confirm/$bookingId';
+  static String bookingLedger(String bookingId) =>
+      '/payments/ledger/$bookingId';
 
   // Reviews
   static const String replyReview = '/provider/reply-review';

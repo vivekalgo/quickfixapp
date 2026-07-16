@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
+import 'package:quickfix_provider/core/theme/app_colors.dart';
+import 'package:quickfix_provider/core/theme/app_text_styles.dart';
 
 class CommonErrorWidget extends StatelessWidget {
   final String message;
@@ -40,7 +40,9 @@ class CommonErrorWidget extends StatelessWidget {
             Text(
               message,
               style: AppTextStyles.bodyLarge(isDark).copyWith(
-                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
               ),
               textAlign: TextAlign.center,
             ),
@@ -59,7 +61,10 @@ class CommonErrorWidget extends StatelessWidget {
                     ),
                     elevation: 0,
                   ),
-                  child: Text(buttonText, style: AppTextStyles.buttonText.copyWith(fontSize: 13)),
+                  child: Text(
+                    buttonText,
+                    style: AppTextStyles.buttonText.copyWith(fontSize: 13),
+                  ),
                 ),
               ),
             ],
@@ -99,7 +104,9 @@ class EmptyStateWidget extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isDark ? AppColors.textSecondaryDark.withValues(alpha: 0.5) : AppColors.textSecondaryLight.withValues(alpha: 0.5),
+              color: isDark
+                  ? AppColors.textSecondaryDark.withValues(alpha: 0.5)
+                  : AppColors.textSecondaryLight.withValues(alpha: 0.5),
               size: 64,
             ),
             const SizedBox(height: 16),
@@ -129,7 +136,10 @@ class EmptyStateWidget extends StatelessWidget {
                     ),
                     elevation: 0,
                   ),
-                  child: Text(actionText!, style: AppTextStyles.buttonText.copyWith(fontSize: 13)),
+                  child: Text(
+                    actionText!,
+                    style: AppTextStyles.buttonText.copyWith(fontSize: 13),
+                  ),
                 ),
               ),
             ],

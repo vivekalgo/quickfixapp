@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'app_logger.dart';
+import 'package:quickfix/core/logging/app_logger.dart';
 
 class PerformanceMonitor {
   static final Map<String, Stopwatch> _activeTraces = {};
@@ -9,7 +9,7 @@ class PerformanceMonitor {
     if (!kDebugMode) {
       return await action();
     }
-    
+
     final stopwatch = Stopwatch()..start();
     AppLogger.info('Starting performance trace: "$name"', tag: 'PERF');
     try {
@@ -26,9 +26,12 @@ class PerformanceMonitor {
   /// Manually starts a custom stopwatch trace
   static void startTrace(String name) {
     if (!kDebugMode) return;
-    
+
     if (_activeTraces.containsKey(name)) {
-      AppLogger.warning('Trace "$name" was already started. Restarting...', tag: 'PERF');
+      AppLogger.warning(
+        'Trace "$name" was already started. Restarting...',
+        tag: 'PERF',
+      );
     }
     _activeTraces[name] = Stopwatch()..start();
     AppLogger.info('Trace "$name" started.', tag: 'PERF');
@@ -40,7 +43,10 @@ class PerformanceMonitor {
 
     final stopwatch = _activeTraces.remove(name);
     if (stopwatch == null) {
-      AppLogger.warning('Attempted to end trace "$name" but it was never started.', tag: 'PERF');
+      AppLogger.warning(
+        'Attempted to end trace "$name" but it was never started.',
+        tag: 'PERF',
+      );
       return;
     }
     stopwatch.stop();

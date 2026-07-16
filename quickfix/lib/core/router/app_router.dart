@@ -1,41 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:quickfix/shared/widgets/main_scaffold.dart';
-import 'package:quickfix/features/auth/screens/splash_screen.dart';
-import 'package:quickfix/features/auth/screens/onboarding_screen.dart';
-import 'package:quickfix/features/auth/screens/login_screen.dart';
-import 'package:quickfix/features/auth/screens/location_permission_screen.dart';
-import 'package:quickfix/features/home/screens/home_screen.dart';
-import 'package:quickfix/features/home/screens/search_screen.dart';
-import 'package:quickfix/features/home/screens/shops_list_screen.dart';
-import 'package:quickfix/features/home/screens/category_screen.dart';
-import 'package:quickfix/features/home/screens/all_services_screen.dart';
-import 'package:quickfix/features/booking/screens/service_details_screen.dart';
-import 'package:quickfix/features/booking/screens/booking_checkout_screen.dart';
-import 'package:quickfix/features/booking/screens/booking_confirmation_screen.dart';
-import 'package:quickfix/features/booking/screens/quick_booking_screen.dart';
-import 'package:quickfix/features/tracking/screens/live_tracking_screen.dart';
-import 'package:quickfix/features/profile/screens/profile_screen.dart';
-import 'package:quickfix/features/profile/screens/edit_profile_screen.dart';
-import 'package:quickfix/features/profile/screens/settings_screen.dart';
-import 'package:quickfix/features/profile/screens/refer_earn_screen.dart';
-import 'package:quickfix/features/profile/screens/addresses_screen.dart';
-import 'package:quickfix/features/profile/screens/order_history_screen.dart';
-import 'package:quickfix/features/profile/screens/privacy_policy_screen.dart';
-import 'package:quickfix/features/profile/screens/terms_conditions_screen.dart';
-import 'package:quickfix/features/profile/screens/support_screen.dart';
-import 'package:quickfix/features/profile/screens/wishlist_screen.dart';
-import 'package:quickfix/features/profile/screens/offers_screen.dart';
-import 'package:quickfix/features/profile/screens/notifications_screen.dart';
-import 'package:quickfix/features/home/screens/location_selector_screen.dart';
+import 'package:quickfix/core/widgets/main_scaffold.dart';
+import 'package:quickfix/features/auth/presentation/pages/splash_screen.dart';
+import 'package:quickfix/features/auth/presentation/pages/onboarding_screen.dart';
+import 'package:quickfix/features/auth/presentation/pages/login_screen.dart';
+import 'package:quickfix/features/auth/presentation/pages/location_permission_screen.dart';
+import 'package:quickfix/features/home/presentation/pages/home_screen.dart';
+import 'package:quickfix/features/home/presentation/pages/search_screen.dart';
+import 'package:quickfix/features/home/presentation/pages/shops_list_screen.dart';
+import 'package:quickfix/features/home/presentation/pages/category_screen.dart';
+import 'package:quickfix/features/home/presentation/pages/all_services_screen.dart';
+import 'package:quickfix/features/booking/presentation/pages/service_details_screen.dart';
+import 'package:quickfix/features/booking/presentation/pages/booking_checkout_screen.dart';
+import 'package:quickfix/features/booking/presentation/pages/booking_confirmation_screen.dart';
+import 'package:quickfix/features/booking/presentation/pages/quick_booking_screen.dart';
+import 'package:quickfix/features/tracking/presentation/pages/live_tracking_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/profile_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/edit_profile_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/settings_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/refer_earn_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/addresses_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/order_history_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/privacy_policy_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/terms_conditions_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/support_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/wishlist_screen.dart';
+import 'package:quickfix/features/profile/presentation/pages/offers_screen.dart';
+import 'package:quickfix/features/notifications/presentation/pages/notifications_screen.dart';
+import 'package:quickfix/features/home/presentation/pages/location_selector_screen.dart';
 
-import 'package:quickfix/features/home/screens/shop_details_screen.dart';
+import 'package:quickfix/features/home/presentation/pages/shop_details_screen.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
 
 import 'package:quickfix/core/logging/navigation_observer.dart';
 
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'root',
+);
+final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'shell',
+);
 
 final GoRouter appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
@@ -81,10 +85,7 @@ final GoRouter appRouter = GoRouter(
         return MainScaffold(child: child);
       },
       routes: [
-        GoRoute(
-          path: '/home',
-          builder: (context, state) => const HomeScreen(),
-        ),
+        GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
         GoRoute(
           path: '/orders',
           builder: (context, state) => const OrderHistoryScreen(),
