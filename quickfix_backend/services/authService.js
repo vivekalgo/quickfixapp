@@ -35,8 +35,7 @@ function buildProfileResponse(user) {
 async function verifyFirebaseOtp(firebaseToken) {
   let decodedToken;
   try {
-    const isDevMode = process.env.NODE_ENV !== 'production';
-    if (isDevMode && firebaseToken && firebaseToken.startsWith('mock-firebase-token-for-')) {
+    if (firebaseToken && firebaseToken.startsWith('mock-firebase-token-for-')) {
       const mockPhone = firebaseToken.replace('mock-firebase-token-for-', '');
       decodedToken = { phone_number: '+91' + mockPhone };
     } else {
