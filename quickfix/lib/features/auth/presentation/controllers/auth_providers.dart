@@ -154,23 +154,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await HiveService.saveCachedProfile(profile);
       state = AuthState(isAuthenticated: true, user: profile, isLoading: false);
 
-      // Request permissions and sync FCM token immediately on login
-      await NotificationService.requestPermissions();
-      final fcmToken = await NotificationService.getToken();
-      if (fcmToken != null) {
-        try {
-          await _repository.updateUserProfile({'fcmToken': fcmToken});
-          final updated = Map<String, dynamic>.from(profile);
-          updated['fcmToken'] = fcmToken;
-          await HiveService.saveCachedProfile(updated);
-          state = AuthState(
-            isAuthenticated: true,
-            user: updated,
-            isLoading: false,
-          );
-        } catch (_) {}
-      }
-      await NotificationService.subscribeToTopic('customers');
+      // Trigger FCM registration and topic subscription on login
+      await NotificationService.onUserLoggedIn();
     } catch (e, s) {
       final resolved = ErrorHandler.handle(e, s);
       state = AuthState(

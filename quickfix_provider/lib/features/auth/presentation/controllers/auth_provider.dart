@@ -70,12 +70,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthState(isAuthenticated: true, shop: shop);
 
         // Request permissions and sync FCM token with backend
-        NotificationService.requestPermissions().then((_) async {
-          final fcmToken = await NotificationService.getToken();
-          if (fcmToken != null) {
-            await NotificationService.syncTokenWithBackend(fcmToken);
-          }
-        });
+        NotificationService.onProviderLoggedIn();
 
         return true;
       } else {

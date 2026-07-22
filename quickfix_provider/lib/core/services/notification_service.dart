@@ -97,10 +97,7 @@ class NotificationService {
         _firebaseMessagingBackgroundHandler,
       );
 
-      // 3. Request permissions
-      await requestPermissions();
-
-      // 4. Initialize flutter_local_notifications
+      // 3. Initialize flutter_local_notifications
       const AndroidInitializationSettings initAndroid =
           AndroidInitializationSettings('@drawable/ic_notification');
       const InitializationSettings initSettings = InitializationSettings(
@@ -120,6 +117,9 @@ class NotificationService {
           }
         },
       );
+
+      // 4. Request permissions
+      await requestPermissions();
 
       // 5. Create notification channels
       final androidPlugin = _localNotificationsPlugin
@@ -357,6 +357,7 @@ class NotificationService {
   /// Call this right after provider login succeeds
   static Future<void> onProviderLoggedIn() async {
     try {
+      await requestPermissions();
       final fcmToken = await getToken();
       if (fcmToken != null) {
         await syncTokenWithBackend(fcmToken);

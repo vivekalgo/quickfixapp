@@ -50,14 +50,42 @@ async function sendFcmNotification(targetId, title, body, data = {}, targetType 
     }
 
     let token = '';
+    const isPartner = targetType === 'partner' || targetType === 'shop';
+
+    // Persist notification to DB so in-app notifications screen receives it
+    try {
+      const { Notification } = require('./models');
+      const newNotif = new Notification({
+        id: `notif-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        title,
+        body,
+        time: new Date().toISOString(),
+        icon: data.icon || (isPartner ? 'work' : 'notifications_active'),
+        iconColor: data.iconColor || 'primary',
+        userId: !isPartner ? String(targetId) : '',
+        shopId: isPartner ? String(targetId) : '',
+        type: data.type || 'general',
+        bookingId: data.bookingId || '',
+        deepLink: data.deepLink || ''
+      });
+      await newNotif.save();
+    } catch (dbErr) {
+      console.error('Failed to persist notification to DB:', dbErr.message);
+    }
+
     if (targetType === 'user') {
       let user = null;
       try { user = await User.findById(targetId); } catch (_) {}
       if (!user) user = await User.findOne({ id: targetId });
       if (!user) user = await User.findOne({ _id: targetId });
+      if (!user) user = await User.findOne({ phone: targetId });
       token = user ? (user.fcmToken || '') : '';
     } else {
-      const shop = await Shop.findOne({ id: targetId });
+      let shop = null;
+      try { shop = await Shop.findById(targetId); } catch (_) {}
+      if (!shop) shop = await Shop.findOne({ id: targetId });
+      if (!shop) shop = await Shop.findOne({ _id: targetId });
+      if (!shop) shop = await Shop.findOne({ phone: targetId });
       token = shop ? (shop.fcmToken || '') : '';
     }
 
@@ -66,7 +94,6 @@ async function sendFcmNotification(targetId, title, body, data = {}, targetType 
       return false;
     }
 
-    const isPartner = targetType === 'partner' || targetType === 'shop';
     const channelId = isPartner ? 'booking_alert_channel' : 'high_importance_channel';
     const sound = isPartner ? 'alert_ring' : 'default';
 

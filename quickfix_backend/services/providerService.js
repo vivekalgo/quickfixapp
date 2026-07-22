@@ -92,7 +92,11 @@ async function changePassword(userId, oldPassword, newPassword) {
 }
 
 async function updateFcmToken(userId, fcmToken) {
-  const shop = await Shop.findById(userId);
+  let shop = null;
+  try { shop = await Shop.findById(userId); } catch (_) {}
+  if (!shop) shop = await Shop.findOne({ id: userId });
+  if (!shop) shop = await Shop.findOne({ _id: userId });
+  if (!shop) shop = await Shop.findOne({ phone: userId });
   if (!shop) {
     const err = new Error('Shop not found');
     err.statusCode = 404;

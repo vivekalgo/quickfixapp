@@ -83,7 +83,11 @@ async function verifyFirebaseOtp(firebaseToken) {
 }
 
 async function getProfile(userId) {
-  const user = await User.findById(userId);
+  let user = null;
+  try { user = await User.findById(userId); } catch (_) {}
+  if (!user) user = await User.findOne({ id: userId });
+  if (!user) user = await User.findOne({ _id: userId });
+  if (!user) user = await User.findOne({ phone: userId });
   if (!user) {
     throw new Error('User profile not found');
   }
@@ -103,7 +107,17 @@ async function updateProfile(userId, bodyData) {
     }
   }
 
-  const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
+  let user = null;
+  try { user = await User.findByIdAndUpdate(userId, updateData, { new: true }); } catch (_) {}
+  if (!user) {
+    user = await User.findOneAndUpdate({ id: userId }, updateData, { new: true });
+  }
+  if (!user) {
+    user = await User.findOneAndUpdate({ _id: userId }, updateData, { new: true });
+  }
+  if (!user) {
+    user = await User.findOneAndUpdate({ phone: userId }, updateData, { new: true });
+  }
   if (!user) {
     throw new Error('User not found');
   }

@@ -707,7 +707,12 @@ const NotificationSchema = new mongoose.Schema({
   body: { type: String, required: true },
   time: { type: String, default: 'Just now' },
   icon: { type: String, default: 'notifications_active' },
-  iconColor: { type: String, default: 'primary' }
+  iconColor: { type: String, default: 'primary' },
+  userId: { type: String, default: '' },
+  shopId: { type: String, default: '' },
+  type: { type: String, default: 'general' },
+  bookingId: { type: String, default: '' },
+  deepLink: { type: String, default: '' }
 }, { timestamps: true });
 
 // 11. Customer Demand Schema

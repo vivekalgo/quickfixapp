@@ -36,7 +36,20 @@ async function requireAdmin(req, res, next) {
   }
 }
 
+async function optionalAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET || process.env.JWT_SECRET);
+      req.user = decoded;
+    } catch (_) {}
+  }
+  next();
+}
+
 module.exports = {
   requireAuth,
-  requireAdmin
+  requireAdmin,
+  optionalAuth
 };
