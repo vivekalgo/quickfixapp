@@ -34,8 +34,13 @@ async function placeBooking(req, res) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        user = await User.findById(decoded.id);
+        const decoded = jwt.verify(token, JWT_SECRET || process.env.JWT_SECRET);
+        if (decoded && decoded.id) {
+          try { user = await User.findById(decoded.id); } catch (_) {}
+          if (!user) user = await User.findOne({ id: decoded.id });
+          if (!user) user = await User.findOne({ _id: decoded.id });
+          if (!user && decoded.phone) user = await User.findOne({ phone: decoded.phone });
+        }
       } catch (err) {}
     }
 

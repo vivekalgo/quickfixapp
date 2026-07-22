@@ -43,7 +43,10 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
     specialInstructions
   } = reqBody;
 
-  const shop = await Shop.findOne({ id: shopId });
+  let shop = null;
+  try { shop = await Shop.findById(shopId); } catch (_) {}
+  if (!shop) shop = await Shop.findOne({ id: shopId });
+  if (!shop) shop = await Shop.findOne({ _id: shopId });
   if (!shop) {
     throw new Error('Shop not found');
   }
@@ -239,16 +242,16 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
   sendFcmNotification(
     newBooking.customerId,
     'Booking Created 🎉',
-    `Your booking QF-${bookingId} for "${title}" has been successfully created.`,
+    `Your booking ${bookingId} for "${title}" has been successfully created.`,
     {
       type: 'booking',
       bookingId: bookingId,
       iconColor: 'success'
     }
-  );
+  ).catch(err => console.error('FCM customer notification error:', err));
 
   sendFcmNotification(
-    shop.id,
+    shop.id || shop._id || shopId,
     'New Booking Request 📦',
     `You have a new booking request for "${title}" on ${date || 'today'} during ${slot || 'your business hours'}.`,
     {
@@ -257,7 +260,7 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
       iconColor: 'info'
     },
     'partner'
-  );
+  ).catch(err => console.error('FCM partner notification error:', err));
 
   return {
     bookingId,

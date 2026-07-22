@@ -17,14 +17,18 @@ async function calculateCheckoutPriceInternal(shop, items, couponCode) {
   let hasStarting = false;
   let hasRange = false;
 
+  const shopServices = (shop && Array.isArray(shop.services)) ? shop.services : [];
   const cartServices = [];
-  for (const item of items) {
-    const srv = shop.services.find(s => s.id === item.id);
-    if (srv) {
-      cartServices.push({ service: srv, quantity: item.quantity });
-      if (srv.pricingType === 'inspection') hasInspection = true;
-      else if (srv.pricingType === 'starting') hasStarting = true;
-      else if (srv.pricingType === 'range') hasRange = true;
+  if (Array.isArray(items)) {
+    for (const item of items) {
+      const itemId = String(item.id || item.serviceId || '');
+      const srv = shopServices.find(s => String(s.id) === itemId || String(s._id) === itemId);
+      if (srv) {
+        cartServices.push({ service: srv, quantity: item.quantity || 1 });
+        if (srv.pricingType === 'inspection') hasInspection = true;
+        else if (srv.pricingType === 'starting') hasStarting = true;
+        else if (srv.pricingType === 'range') hasRange = true;
+      }
     }
   }
 
