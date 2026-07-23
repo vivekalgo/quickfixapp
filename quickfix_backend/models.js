@@ -16,7 +16,7 @@ function readDb() {
       fs.writeFileSync(dbPath, JSON.stringify({}));
     }
     const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands', 'promotions', 'specialcards', 'cmssections', 'customsections', 'paymentledgers', 'settlements', 'paymentauditlogs'];
+    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands', 'promotions', 'specialcards', 'cmssections', 'customsections', 'paymentledgers', 'settlements', 'paymentauditlogs', 'adminusers'];
     let changed = false;
     for (const col of collections) {
       if (!data[col]) {
@@ -1007,5 +1007,6 @@ module.exports = {
   CustomSection: makeModelProxy('CustomSection'),
   PaymentLedger: makeModelProxy('PaymentLedger'),
   Settlement: makeModelProxy('Settlement'),
-  PaymentAuditLog: makeModelProxy('PaymentAuditLog')
+  PaymentAuditLog: makeModelProxy('PaymentAuditLog'),
+  AdminUser: makeModelProxy('AdminUser')
 };
