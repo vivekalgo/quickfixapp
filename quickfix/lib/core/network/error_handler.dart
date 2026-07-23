@@ -65,7 +65,9 @@ class ErrorHandler {
       return _handleFirebaseAuthException(error, errorId);
     } else if (error is FirebaseException) {
       return ApiException(
-        'Firebase service error: ${error.message ?? "Something went wrong with our cloud services."}',
+        _cleanTechnicalErrorString(
+          error.message ?? 'Service temporarily unavailable. Please try again.',
+        ),
         null,
         error,
         errorId,
@@ -289,13 +291,25 @@ class ErrorHandler {
         msg = 'Network error during authentication. Please check if you are online.';
         break;
       case 'invalid-verification-code':
-        msg = 'The verification code is invalid.';
+      case 'invalid-credential':
+        msg = 'The OTP code entered is incorrect. Please check and try again.';
+        break;
+      case 'invalid-phone-number':
+        msg = 'Invalid mobile number. Please enter a valid 10-digit phone number.';
         break;
       case 'session-expired':
-        msg = 'SMS verification code expired. Please request a new one.';
+      case 'code-expired':
+        msg = 'SMS verification code expired. Please request a new OTP.';
+        break;
+      case 'too-many-requests':
+        msg = 'Too many attempts. Please try again after some time.';
+        break;
+      case 'quota-exceeded':
+        msg = 'Authentication service is temporarily busy. Please try again later.';
         break;
       default:
-        msg = error.message ?? 'Authentication failed. Please try again.';
+        final raw = error.message ?? 'Authentication failed. Please try again.';
+        msg = _cleanTechnicalErrorString(raw);
     }
     return ApiException(
       msg,
@@ -304,5 +318,26 @@ class ErrorHandler {
       errorId,
       ApiExceptionType.firebaseError,
     );
+  }
+
+  /// Removes raw exception prefixes, bracketed code tags like [firebase_auth/...], 
+  /// stack traces, and internal database jargon to show clean user messages.
+  static String _cleanTechnicalErrorString(String message) {
+    String clean = message;
+
+    // Strip out square bracketed error codes e.g. [firebase_auth/invalid-verification-code]
+    clean = clean.replaceAll(RegExp(r'\[[\w\-/]+\]\s*'), '');
+
+    // Strip out common exception type prefixes
+    clean = clean.replaceAll(RegExp(r'^(Exception|FirebaseAuthException|FirebaseException|DioException|SocketException|FormatException|TypeError):\s*'), '');
+
+    clean = clean.trim();
+
+    // Fallback if message becomes empty or still contains unreadable technical jargon
+    if (clean.isEmpty || clean.contains('Stack trace:') || clean.toLowerCase().contains('firebase_auth')) {
+      return 'Something went wrong. Please check your inputs and try again.';
+    }
+
+    return clean;
   }
 }

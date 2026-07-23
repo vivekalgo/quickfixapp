@@ -12,6 +12,7 @@ import 'package:quickfix/features/home/presentation/widgets/shop_service_item.da
 import 'package:quickfix/features/booking/presentation/controllers/cart_provider.dart';
 import 'package:quickfix/core/widgets/error_widgets.dart';
 import 'package:quickfix/core/network/connectivity_provider.dart';
+import 'package:quickfix/core/network/error_handler.dart';
 
 class ShopDetailsScreen extends ConsumerStatefulWidget {
   final String shopId;
@@ -67,7 +68,7 @@ class _ShopDetailsScreenState extends ConsumerState<ShopDetailsScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to load shop details: $e';
+          _errorMessage = ErrorHandler.handle(e).message;
         });
       }
     }

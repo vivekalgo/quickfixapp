@@ -70,8 +70,9 @@ class ErrorHandler {
     }
 
     // Inspect the error string for common platform exceptions
-    final errorStr = error?.toString() ?? 'An unexpected error occurred';
-    final lowerErrorStr = errorStr.toLowerCase();
+    final rawErrorStr = error?.toString() ?? 'An unexpected error occurred';
+    final cleanMsg = _cleanTechnicalErrorString(rawErrorStr);
+    final lowerErrorStr = rawErrorStr.toLowerCase();
 
     if (lowerErrorStr.contains('socketexception') ||
         lowerErrorStr.contains('connection failed') ||
@@ -111,7 +112,7 @@ class ErrorHandler {
     }
 
     return ApiException(
-      'An unexpected exception occurred. Please try again.',
+      cleanMsg,
       null,
       error,
       null,
@@ -236,5 +237,30 @@ class ErrorHandler {
           ApiExceptionType.networkOffline,
         );
     }
+  }
+
+  /// Removes raw exception prefixes, bracketed error codes, and technical traces.
+  static String _cleanTechnicalErrorString(String message) {
+    String clean = message;
+
+    // Strip out square bracketed error codes
+    clean = clean.replaceAll(RegExp(r'\[[\w\-/]+\]\s*'), '');
+
+    // Strip out common exception type prefixes
+    clean = clean.replaceAll(
+      RegExp(
+        r'^(Exception|FirebaseAuthException|FirebaseException|DioException|SocketException|FormatException|TypeError):\s*',
+      ),
+      '',
+    );
+
+    clean = clean.trim();
+
+    // Fallback if message is empty or contains technical stack traces
+    if (clean.isEmpty || clean.contains('Stack trace:')) {
+      return 'Something went wrong. Please try again.';
+    }
+
+    return clean;
   }
 }

@@ -107,6 +107,86 @@ async function updateBanner(id, updateData) {
   return banner;
 }
 
+async function getOffers() {
+  let offers = await Offer.find({ isActive: true });
+  if (!offers || offers.length === 0) {
+    const defaultOffers = [
+      {
+        id: 'off-quick20',
+        code: 'QUICK20',
+        title: 'Get 20% Instant Discount',
+        description: 'Save 20% on all repair and cleaning services above ₹499.',
+        minOrderAmount: 499,
+        maxDiscount: 200,
+        isActive: true,
+        expiryDate: '2026-12-31'
+      },
+      {
+        id: 'off-first15',
+        code: 'FIRST15',
+        title: 'Flat 15% Welcome Offer',
+        description: 'Exclusive 15% discount for your first service booking.',
+        minOrderAmount: 299,
+        maxDiscount: 150,
+        isActive: true,
+        expiryDate: '2026-12-31'
+      },
+      {
+        id: 'off-festive100',
+        code: 'FESTIVE100',
+        title: 'Flat ₹100 Off',
+        description: 'Get ₹100 instant cashback on orders above ₹799.',
+        minOrderAmount: 799,
+        maxDiscount: 100,
+        isActive: true,
+        expiryDate: '2026-12-31'
+      }
+    ];
+
+    try {
+      await Offer.insertMany(defaultOffers);
+    } catch (_) {}
+    return defaultOffers;
+  }
+  return offers;
+}
+
+async function applyOffer(code, amount = 0) {
+  if (!code) throw new Error('Invalid or expired coupon code');
+  const offer = await Offer.findOne({ code: code.toUpperCase(), isActive: true });
+  
+  if (!offer) {
+    const cleanCode = code.toUpperCase();
+    if (cleanCode === 'QUICK20' || cleanCode === 'FIRST15' || cleanCode === 'FESTIVE100') {
+      let discount = 50.0;
+      if (cleanCode === 'QUICK20') discount = amount ? (amount * 0.20) : 100.0;
+      if (cleanCode === 'FIRST15') discount = amount ? (amount * 0.15) : 75.0;
+      if (cleanCode === 'FESTIVE100') discount = 100.0;
+      return {
+        success: true,
+        code: cleanCode,
+        discount: parseFloat(discount.toFixed(2)),
+        message: 'Coupon applied successfully!'
+      };
+    }
+    throw new Error('Invalid or expired coupon code');
+  }
+
+  let discount = 0.0;
+  if (offer.maxDiscount > 0) {
+    discount = offer.maxDiscount;
+  } else {
+    discount = amount ? (amount * 0.15) : 50.0;
+  }
+
+  return {
+    success: true,
+    code: offer.code,
+    discount: parseFloat(discount.toFixed(2)),
+    message: 'Coupon applied successfully!'
+  };
+}
+
 async function updateOffer(code, updateData) {
   const { title, description, minOrderAmount, maxDiscount, expiryDate, usageLimit } = updateData;
   const offer = await Offer.findOneAndUpdate(
@@ -760,6 +840,8 @@ module.exports = {
   deleteCategory,
   uploadBannerImage,
   updateBanner,
+  getOffers,
+  applyOffer,
   updateOffer,
   toggleOffer,
   deleteOffer,

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickfix_provider/features/auth/presentation/controllers/auth_provider.dart';
 import 'package:quickfix_provider/features/dashboard/models/dashboard_stats_model.dart';
 import 'package:quickfix_provider/features/dashboard/repositories/dashboard_repository_impl.dart';
+import 'package:quickfix_provider/core/network/error_handler.dart';
 
 /// Represents the state of the partner dashboard analytics and toggle status.
 class DashboardState {
@@ -59,7 +60,10 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
     }
   }
 

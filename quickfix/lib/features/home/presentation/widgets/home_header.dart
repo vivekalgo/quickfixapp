@@ -360,7 +360,7 @@ class HomeSearchBarRow extends ConsumerWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Search services, shops...',
+                "Search for 'AC service', 'Cleaning', 'Plumber'...",
                 style: AppTextStyles.bodyMedium(isDark).copyWith(
                   fontWeight: FontWeight.w400,
                   fontSize: 13.5,

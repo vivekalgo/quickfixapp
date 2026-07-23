@@ -90,16 +90,16 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                       curve: Curves.easeInOut,
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.surfaceDark : Colors.white,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         border: isActive
                             ? Border.all(color: AppColors.primary, width: 1.8)
                             : isDark
                             ? Border.all(color: AppColors.borderDark, width: 1)
                             : Border.all(
-                                color: const Color(0xFFEFF2F5),
+                                color: const Color(0xFFF1F4F8),
                                 width: 1,
                               ),
-                        boxShadow: isDark ? [] : AppShadows.card,
+                        boxShadow: isDark ? [] : AppShadows.chip,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -110,13 +110,13 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                             duration: const Duration(milliseconds: 200),
                             curve: Curves.easeInOut,
                             child: Container(
-                              width: 64,
-                              height: 64,
+                              width: 60,
+                              height: 60,
                               decoration: BoxDecoration(
                                 color: isDark
                                     ? cat.iconColor.withValues(alpha: 0.15)
                                     : cat.backgroundColor,
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(16),
                               ),
                               child: Center(child: _buildIcon(cat, isDark)),
                             ),
@@ -124,16 +124,16 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                           const SizedBox(height: 8),
                           // ── Label ──────────────────────────────────────
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
                             child: Text(
                               cat.name,
                               textAlign: TextAlign.center,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 13.0,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
-                                height: 1.25,
+                                height: 1.2,
                                 letterSpacing: -0.1,
                                 color: isDark
                                     ? Colors.white

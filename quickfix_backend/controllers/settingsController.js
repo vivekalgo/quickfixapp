@@ -102,6 +102,28 @@ async function updateBanner(req, res) {
   }
 }
 
+async function getOffers(req, res) {
+  try {
+    const offers = await settingsService.getOffers();
+    res.json(offers);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch offers' });
+  }
+}
+
+async function applyOffer(req, res) {
+  const { code, amount } = req.body;
+  try {
+    const result = await settingsService.applyOffer(code, amount);
+    res.json(result);
+  } catch (e) {
+    if (e.message === 'Invalid or expired coupon code') {
+      return res.status(400).json({ error: e.message });
+    }
+    res.status(500).json({ error: 'Failed to apply offer' });
+  }
+}
+
 async function updateOffer(req, res) {
   const { code } = req.body;
   try {
@@ -444,6 +466,8 @@ module.exports = {
   deleteCategory,
   uploadBannerImage,
   updateBanner,
+  getOffers,
+  applyOffer,
   updateOffer,
   toggleOffer,
   deleteOffer,

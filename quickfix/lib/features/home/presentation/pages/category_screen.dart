@@ -10,6 +10,7 @@ import 'package:quickfix/features/home/models/home_models.dart';
 import 'package:quickfix/core/widgets/notify_me_dialog.dart';
 import 'package:quickfix/core/widgets/error_widgets.dart';
 import 'package:quickfix/core/network/connectivity_provider.dart';
+import 'package:quickfix/core/network/error_handler.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
   final String categoryId;
@@ -58,7 +59,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to load services near you: $e';
+          _errorMessage = ErrorHandler.handle(e).message;
         });
       }
     }

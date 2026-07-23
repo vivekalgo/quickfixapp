@@ -9,6 +9,7 @@ import 'package:quickfix/features/home/presentation/controllers/home_providers.d
 import 'package:quickfix/features/home/models/home_models.dart';
 import 'package:quickfix/core/widgets/error_widgets.dart';
 import 'package:quickfix/core/network/connectivity_provider.dart';
+import 'package:quickfix/core/network/error_handler.dart';
 
 class ShopsListScreen extends ConsumerStatefulWidget {
   const ShopsListScreen({super.key});
@@ -63,7 +64,7 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to load nearby shops: $e';
+          _errorMessage = ErrorHandler.handle(e).message;
           _allShops = [];
           _filteredShops = [];
         });

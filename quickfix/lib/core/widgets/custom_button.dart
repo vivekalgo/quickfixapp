@@ -72,13 +72,13 @@ class CustomButton extends StatelessWidget {
     final buttonStyle = ElevatedButton.styleFrom(
       backgroundColor: buttonColor,
       foregroundColor: contentColor,
-      elevation: type == CustomButtonType.primary || type == CustomButtonType.actionRed ? 1 : 0,
-      shadowColor: Colors.black26,
+      elevation: type == CustomButtonType.primary || type == CustomButtonType.actionRed ? 0 : 0,
+      shadowColor: Colors.black12,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         side: borderSide,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
     );
 
     Widget child = isLoading

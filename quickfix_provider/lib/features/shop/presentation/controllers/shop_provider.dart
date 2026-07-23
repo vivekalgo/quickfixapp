@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickfix_provider/features/auth/presentation/controllers/auth_provider.dart';
 import 'package:quickfix_provider/features/shop/repositories/shop_repository_impl.dart';
+import 'package:quickfix_provider/core/network/error_handler.dart';
 
 /// Represents the state of shop parameters modification (such as adding custom services).
 class ShopManagementState {
@@ -67,7 +68,10 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -118,7 +122,10 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -174,7 +181,10 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -211,7 +221,10 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -235,7 +248,10 @@ class ShopManagementNotifier extends StateNotifier<ShopManagementState> {
       );
       return null;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return null;
     }
   }

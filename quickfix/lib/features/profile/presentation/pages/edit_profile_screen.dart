@@ -97,7 +97,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     } on PlatformException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Permission denied: ${e.message}')),
+          const SnackBar(
+            content: Text(
+              'Permission denied. Please allow access in device settings.',
+            ),
+          ),
         );
       }
     }

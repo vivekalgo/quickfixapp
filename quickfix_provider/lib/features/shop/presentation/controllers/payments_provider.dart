@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickfix_provider/features/auth/presentation/controllers/auth_provider.dart';
 import 'package:quickfix_provider/features/payments/repositories/payments_repository_impl.dart';
+import 'package:quickfix_provider/core/network/error_handler.dart';
 
 // ─── State Model ─────────────────────────────────────────────────────────────
 
@@ -147,7 +148,10 @@ class PaymentsNotifier extends StateNotifier<PaymentsState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
     }
 
     // Also fetch the enhanced payment dashboard
@@ -259,7 +263,10 @@ class PaymentsNotifier extends StateNotifier<PaymentsState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }

@@ -11,6 +11,7 @@ import 'package:quickfix/features/auth/presentation/controllers/auth_providers.d
 import 'package:quickfix/features/booking/presentation/controllers/booking_providers.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
 import 'package:quickfix/features/booking/presentation/widgets/booking_matching_overlay.dart';
+import 'package:quickfix/core/network/error_handler.dart';
 
 class QuickBookingScreen extends ConsumerStatefulWidget {
   const QuickBookingScreen({super.key});
@@ -197,7 +198,7 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
         });
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error finding experts: $e')));
+        ).showSnackBar(SnackBar(content: Text(ErrorHandler.handle(e).message)));
         return;
       }
     } else {

@@ -5,6 +5,7 @@ import 'package:quickfix_provider/features/auth/models/shop_model.dart';
 import 'package:quickfix_provider/core/services/notification_service.dart';
 import 'package:quickfix_provider/core/logging/app_logger.dart';
 import 'package:quickfix_provider/features/auth/repositories/auth_repository_impl.dart';
+import 'package:quickfix_provider/core/network/error_handler.dart';
 
 /// Represents the state of the partner's authentication workflow.
 class AuthState {
@@ -81,7 +82,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return false;
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -111,7 +115,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -170,7 +177,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -210,7 +220,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -237,7 +250,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -264,7 +280,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }

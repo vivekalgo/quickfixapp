@@ -6,6 +6,7 @@ import 'package:quickfix_provider/features/dashboard/presentation/controllers/da
 import 'package:quickfix_provider/features/bookings/models/booking_model.dart';
 import 'package:quickfix_provider/core/logging/app_logger.dart';
 import 'package:quickfix_provider/features/bookings/repositories/bookings_repository_impl.dart';
+import 'package:quickfix_provider/core/network/error_handler.dart';
 
 /// Represents the state of service bookings queue for the partner.
 class BookingsState {
@@ -74,7 +75,10 @@ class BookingsNotifier extends StateNotifier<BookingsState> {
       final list = await repository.fetchBookings(shop.id);
       state = state.copyWith(isLoading: false, bookings: list);
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
     }
   }
 
@@ -95,7 +99,10 @@ class BookingsNotifier extends StateNotifier<BookingsState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
     }
   }
 
@@ -149,7 +156,10 @@ class BookingsNotifier extends StateNotifier<BookingsState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }
@@ -188,7 +198,10 @@ class BookingsNotifier extends StateNotifier<BookingsState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handle(e).message,
+      );
       return false;
     }
   }

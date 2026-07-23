@@ -62,18 +62,18 @@ class SectionHeader extends StatelessWidget {
                   children: [
                     Text(
                       seeAllLabel,
-                      style: const TextStyle(
-                        color: AppColors.primary,
+                      style: TextStyle(
+                        color: isDark ? AppColors.primaryAccent : AppColors.primary,
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.1,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.1,
                       ),
                     ),
                     const SizedBox(width: 2),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
                       size: 16,
-                      color: AppColors.primary,
+                      color: isDark ? AppColors.primaryAccent : AppColors.primary,
                     ),
                   ],
                 ),

@@ -21,6 +21,8 @@ router.post('/banners/upload-image', requireAdmin, settingsValidator.validateBan
 router.post('/banners/update', requireAdmin, settingsController.updateBanner);
 
 // --- OFFERS & COUPONS ENDPOINTS ---
+router.get('/offers', publicLimiter, settingsController.getOffers);
+router.post('/offers/apply', settingsController.applyOffer);
 router.post('/offers/update', requireAdmin, settingsController.updateOffer);
 router.post('/offers/toggle', requireAdmin, settingsController.toggleOffer);
 router.delete('/offers/:code', requireAdmin, settingsController.deleteOffer);

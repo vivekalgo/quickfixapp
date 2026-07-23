@@ -148,6 +148,8 @@ class CustomBottomNavBar extends ConsumerWidget {
     final currentIndex = ref.watch(currentNavIndexProvider);
     final isSelected = currentIndex == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = isDark ? Colors.white : AppColors.primary;
+    final inactiveColor = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
 
     return InkWell(
       onTap: () {
@@ -158,22 +160,18 @@ class CustomBottomNavBar extends ConsumerWidget {
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: SizedBox(
-        width: 60,
-        height: 60,
+        width: 62,
+        height: 62,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             AnimatedScale(
-              scale: isSelected ? 1.12 : 1.0,
+              scale: isSelected ? 1.10 : 1.0,
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeInOut,
               child: Icon(
                 isSelected ? activeIcon : icon,
-                color: isSelected
-                    ? AppColors.primary
-                    : (isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondaryLight),
+                color: isSelected ? activeColor : inactiveColor,
                 size: 23,
               ),
             ),
@@ -182,23 +180,20 @@ class CustomBottomNavBar extends ConsumerWidget {
               label,
               style: TextStyle(
                 fontSize: 10.5,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected
-                    ? AppColors.primary
-                    : (isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondaryLight),
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                letterSpacing: -0.1,
+                color: isSelected ? activeColor : inactiveColor,
               ),
             ),
-            const SizedBox(height: 2),
-            // Active indicator dot
+            const SizedBox(height: 3),
+            // Active indicator pill
             AnimatedContainer(
               duration: const Duration(milliseconds: 250),
-              width: isSelected ? 4 : 0,
-              height: isSelected ? 4 : 0,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
+              width: isSelected ? 16 : 0,
+              height: isSelected ? 3 : 0,
+              decoration: BoxDecoration(
+                color: activeColor,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ],

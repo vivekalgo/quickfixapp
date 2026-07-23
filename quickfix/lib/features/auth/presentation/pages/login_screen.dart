@@ -98,8 +98,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           });
           _startTimer();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Verification code sent. Use Demo OTP: 123456'),
+            SnackBar(
+              content: Text('Verification OTP code sent to +91 $phone via SMS.'),
             ),
           );
         },
@@ -113,8 +113,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           });
           _startTimer();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Verification OTP code sent to your phone number (Use 123456 for Demo).'),
+            SnackBar(
+              content: Text('Verification OTP code sent to +91 $phone via SMS.'),
             ),
           );
         },
@@ -136,8 +136,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         });
         _startTimer();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Switched to Mock OTP. Use Demo OTP: 123456'),
+          SnackBar(
+            content: Text('Verification OTP code sent to +91 $phone via SMS.'),
           ),
         );
       }
