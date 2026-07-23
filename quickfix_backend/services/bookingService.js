@@ -63,9 +63,9 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
     bookingPricingType = calc.pricingType;
   }
 
-  if (paymentMethod === 'Razorpay') {
+  if (paymentMethod === 'Razorpay' && paymentDetails) {
     const secret = process.env.RAZORPAY_KEY_SECRET;
-    if (secret) {
+    if (secret && paymentDetails.orderId && paymentDetails.paymentId && paymentDetails.signature) {
       const generatedSignature = crypto
         .createHmac('sha256', secret)
         .update(paymentDetails.orderId + "|" + paymentDetails.paymentId)
@@ -73,7 +73,7 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
       if (generatedSignature !== paymentDetails.signature) {
         throw new Error('Razorpay cryptographic signature verification failed');
       }
-    } else {
+    } else if (!secret) {
       console.warn("WARNING: RAZORPAY_KEY_SECRET is not configured. Signature validation was bypassed.");
     }
   }
@@ -102,21 +102,41 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
   const providerName = shop.ownerName || 'Assigning Expert...';
   const estEarnings = parseFloat((parsedAmount * (1 - commissionRate / 100)).toFixed(2));
   
-  const addr = customerAddress || (user && user.savedAddresses && user.savedAddresses[0]) || '113, Swaroop Nagar, Kanpur';
+  let addr = customerAddress;
+  if (!addr && user && user.savedAddresses && user.savedAddresses.length > 0) {
+    const firstAddr = user.savedAddresses[0];
+    addr = typeof firstAddr === 'string' ? firstAddr : (firstAddr.address || firstAddr.fullAddress || '');
+  }
+  if (!addr || typeof addr !== 'string' || addr.trim() === '') {
+    addr = '113, Swaroop Nagar, Kanpur';
+  }
+
   const addrParts = addr.split(',');
   const approxAddress = addrParts.length > 1 
     ? `${addrParts[addrParts.length - 2].trim()}, ${addrParts[addrParts.length - 1].trim()}`
     : addr;
 
+  let custLat = latitude;
+  let custLng = longitude;
+  if ((!custLat || !custLng) && user && user.savedAddresses && user.savedAddresses.length > 0) {
+    const firstAddr = user.savedAddresses[0];
+    if (typeof firstAddr === 'object') {
+      custLat = custLat || firstAddr.latitude || firstAddr.lat;
+      custLng = custLng || firstAddr.longitude || firstAddr.lng;
+    }
+  }
+  custLat = parseFloat(custLat) || 26.4912;
+  custLng = parseFloat(custLng) || 80.3156;
+
   const newBooking = new Booking({
     id: bookingId,
-    customerId: user ? user._id : (customerId || 'cust-123'),
-    customerName: user ? user.name : (customerName || 'John Doe'),
+    customerId: user ? (user._id ? user._id.toString() : user.id) : (customerId || 'cust-123'),
+    customerName: user ? (user.name || user.phone) : (customerName || 'John Doe'),
     customerPhone: user ? user.phone : (customerPhone || '9999888877'),
     customerAddress: addr,
     approxAddress: approxAddress,
-    customerLat: latitude || (user && user.savedAddresses && user.savedAddresses[0] && user.savedAddresses[0].latitude) || 26.4912,
-    customerLng: longitude || (user && user.savedAddresses && user.savedAddresses[0] && user.savedAddresses[0].longitude) || 80.3156,
+    customerLat: custLat,
+    customerLng: custLng,
     shopId,
     title,
     slot: slot || '09:00 AM - 10:00 AM',
@@ -187,8 +207,8 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
       id: ledgerId,
       bookingId: bookingId,
       customerId: newBooking.customerId,
-      providerId: shop.id,
-      shopId: shop.id,
+      providerId: shop.id || shop._id.toString(),
+      shopId: shop.id || shop._id.toString(),
       providerName: shop.ownerName || shop.name,
       customerName: newBooking.customerName,
       serviceTitle: title,
@@ -211,7 +231,7 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
       eventType: 'booking_created',
       bookingId: bookingId,
       ledgerId: ledgerId,
-      shopId: shop.id,
+      shopId: shop.id || shop._id.toString(),
       customerId: newBooking.customerId,
       amount: gross,
       description: `Booking ${bookingId} created via ${paymentMethod}`,
@@ -226,7 +246,7 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
         eventType: 'payment_success',
         bookingId: bookingId,
         ledgerId: ledgerId,
-        shopId: shop.id,
+        shopId: shop.id || shop._id.toString(),
         customerId: newBooking.customerId,
         amount: gross,
         description: `Wallet payment of ₹${gross} processed`,
@@ -263,10 +283,12 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
   ).catch(err => console.error('FCM partner notification error:', err));
 
   return {
+    success: true,
     bookingId,
     booking: newBooking,
     walletBalance: user ? user.walletBalance : undefined
   };
+}
 }
 
 async function updateBookingStatus(id, status, providerName) {

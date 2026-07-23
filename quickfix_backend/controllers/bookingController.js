@@ -34,7 +34,8 @@ async function placeBooking(req, res) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       try {
-        const decoded = jwt.verify(token, JWT_SECRET || process.env.JWT_SECRET);
+        const secret = process.env.JWT_SECRET || JWT_SECRET;
+        const decoded = jwt.verify(token, secret);
         if (decoded && decoded.id) {
           try { user = await User.findById(decoded.id); } catch (_) {}
           if (!user) user = await User.findOne({ id: decoded.id });
@@ -45,19 +46,22 @@ async function placeBooking(req, res) {
     }
 
     const result = await bookingService.placeBookingOrder(req.body, user);
-    res.json(result);
+    res.json({
+      success: true,
+      ...result
+    });
   } catch (e) {
     if (e.message === 'Shop not found') {
-      return res.status(404).json({ error: e.message });
+      return res.status(404).json({ success: false, error: e.message });
     }
-    if (e.message === 'Razorpay cryptographic signature verification failed' || e.message === 'Insufficient wallet balance') {
-      return res.status(400).json({ error: e.message });
+    if (e.message === 'Razorpay cryptographic signature verification failed' || e.message === 'Insufficient wallet balance' || e.message === 'Missing Razorpay payment details') {
+      return res.status(400).json({ success: false, error: e.message });
     }
     if (e.message === 'Unauthorized: Authentication required for wallet payment') {
-      return res.status(401).json({ error: e.message });
+      return res.status(401).json({ success: false, error: e.message });
     }
     console.error('Booking placement failed:', e);
-    res.status(500).json({ error: 'Failed to save booking order' });
+    res.status(500).json({ success: false, error: e.message || 'Failed to save booking order' });
   }
 }
 

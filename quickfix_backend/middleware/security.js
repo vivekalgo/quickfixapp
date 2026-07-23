@@ -34,7 +34,6 @@ const helmetMiddleware = helmet({
 // 2. CORS Whitelist configuration
 function configureCors() {
   const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase().trim();
-  const isDev = nodeEnv === 'development';
 
   const rawOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
   const allowedOrigins = rawOrigins.map(o => o.trim()).filter(o => o.length > 0);
@@ -44,17 +43,23 @@ function configureCors() {
       // Allow requests with no origin (like mobile apps, curl, postman)
       if (!origin) return callback(null, true);
 
-      // In dev mode, allow localhost origins
-      if (isDev && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))) {
+      // Allow localhost and 127.0.0.1 on any port (for dev / local admin panel)
+      if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.startsWith('https://localhost') || origin.startsWith('https://127.0.0.1')) {
         return callback(null, true);
       }
 
-      // Check configured allowed origins
-      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      // Allow null origin (e.g., local HTML file loaded via file:// protocol)
+      if (origin === 'null') {
         return callback(null, true);
       }
 
-      callback(new Error(`CORS policy violation: Origin '${origin}' is not allowed.`));
+      // Check configured allowed origins or default fallback to allow all if unspecified
+      if (allowedOrigins.length === 0 || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Return callback(null, false) instead of throwing Error to prevent Express 500 without CORS headers
+      callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
