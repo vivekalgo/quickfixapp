@@ -289,7 +289,6 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
     walletBalance: user ? user.walletBalance : undefined
   };
 }
-}
 
 async function updateBookingStatus(id, status, providerName) {
   const booking = await Booking.findOne({ id });
