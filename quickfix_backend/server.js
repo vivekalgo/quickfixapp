@@ -2,7 +2,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
 
-// Select and load environment config profile
+// 1. Select and load environment config profile
 const nodeEnv = process.env.NODE_ENV ? process.env.NODE_ENV.toLowerCase().trim() : 'development';
 let envFile = '.env.dev';
 if (nodeEnv === 'production') envFile = '.env.production';
@@ -14,34 +14,20 @@ if (fs.existsSync(envPath)) {
   console.log(`[Config] Loaded environment configuration profile: ${envFile}`);
 } else {
   dotenv.config(); // fallback to standard .env
-  console.warn(`[Config] Profile file ${envFile} not found. Fallback to default .env`);
 }
 
-// Generate fallback secrets if missing for dev/testing
-if (!process.env.JWT_SECRET) {
-  if (nodeEnv === 'production') {
-    console.error("FATAL ERROR: JWT_SECRET environment variable is missing in production!");
-    process.exit(1);
-  } else {
-    const crypto = require('crypto');
-    process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
-    console.warn("⚠️ Warning: JWT_SECRET was missing. Generated a dynamic key for testing/dev.");
-  }
-}
+// 2. Validate Environment Variables before Boot
+const { validateEnv } = require('./config/envValidator');
+validateEnv();
 
-if (!process.env.ADMIN_PASSWORD) {
-  if (nodeEnv === 'production') {
-    console.error("FATAL ERROR: ADMIN_PASSWORD environment variable is missing in production!");
-    process.exit(1);
-  } else {
-    process.env.ADMIN_PASSWORD = 'quickfix_admin_secret_9988_dev_fallback';
-    console.warn("⚠️ Warning: ADMIN_PASSWORD was missing. Set default admin fallback password.");
-  }
-}
+// 3. Logger & Request ID setup
+const { logger } = require('./config/logger');
+const { requestIdMiddleware, httpAccessLogger } = require('./middleware/requestLogger');
+
+// 4. Security middleware setup
+const { helmetMiddleware, corsMiddleware, sanitizeMongo, sanitizeHpp } = require('./middleware/security');
 
 const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 
 // Initialize Firebase Admin SDK
@@ -50,35 +36,88 @@ require('./config/firebase');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Enable CORS
-app.use(cors());
+// Trust reverse proxy (Railway, Render, Nginx, Cloudflare)
+app.set('trust proxy', 1);
 
-// Parse requests
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+// Attach Request ID & Access Logger
+app.use(requestIdMiddleware);
+app.use(httpAccessLogger);
+
+// Apply Security HTTP Headers & CORS Whitelist
+app.use(helmetMiddleware);
+app.use(corsMiddleware);
+
+// Request payload limits (1MB max for JSON and URL-encoded)
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ limit: '1mb', extended: true }));
+
+// Express JSON payload error handler (catches 413 / bad JSON)
+app.use((err, req, res, next) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({ success: false, error: 'Payload too large. Maximum allowed size is 1MB.' });
+  }
+  if (err && err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ success: false, error: 'Invalid JSON payload structure' });
+  }
+  next(err);
+});
+
+// Apply NoSQL Injection & HPP parameter sanitization
+app.use(sanitizeMongo);
+app.use(sanitizeHpp);
+
+// --- HEALTH & READINESS ENDPOINTS ---
+const pkg = require('./package.json');
+const getHealthStatus = () => {
+  const dbStateMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  const dbState = mongoose.connection ? mongoose.connection.readyState : 0;
+  return {
+    status: dbState === 1 ? 'ok' : 'degraded',
+    version: pkg.version || '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    uptime: `${Math.floor(process.uptime())}s`,
+    timestamp: new Date().toISOString(),
+    database: {
+      status: dbStateMap[dbState] || 'unknown',
+      connected: dbState === 1
+    },
+    memory: {
+      rss: `${Math.round(process.memoryUsage().rss / 1024 / 1024)} MB`,
+      heapUsed: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)} MB`
+    }
+  };
+};
+
+app.get(['/health', '/api/health'], (req, res) => res.json(getHealthStatus()));
+app.get(['/live', '/api/live'], (req, res) => res.json({ status: 'live', timestamp: new Date().toISOString() }));
+app.get(['/ready', '/api/ready'], (req, res) => {
+  const dbState = mongoose.connection ? mongoose.connection.readyState : 0;
+  if (dbState === 1 || nodeEnv !== 'production') {
+    return res.json({ status: 'ready', database: dbState === 1 ? 'connected' : 'local_json_dev' });
+  }
+  return res.status(503).json({ status: 'not_ready', error: 'Database disconnected' });
+});
 
 // --- DATABASE CONNECTION ---
+const isProd = nodeEnv === 'production';
 const isMongoConfigured = process.env.MONGODB_URI && !process.env.MONGODB_URI.includes('YOUR_MONGODB_ATLAS_CONNECTION_STRING_HERE');
-if (!isMongoConfigured) {
-  console.warn("==================================================================");
-  console.warn("WARNING: MONGODB_URI is not configured in your .env file!");
-  console.warn("Please update quickfix_backend/.env with your MongoDB Atlas URI.");
-  console.warn("==================================================================");
-}
-
 const { setUseLocalDb } = require('./models');
 
 const dbUri = isMongoConfigured ? process.env.MONGODB_URI : 'mongodb://localhost:27017/quickfix';
-mongoose.connect(dbUri, { serverSelectionTimeoutMS: 3000 })
+
+mongoose.connect(dbUri, { serverSelectionTimeoutMS: 5000 })
   .then(() => {
-    console.log("Connected to MongoDB database successfully!");
-    seedDatabase();
+    logger.info("Connected to MongoDB database successfully!");
   })
   .catch(err => {
-    console.warn("MongoDB connection failed:", err.message);
-    console.warn("Falling back to local JSON database storage (database.json)...");
-    setUseLocalDb(true);
-    seedDatabase();
+    logger.error(`MongoDB connection error: ${err.message}`);
+    if (isProd) {
+      logger.error("FATAL ERROR: Production server cannot start without a valid MongoDB connection.");
+      process.exit(1);
+    } else {
+      logger.warn("Falling back to local JSON database storage (database.json) in development mode...");
+      setUseLocalDb(true);
+    }
   });
 
 // --- REGISTER MODULAR ROUTES ---
@@ -89,15 +128,56 @@ app.use('/api/shops', require('./routes/shops'));
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/payments', require('./routes/payments'));
-app.use('/api', require('./routes/settings')); // handles various general paths
+app.use('/api', require('./routes/settings'));
 
-// --- DATABASE AUTO-SEEDER ---
-async function seedDatabase() {
-  // Seeding is disabled to allow starting with a 100% fresh database
-  return;
-}
-
-// Start Server
-app.listen(PORT, () => {
-  console.log(`QuickFix Backend Server listening at http://localhost:${PORT}`);
+// 404 Route Handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: `Route '${req.originalUrl}' not found` });
 });
+
+// Global Error Handling Middleware
+app.use((err, req, res, next) => {
+  logger.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, err);
+  res.status(err.statusCode || 500).json({
+    success: false,
+    error: isProd ? 'Internal server error' : (err.message || 'Internal server error')
+  });
+});
+
+// Start HTTP Server
+const server = app.listen(PORT, () => {
+  logger.info(`QuickFix Enterprise Backend listening on port ${PORT} [Mode: ${nodeEnv}]`);
+});
+
+// --- GRACEFUL SHUTDOWN HANDLER ---
+let isShuttingDown = false;
+const shutdown = (signal) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  logger.info(`Received ${signal}. Initiating graceful shutdown...`);
+
+  // Stop accepting new requests
+  server.close(async () => {
+    logger.info("HTTP server closed.");
+    try {
+      if (mongoose.connection && mongoose.connection.readyState !== 0) {
+        await mongoose.connection.close();
+        logger.info("MongoDB connection closed.");
+      }
+      logger.info("Graceful shutdown completed successfully.");
+      process.exit(0);
+    } catch (err) {
+      logger.error("Error during graceful shutdown:", err);
+      process.exit(1);
+    }
+  });
+
+  // Force shutdown after 10s if connections do not drain
+  setTimeout(() => {
+    logger.error("Could not close connections in time. Forcing shutdown.");
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

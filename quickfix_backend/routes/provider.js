@@ -3,12 +3,16 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const providerController = require('../controllers/providerController');
 const providerValidator = require('../validators/providerValidator');
+const { providerLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
+
+// Apply provider rate limiter to all provider endpoints
+router.use(providerLimiter);
 
 // 1. Provider Login
-router.post('/login', providerValidator.validateLogin, providerController.login);
+router.post('/login', providerController.login);
 
 // 2. Change Password
-router.post('/change-password', requireAuth, providerValidator.validateChangePassword, providerController.changePassword);
+router.post('/change-password', passwordResetLimiter, requireAuth, providerValidator.validateChangePassword, providerController.changePassword);
 
 // 3. Update Provider FCM Token
 router.post('/update-fcm', requireAuth, providerController.updateFcm);

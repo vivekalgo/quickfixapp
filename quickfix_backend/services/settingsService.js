@@ -1,13 +1,13 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { 
   Settings, Category, Banner, Offer, AuditLog, Review, Professional, 
-  User, Shop, Booking, Notification, CmsSection, CustomSection, Demand 
+  User, Shop, Booking, Notification, CmsSection, CustomSection, Demand, AdminUser 
 } = require('../models');
 const cloudinary = require('../config/cloudinary');
 const { calculateDistance, deleteFromCloudinary, sendFcmNotification, paginate } = require('../helpers');
 const { calculateCheckoutPriceInternal } = require('../pricingCalculator');
-
-const JWT_SECRET = process.env.JWT_SECRET;
+const { logger } = require('../config/logger');
 
 async function submitDemand(phone, address, latitude, longitude) {
   const newDemand = new Demand({
@@ -479,23 +479,89 @@ async function deleteCustomSection(id) {
 }
 
 async function adminLogin(password) {
-  if (!process.env.ADMIN_PASSWORD) {
-    console.warn("⚠️ WARNING: ADMIN_PASSWORD environment variable is missing!");
-    if (process.env.NODE_ENV === 'production') {
-      const err = new Error('System Configuration Error: Security settings are incomplete.');
-      err.statusCode = 500;
+  const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase().trim();
+  if (!process.env.ADMIN_PASSWORD && nodeEnv === 'production') {
+    const err = new Error('System Configuration Error: Security settings are incomplete.');
+    err.statusCode = 500;
+    throw err;
+  }
+
+  const adminPassword = process.env.ADMIN_PASSWORD || 'quickfix_admin_secret_9988_dev_fallback';
+  const MAX_FAILED_ATTEMPTS = 5;
+  const LOCK_TIME_MS = 30 * 60 * 1000; // 30 minutes lockout
+
+  let adminUser = await AdminUser.findOne({ username: 'admin' });
+  if (!adminUser) {
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    adminUser = new AdminUser({
+      username: 'admin',
+      passwordHash: passwordHash,
+      role: 'admin',
+      failedAttempts: 0,
+      lockUntil: null
+    });
+    await adminUser.save();
+  }
+
+  if (adminUser.lockUntil && adminUser.lockUntil > new Date()) {
+    const remainingMins = Math.ceil((adminUser.lockUntil.getTime() - Date.now()) / (60 * 1000));
+    const err = new Error(`Admin account is temporarily locked due to repeated failed login attempts. Try again in ${remainingMins} minute(s).`);
+    err.statusCode = 429;
+    throw err;
+  }
+
+  let isMatch = await bcrypt.compare(password, adminUser.passwordHash);
+  if (!isMatch && password === adminPassword) {
+    adminUser.passwordHash = await bcrypt.hash(adminPassword, 10);
+    isMatch = true;
+  }
+
+  if (!isMatch) {
+    adminUser.failedAttempts = (adminUser.failedAttempts || 0) + 1;
+    if (adminUser.failedAttempts >= MAX_FAILED_ATTEMPTS) {
+      adminUser.lockUntil = new Date(Date.now() + LOCK_TIME_MS);
+      await adminUser.save();
+      logger.warn(`Admin account locked due to ${MAX_FAILED_ATTEMPTS} failed attempts.`);
+      const err = new Error('Too many failed login attempts. Admin account locked for 30 minutes.');
+      err.statusCode = 429;
       throw err;
     }
-  }
-  const adminPassword = process.env.ADMIN_PASSWORD || 'quickfix_admin_secret_9988_dev_fallback';
-  if (password === adminPassword) {
-    const token = jwt.sign({ id: 'super-admin', role: 'admin' }, JWT_SECRET, { expiresIn: '30d' });
-    return token;
-  } else {
+    await adminUser.save();
     const err = new Error('Invalid admin credentials');
     err.statusCode = 401;
     throw err;
   }
+
+  adminUser.failedAttempts = 0;
+  adminUser.lockUntil = null;
+  await adminUser.save();
+
+  try {
+    const audit = new AuditLog({
+      id: `AUDIT-LOGIN-${Date.now()}`,
+      action: 'ADMIN_LOGIN',
+      details: 'Super admin authenticated into admin panel',
+      adminUser: 'admin',
+      timestamp: new Date().toISOString()
+    });
+    await audit.save();
+  } catch (auditErr) {
+    logger.error('Failed to log admin login audit event:', auditErr);
+  }
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    const err = new Error('Server configuration error: JWT_SECRET missing.');
+    err.statusCode = 500;
+    throw err;
+  }
+
+  const token = jwt.sign(
+    { id: 'super-admin', role: 'admin' },
+    secret,
+    { expiresIn: '24h' }
+  );
+  return token;
 }
 
 async function getAdminStats() {

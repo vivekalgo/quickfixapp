@@ -5,4 +5,5 @@ node_modules/
 .env.production
 firebase-adminsdk.json
 database.json
+logs/
 *.log

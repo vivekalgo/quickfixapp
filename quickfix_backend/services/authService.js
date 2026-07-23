@@ -3,6 +3,7 @@ const { User } = require('../models');
 const admin = require('../config/firebase');
 const cloudinary = require('../config/cloudinary');
 const { deleteFromCloudinary } = require('../helpers');
+const { logger } = require('../config/logger');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -33,19 +34,25 @@ function buildProfileResponse(user) {
 }
 
 async function verifyFirebaseOtp(firebaseToken) {
+  if (!firebaseToken || typeof firebaseToken !== 'string') {
+    const err = new Error("Firebase authentication token is required");
+    err.isFirebaseError = true;
+    throw err;
+  }
+
+  if (!admin.apps || admin.apps.length === 0) {
+    const err = new Error("Firebase Admin SDK is not initialized. Cannot verify authentication token.");
+    err.isFirebaseError = true;
+    throw err;
+  }
+
   let decodedToken;
   try {
-    if (firebaseToken && firebaseToken.startsWith('mock-firebase-token-for-')) {
-      const mockPhone = firebaseToken.replace('mock-firebase-token-for-', '');
-      decodedToken = { phone_number: '+91' + mockPhone };
-    } else {
-      if (!admin.apps.length) {
-        throw new Error("Firebase Admin SDK is not initialized. Cannot verify token.");
-      }
-      decodedToken = await admin.auth().verifyIdToken(firebaseToken);
-      if (!decodedToken.phone_number) {
-        throw new Error("Decoded Firebase token does not contain a phone number.");
-      }
+    decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+    if (!decodedToken || !decodedToken.phone_number) {
+      const err = new Error("Decoded Firebase token does not contain a verified phone number.");
+      err.isFirebaseError = true;
+      throw err;
     }
   } catch (err) {
     err.isFirebaseError = true;
@@ -74,7 +81,12 @@ async function verifyFirebaseOtp(firebaseToken) {
     await user.save();
   }
 
-  const token = jwt.sign({ id: user._id, phone: user.phone, role: 'customer' }, JWT_SECRET, { expiresIn: '30d' });
+  const secret = process.env.JWT_SECRET || JWT_SECRET;
+  const token = jwt.sign(
+    { id: user._id, phone: user.phone, role: 'customer' },
+    secret,
+    { expiresIn: '30d' }
+  );
 
   return {
     token,

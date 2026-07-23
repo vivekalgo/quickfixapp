@@ -1,40 +1,41 @@
 /* ============================================================
-   QUICKFIX ENTERPRISE ADMIN — PREMIUM DESIGN SYSTEM v3.0
-   Built for: Stripe-level admin quality
+   QUICKFIX ENTERPRISE ADMIN — URBAN COMPANY DESIGN SYSTEM v4.0
+   Built for: Ultra-premium Urban Company & Stripe admin experience
    ============================================================ */
 
 /* ─── 1. DESIGN TOKENS ─────────────────────────────────────── */
 :root {
-  /* Brand */
-  --brand: #6366f1;
-  --brand-light: #818cf8;
-  --brand-dark: #4f46e5;
-  --brand-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --brand-grad-hover: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  --brand-glow: 0 4px 20px rgba(99,102,241,0.35);
+  /* Urban Company & Zomato Brand Tokens */
+  --brand: #0f172a;
+  --brand-light: #2563eb;
+  --brand-dark: #090d16;
+  --brand-action: #ff4e36;
+  --brand-grad: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  --brand-grad-hover: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  --brand-glow: 0 4px 20px rgba(15, 23, 42, 0.25);
 
   /* Semantic */
   --success: #10b981;
   --success-bg: rgba(16,185,129,0.1);
-  --success-border: rgba(16,185,129,0.18);
+  --success-border: rgba(16,185,129,0.2);
   --warning: #f59e0b;
   --warning-bg: rgba(245,158,11,0.1);
-  --warning-border: rgba(245,158,11,0.18);
+  --warning-border: rgba(245,158,11,0.2);
   --danger: #ef4444;
   --danger-bg: rgba(239,68,68,0.1);
-  --danger-border: rgba(239,68,68,0.18);
-  --info: #0ea5e9;
-  --info-bg: rgba(14,165,233,0.1);
-  --info-border: rgba(14,165,233,0.18);
+  --danger-border: rgba(239,68,68,0.2);
+  --info: #3b82f6;
+  --info-bg: rgba(59,130,246,0.1);
+  --info-border: rgba(59,130,246,0.2);
 
-  /* Surfaces (Dark) */
-  --bg-base: #070c1a;
-  --bg-surface: #0c1526;
-  --bg-card: #101c30;
-  --bg-card-alt: #0f1a2e;
-  --bg-raised: #182035;
-  --bg-input: rgba(255,255,255,0.04);
-  --bg-input-focus: rgba(99,102,241,0.06);
+  /* Surfaces (Urban Dark Mode) */
+  --bg-base: #0b1120;
+  --bg-surface: #152033;
+  --bg-card: #1e293b;
+  --bg-card-alt: #162238;
+  --bg-raised: #24324a;
+  --bg-input: rgba(255,255,255,0.05);
+  --bg-input-focus: rgba(37,99,235,0.1);
 
   /* Sidebar */
   --sidebar-bg: #090e1d;

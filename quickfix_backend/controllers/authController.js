@@ -1,10 +1,11 @@
 const authService = require('../services/authService');
+const { logger } = require('../config/logger');
 
 function sendOtp(req, res) {
   const { phoneNumber } = req.body;
-  const mockOtp = '123456';
-  console.log(`[SMS OTP SIMULATION] Sent OTP code "${mockOtp}" to ${phoneNumber}`);
-  res.json({ success: true, message: 'OTP sent successfully', otp: mockOtp });
+  logger.info(`OTP request received for phone: ${phoneNumber}`);
+  // Secure: OTP is NOT returned in response body
+  res.json({ success: true, message: 'OTP sent successfully' });
 }
 
 async function verifyOtp(req, res) {
@@ -17,11 +18,11 @@ async function verifyOtp(req, res) {
     });
   } catch (err) {
     if (err.isFirebaseError) {
-      console.error('Firebase token verification failed:', err.message);
-      return res.status(401).json({ error: `Firebase Authentication Failed: ${err.message}` });
+      logger.warn(`Firebase token verification failed: ${err.message}`);
+      return res.status(401).json({ success: false, error: `Firebase Authentication Failed: ${err.message}` });
     }
-    console.error('OTP verification error:', err);
-    res.status(500).json({ error: 'Internal server error during verification' });
+    logger.error('OTP verification error:', err);
+    res.status(500).json({ success: false, error: 'Internal server error during verification' });
   }
 }
 
@@ -31,9 +32,10 @@ async function getProfile(req, res) {
     res.json(profile);
   } catch (err) {
     if (err.message === 'User profile not found') {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ success: false, error: err.message });
     }
-    res.status(500).json({ error: 'Failed to fetch user profile' });
+    logger.error('Get profile error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch user profile' });
   }
 }
 
@@ -46,9 +48,10 @@ async function updateProfile(req, res) {
     });
   } catch (err) {
     if (err.message === 'User not found') {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ success: false, error: err.message });
     }
-    res.status(500).json({ error: 'Failed to update profile' });
+    logger.error('Update profile error:', err);
+    res.status(500).json({ success: false, error: 'Failed to update profile' });
   }
 }
 
@@ -59,10 +62,10 @@ async function uploadAvatar(req, res) {
     res.json({ success: true, avatarUrl });
   } catch (err) {
     if (err.message === 'User not found') {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ success: false, error: err.message });
     }
-    console.error('Cloudinary upload error:', err.message || err);
-    res.status(500).json({ error: `Failed to upload avatar: ${err.message || err}` });
+    logger.error('Cloudinary upload error:', err.message || err);
+    res.status(500).json({ success: false, error: `Failed to upload avatar: ${err.message || err}` });
   }
 }
 
@@ -72,9 +75,10 @@ async function getReferral(req, res) {
     res.json(refInfo);
   } catch (err) {
     if (err.message === 'User not found') {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ success: false, error: err.message });
     }
-    res.status(500).json({ error: 'Failed to fetch referral info' });
+    logger.error('Get referral error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch referral info' });
   }
 }
 
@@ -84,16 +88,14 @@ async function applyReferral(req, res) {
     await authService.applyReferral(req.user.id, referralCode);
     res.json({ success: true, message: 'Referral applied! ₹50 added to your wallet.' });
   } catch (err) {
-    if (err.message === 'Invalid referral code') {
-      return res.status(404).json({ error: err.message });
-    }
-    if (err.message === 'User not found') {
-      return res.status(404).json({ error: err.message });
+    if (err.message === 'Invalid referral code' || err.message === 'User not found') {
+      return res.status(404).json({ success: false, error: err.message });
     }
     if (err.message === 'Cannot use your own referral code') {
-      return res.status(400).json({ error: err.message });
+      return res.status(400).json({ success: false, error: err.message });
     }
-    res.status(500).json({ error: 'Failed to apply referral code' });
+    logger.error('Apply referral error:', err);
+    res.status(500).json({ success: false, error: 'Failed to apply referral code' });
   }
 }
 
@@ -103,9 +105,10 @@ async function deleteAccount(req, res) {
     res.json({ success: true, message: 'Account has been deactivated.' });
   } catch (err) {
     if (err.message === 'User not found') {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ success: false, error: err.message });
     }
-    res.status(500).json({ error: 'Failed to delete account' });
+    logger.error('Delete account error:', err);
+    res.status(500).json({ success: false, error: 'Failed to delete account' });
   }
 }
 

@@ -1,5 +1,203 @@
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
 const { PaymentLedger, Settlement, PaymentAuditLog, Booking, Shop, Settings } = require('../models');
 const { logPaymentEvent, sendFcmNotification, sendFcmTopicNotification, paginate } = require('../helpers');
+const { logger } = require('../config/logger');
+
+function getRazorpayInstance() {
+  const key_id = process.env.RAZORPAY_KEY_ID;
+  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!key_id || !key_secret) {
+    return null;
+  }
+  return new Razorpay({ key_id, key_secret });
+}
+
+async function createRazorpayOrder(bookingId, userId) {
+  let booking = await Booking.findOne({ id: bookingId });
+  if (!booking) {
+    try { booking = await Booking.findById(bookingId); } catch (_) {}
+  }
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+
+  // Calculate amount strictly from booking record (never trust client amount!)
+  const totalAmount = parseFloat(booking.totalPrice || booking.amount || 0);
+  if (totalAmount <= 0) {
+    const err = new Error('Invalid booking total amount for payment order creation');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const amountInPaise = Math.round(totalAmount * 100);
+  const razorpay = getRazorpayInstance();
+
+  if (razorpay) {
+    const options = {
+      amount: amountInPaise,
+      currency: 'INR',
+      receipt: booking.id || booking._id.toString(),
+      notes: {
+        bookingId: booking.id || booking._id.toString(),
+        userId: userId || booking.userId || ''
+      }
+    };
+    const order = await razorpay.orders.create(options);
+    booking.razorpayOrderId = order.id;
+    await booking.save();
+    return {
+      orderId: order.id,
+      amount: totalAmount,
+      amountInPaise,
+      currency: 'INR',
+      keyId: process.env.RAZORPAY_KEY_ID
+    };
+  } else {
+    logger.warn('RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET missing. Generating fallback order token.');
+    const fallbackOrderId = `order_dev_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    booking.razorpayOrderId = fallbackOrderId;
+    await booking.save();
+    return {
+      orderId: fallbackOrderId,
+      amount: totalAmount,
+      amountInPaise,
+      currency: 'INR',
+      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder'
+    };
+  }
+}
+
+async function verifyRazorpayPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature, bookingId) {
+  let booking = null;
+  if (bookingId) {
+    booking = await Booking.findOne({ id: bookingId });
+    if (!booking) try { booking = await Booking.findById(bookingId); } catch (_) {}
+  }
+  if (!booking && razorpayOrderId) {
+    booking = await Booking.findOne({ razorpayOrderId });
+  }
+
+  if (!booking) {
+    throw new Error('Booking associated with payment order not found');
+  }
+
+  // Prevent duplicate payments (idempotency check)
+  if (booking.paymentStatus === 'paid') {
+    return {
+      success: true,
+      message: 'Payment has already been processed and verified',
+      booking
+    };
+  }
+
+  const secret = process.env.RAZORPAY_KEY_SECRET;
+  if (secret) {
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(razorpayOrderId + '|' + razorpayPaymentId)
+      .digest('hex');
+
+    if (expectedSignature !== razorpaySignature) {
+      const err = new Error('Razorpay cryptographic signature verification failed');
+      err.statusCode = 400;
+      throw err;
+    }
+  } else {
+    logger.warn('RAZORPAY_KEY_SECRET missing. Payment signature verification bypassed in dev mode.');
+  }
+
+  booking.paymentStatus = 'paid';
+  booking.razorpayPaymentId = razorpayPaymentId;
+  booking.razorpaySignature = razorpaySignature;
+  await booking.save();
+
+  await logPaymentEvent('razorpay_verified', {
+    bookingId: booking.id || booking._id,
+    shopId: booking.shopId,
+    amount: booking.totalPrice || booking.amount,
+    description: `Razorpay payment verified: ${razorpayPaymentId} for Order ${razorpayOrderId}`,
+    actor: 'customer',
+    metadata: { razorpayOrderId, razorpayPaymentId }
+  });
+
+  return {
+    success: true,
+    message: 'Payment verified successfully',
+    booking
+  };
+}
+
+async function handleRazorpayWebhook(headers, rawBody) {
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const signature = headers['x-razorpay-signature'];
+
+  if (webhookSecret) {
+    if (!signature) {
+      const err = new Error('Missing Razorpay webhook signature header');
+      err.statusCode = 400;
+      throw err;
+    }
+    const bodyStr = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody);
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(bodyStr)
+      .digest('hex');
+
+    if (expectedSignature !== signature) {
+      const err = new Error('Invalid Razorpay webhook signature');
+      err.statusCode = 400;
+      throw err;
+    }
+  } else {
+    logger.warn('RAZORPAY_WEBHOOK_SECRET missing. Webhook signature validation skipped in dev mode.');
+  }
+
+  const event = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
+  const eventType = event.event;
+
+  if (eventType === 'payment.captured') {
+    const payment = event.payload.payment.entity;
+    const razorpayOrderId = payment.order_id;
+    const razorpayPaymentId = payment.id;
+
+    const booking = await Booking.findOne({ razorpayOrderId });
+    if (booking && booking.paymentStatus !== 'paid') {
+      booking.paymentStatus = 'paid';
+      booking.razorpayPaymentId = razorpayPaymentId;
+      await booking.save();
+
+      await logPaymentEvent('webhook_payment_captured', {
+        bookingId: booking.id || booking._id,
+        shopId: booking.shopId,
+        amount: payment.amount / 100,
+        description: `Webhook payment.captured for Order ${razorpayOrderId}`,
+        actor: 'razorpay_webhook',
+        metadata: { razorpayOrderId, razorpayPaymentId }
+      });
+    }
+  } else if (eventType === 'payment.failed') {
+    const payment = event.payload.payment.entity;
+    const razorpayOrderId = payment.order_id;
+
+    const booking = await Booking.findOne({ razorpayOrderId });
+    if (booking && booking.paymentStatus !== 'paid') {
+      booking.paymentStatus = 'failed';
+      await booking.save();
+
+      await logPaymentEvent('webhook_payment_failed', {
+        bookingId: booking.id || booking._id,
+        shopId: booking.shopId,
+        amount: payment.amount / 100,
+        description: `Webhook payment.failed for Order ${razorpayOrderId}`,
+        actor: 'razorpay_webhook',
+        metadata: { razorpayOrderId, error: payment.error_description }
+      });
+    }
+  }
+
+  return { status: 'ok' };
+}
 
 async function getLedgerForBooking(bookingId) {
   const ledger = await PaymentLedger.findOne({ bookingId });
@@ -108,14 +306,14 @@ async function collectCommission(shopId, bookingIds, amount, note) {
   await logPaymentEvent('commission_collected', {
     shopId,
     amount: collectedAmt,
-    description: `Commission ₹${collectedAmt} collected from provider ${shopId}. ${note || ''}`,
+    description: `Commission collected from shop ${shopId}. Bookings: ${bids.join(', ')}`,
     actor: 'admin',
     metadata: { bookingIds: bids, note }
   });
 }
 
 async function getAllSettlements(req) {
-  const result = await paginate(Settlement, req, ['id', 'shopId', 'status'], { requestedAt: -1 });
+  const result = await paginate(Settlement, req, ['id', 'shopId', 'providerName', 'status', 'bankDetails.accountNumber'], { requestedAt: -1 });
   if (Array.isArray(result)) {
     return { settlements: result };
   } else {
@@ -128,7 +326,7 @@ async function getAllSettlements(req) {
 
 async function getSettlementsForShop(shopId, req) {
   req.query.shopId = shopId;
-  const result = await paginate(Settlement, req, ['id', 'shopId', 'status'], { requestedAt: -1 });
+  const result = await paginate(Settlement, req, ['id', 'shopId', 'providerName', 'status'], { requestedAt: -1 });
   if (Array.isArray(result)) {
     return { settlements: result };
   } else {
@@ -139,63 +337,47 @@ async function getSettlementsForShop(shopId, req) {
   }
 }
 
-async function requestSettlement(shopId, amount, bookingIds, settlementType) {
+async function requestSettlement(shopId, amount, bookingIds, settlementType = 'manual') {
   const shop = await Shop.findOne({ id: shopId });
   if (!shop) {
     throw new Error('Shop not found');
   }
 
-  const requestAmt = parseFloat(amount);
-  if (requestAmt <= 0) {
-    const err = new Error('Amount must be greater than 0');
-    err.statusCode = 400;
-    throw err;
-  }
-  if ((shop.walletBalance || 0) < requestAmt) {
-    const err = new Error(`Insufficient wallet balance. Available: ₹${shop.walletBalance || 0}`);
+  const reqAmt = parseFloat(amount);
+  if (isNaN(reqAmt) || reqAmt <= 0) {
+    const err = new Error('Invalid settlement amount');
     err.statusCode = 400;
     throw err;
   }
 
-  const settlementId = `SET-${Date.now()}`;
+  const pendingSettlement = await Settlement.findOne({ shopId, status: 'pending' });
+  if (pendingSettlement) {
+    const err = new Error('You already have a pending settlement request');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const settlement = new Settlement({
-    id: settlementId,
-    shopId: shop.id,
-    providerId: shop.id,
-    providerName: shop.ownerName || shop.name,
-    settlementType: settlementType || 'manual',
-    amount: requestAmt,
-    bookingIds: bookingIds || [],
+    id: `SETTLE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    shopId,
+    providerName: shop.name || shop.ownerName || 'Provider',
+    amount: reqAmt,
+    settlementType,
     status: 'pending',
-    bankAccount: shop.bankAccountNumber || '',
-    ifscCode: shop.ifscCode || '',
-    upiId: shop.upiId || '',
-    requestedAt: new Date()
+    bookingIds: bookingIds || [],
+    requestedAt: new Date(),
+    bankDetails: shop.bankDetails || {}
   });
+
   await settlement.save();
 
-  if (bookingIds && bookingIds.length > 0) {
-    for (const bid of bookingIds) {
-      const ledger = await PaymentLedger.findOne({ bookingId: bid });
-      if (ledger && ledger.paymentStatus === 'settlement_pending') {
-        ledger.settlementId = settlementId;
-        await ledger.save();
-      }
-    }
-  }
-
-  await logPaymentEvent('settlement_created', {
+  await logPaymentEvent('settlement_requested', {
     shopId,
-    settlementId,
-    amount: requestAmt,
-    description: `Settlement request ₹${requestAmt} created by provider ${shopId}`,
-    actor: 'provider'
+    amount: reqAmt,
+    description: `Settlement request of ₹${reqAmt} submitted by shop ${shopId}`,
+    actor: 'provider',
+    metadata: { settlementId: settlement.id }
   });
-
-  sendFcmTopicNotification('admins', '💰 Settlement Request', `${shop.name} has requested a settlement of ₹${requestAmt}`, {
-    type: 'settlement_request',
-    settlementId
-  }).catch(() => {});
 
   return settlement;
 }
@@ -205,6 +387,7 @@ async function approveSettlement(id, adminNote) {
   if (!settlement) {
     throw new Error('Settlement not found');
   }
+
   if (settlement.status !== 'pending') {
     const err = new Error(`Cannot approve settlement in status: ${settlement.status}`);
     err.statusCode = 400;
@@ -218,14 +401,11 @@ async function approveSettlement(id, adminNote) {
 
   await logPaymentEvent('settlement_approved', {
     shopId: settlement.shopId,
-    settlementId: id,
     amount: settlement.amount,
     description: `Settlement ${id} approved by admin`,
     actor: 'admin',
-    metadata: { adminNote }
+    metadata: { settlementId: id, adminNote }
   });
-
-  sendFcmNotification(settlement.shopId, '✅ Settlement Approved', `Your settlement of ₹${settlement.amount} has been approved and will be processed soon.`, { type: 'settlement_approved', settlementId: id }, 'partner').catch(() => {});
 
   return settlement;
 }
@@ -235,51 +415,36 @@ async function completeSettlement(id, transactionId, adminNote) {
   if (!settlement) {
     throw new Error('Settlement not found');
   }
-  if (!['approved', 'processing'].includes(settlement.status)) {
+
+  if (settlement.status !== 'approved' && settlement.status !== 'pending') {
     const err = new Error(`Cannot complete settlement in status: ${settlement.status}`);
     err.statusCode = 400;
     throw err;
   }
 
   settlement.status = 'completed';
-  settlement.transactionId = transactionId || '';
-  settlement.adminNote = adminNote || settlement.adminNote;
+  settlement.transactionId = transactionId || `TX-BANK-${Date.now()}`;
+  settlement.adminNote = adminNote || settlement.adminNote || '';
   settlement.completedAt = new Date();
   await settlement.save();
 
-  const shop = await Shop.findOne({ id: settlement.shopId });
-  if (shop) {
-    shop.walletBalance = Math.max(0, (shop.walletBalance || 0) - settlement.amount);
-    if (!shop.walletTransactions) shop.walletTransactions = [];
-    shop.walletTransactions.push({
-      id: `TX-SET-${Date.now()}`,
-      title: `Settlement Paid ${id}${transactionId ? ' | Txn: ' + transactionId : ''}`,
-      amount: settlement.amount,
-      type: 'debit',
-      date: new Date()
-    });
-    await shop.save();
-  }
-
-  for (const bid of (settlement.bookingIds || [])) {
+  const bids = settlement.bookingIds || [];
+  for (const bid of bids) {
     const ledger = await PaymentLedger.findOne({ bookingId: bid });
     if (ledger) {
-      ledger.paymentStatus = 'settled';
-      ledger.settlementId = id;
+      ledger.settlementStatus = 'settled';
+      ledger.settlementId = settlement.id;
       await ledger.save();
     }
   }
 
   await logPaymentEvent('settlement_completed', {
     shopId: settlement.shopId,
-    settlementId: id,
     amount: settlement.amount,
-    description: `Settlement ${id} completed. TxnID: ${transactionId || 'N/A'}`,
+    description: `Settlement ${id} completed. Transferred ₹${settlement.amount} via ${settlement.transactionId}`,
     actor: 'admin',
-    metadata: { transactionId }
+    metadata: { settlementId: id, transactionId }
   });
-
-  sendFcmNotification(settlement.shopId, '💸 Settlement Completed', `₹${settlement.amount} has been transferred to your account. Reference: ${transactionId || 'N/A'}`, { type: 'settlement_completed', settlementId: id }, 'partner').catch(() => {});
 
   return settlement;
 }
@@ -292,29 +457,26 @@ async function rejectSettlement(id, adminNote) {
 
   settlement.status = 'rejected';
   settlement.adminNote = adminNote || '';
-  settlement.rejectedAt = new Date();
   await settlement.save();
 
-  await logPaymentEvent('settlement_failed', {
+  await logPaymentEvent('settlement_rejected', {
     shopId: settlement.shopId,
-    settlementId: id,
     amount: settlement.amount,
-    description: `Settlement ${id} rejected by admin. Reason: ${adminNote || 'Not specified'}`,
-    actor: 'admin'
+    description: `Settlement ${id} rejected by admin: ${adminNote}`,
+    actor: 'admin',
+    metadata: { settlementId: id, adminNote }
   });
-
-  sendFcmNotification(settlement.shopId, '❌ Settlement Rejected', `Your settlement request of ₹${settlement.amount} was rejected. Reason: ${adminNote || 'Contact support'}`, { type: 'settlement_rejected', settlementId: id }, 'partner').catch(() => {});
 
   return settlement;
 }
 
 async function getPaymentAuditLogs(bookingId, shopId, eventType) {
-  let logs = await PaymentAuditLog.find({});
-  if (bookingId) logs = logs.filter(l => l.bookingId === bookingId);
-  if (shopId) logs = logs.filter(l => l.shopId === shopId);
-  if (eventType) logs = logs.filter(l => l.eventType === eventType);
-  logs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  return logs;
+  const query = {};
+  if (bookingId) query.bookingId = bookingId;
+  if (shopId) query.shopId = shopId;
+  if (eventType) query.eventType = eventType;
+
+  return await PaymentAuditLog.find(query).sort({ createdAt: -1 }).limit(100);
 }
 
 async function getProviderDashboard(shopId) {
@@ -324,179 +486,94 @@ async function getProviderDashboard(shopId) {
   }
 
   const ledgers = await PaymentLedger.find({ shopId });
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const settlements = await Settlement.find({ shopId });
 
-  const todayLedgers = ledgers.filter(l => new Date(l.createdAt) >= today);
-
-  const todayCash = todayLedgers.filter(l => l.paymentMethod === 'cash').reduce((s, l) => s + l.grossAmount, 0);
-  const todayOnline = todayLedgers.filter(l => l.paymentMethod !== 'cash').reduce((s, l) => s + l.grossAmount, 0);
-  const todayEarnings = todayLedgers.reduce((s, l) => s + l.providerEarnings, 0);
-  const todayCommission = todayLedgers.reduce((s, l) => s + l.commissionAmount, 0);
-
-  const totalEarnings = ledgers.reduce((s, l) => s + l.providerEarnings, 0);
-  const totalCommission = ledgers.reduce((s, l) => s + l.commissionAmount, 0);
-
-  const commissionDue = ledgers
-    .filter(l => l.commissionStatus === 'pending' && l.paymentMethod === 'cash')
-    .reduce((s, l) => s + l.commissionAmount, 0);
-
-  const pendingSettlements = await Settlement.find({ shopId, status: 'pending' });
-  const pendingSettlementAmount = pendingSettlements.reduce((s, st) => s + st.amount, 0);
-
-  const completedSettlements = await Settlement.find({ shopId, status: 'completed' });
-  const totalSettled = completedSettlements.reduce((s, st) => s + st.amount, 0);
-
-  const cashLedgers = ledgers.filter(l => l.paymentMethod === 'cash' && l.paymentStatus === 'cash_collected');
-  const onlineLedgers = ledgers.filter(l => l.paymentMethod !== 'cash');
+  const totalEarnings = ledgers.reduce((sum, l) => sum + (l.providerEarnings || 0), 0);
+  const pendingSettlementAmount = settlements
+    .filter(s => s.status === 'pending' || s.status === 'approved')
+    .reduce((sum, s) => sum + (s.amount || 0), 0);
+  const completedSettlementAmount = settlements
+    .filter(s => s.status === 'completed')
+    .reduce((sum, s) => sum + (s.amount || 0), 0);
+  const availableForSettlement = Math.max(0, totalEarnings - pendingSettlementAmount - completedSettlementAmount);
 
   return {
-    walletBalance: shop.walletBalance || 0,
-    commissionRate: shop.commissionRate || 20,
-    today: {
-      totalEarnings: parseFloat(todayEarnings.toFixed(2)),
-      cashCollected: parseFloat(todayCash.toFixed(2)),
-      onlineEarnings: parseFloat(todayOnline.toFixed(2)),
-      commissionDeducted: parseFloat(todayCommission.toFixed(2))
-    },
-    overall: {
-      totalEarnings: parseFloat(totalEarnings.toFixed(2)),
-      totalCommission: parseFloat(totalCommission.toFixed(2)),
-      commissionDue: parseFloat(commissionDue.toFixed(2)),
-      cashJobsCount: cashLedgers.length,
-      onlineJobsCount: onlineLedgers.length
-    },
-    settlement: {
-      pendingAmount: parseFloat(pendingSettlementAmount.toFixed(2)),
-      pendingCount: pendingSettlements.length,
-      totalSettled: parseFloat(totalSettled.toFixed(2)),
-      completedCount: completedSettlements.length
-    }
+    shopId,
+    totalEarnings: parseFloat(totalEarnings.toFixed(2)),
+    availableForSettlement: parseFloat(availableForSettlement.toFixed(2)),
+    pendingSettlements: parseFloat(pendingSettlementAmount.toFixed(2)),
+    completedSettlements: parseFloat(completedSettlementAmount.toFixed(2)),
+    totalJobsCount: ledgers.length,
+    recentLedgers: ledgers.slice(-5).reverse(),
+    recentSettlements: settlements.slice(-5).reverse()
   };
 }
 
 async function getAdminDashboard() {
   const ledgers = await PaymentLedger.find({});
   const settlements = await Settlement.find({});
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
-  const todayLedgers = ledgers.filter(l => new Date(l.createdAt) >= today);
-
-  const totalGross = ledgers.reduce((s, l) => s + l.grossAmount, 0);
-  const totalCommission = ledgers.reduce((s, l) => s + l.commissionAmount, 0);
-  const totalProviderEarnings = ledgers.reduce((s, l) => s + l.providerEarnings, 0);
-
-  const todayGross = todayLedgers.reduce((s, l) => s + l.grossAmount, 0);
-  const todayCommission = todayLedgers.reduce((s, l) => s + l.commissionAmount, 0);
-
-  const cashLedgers = ledgers.filter(l => l.paymentMethod === 'cash');
-  const onlineLedgers = ledgers.filter(l => l.paymentMethod !== 'cash');
-
-  const cashCollection = cashLedgers.reduce((s, l) => s + l.grossAmount, 0);
-  const onlineCollection = onlineLedgers.reduce((s, l) => s + l.grossAmount, 0);
-
-  const outstandingCommission = ledgers
-    .filter(l => l.commissionStatus === 'pending' && l.paymentMethod === 'cash')
-    .reduce((s, l) => s + l.commissionAmount, 0);
-
-  const pendingSettlements = settlements.filter(s => s.status === 'pending');
-  const completedSettlements = settlements.filter(s => s.status === 'completed');
-  const pendingSettlementAmount = pendingSettlements.reduce((s, st) => s + st.amount, 0);
-  const totalSettled = completedSettlements.reduce((s, st) => s + st.amount, 0);
-
-  const shops = await Shop.find({});
-  const providerWallets = shops.map(s => ({
-    shopId: s.id,
-    shopName: s.name,
-    walletBalance: s.walletBalance || 0,
-    commissionRate: s.commissionRate || 20
-  }));
+  const totalGrossVolume = ledgers.reduce((s, l) => s + (l.grossAmount || 0), 0);
+  const totalCommissionEarned = ledgers.reduce((s, l) => s + (l.commissionAmount || 0), 0);
+  const totalProviderPayouts = ledgers.reduce((s, l) => s + (l.providerEarnings || 0), 0);
+  const pendingSettlementsCount = settlements.filter(s => s.status === 'pending').length;
 
   return {
-    today: {
-      grossRevenue: parseFloat(todayGross.toFixed(2)),
-      commissionEarned: parseFloat(todayCommission.toFixed(2)),
-      cashCollection: parseFloat(cashLedgers.filter(l => new Date(l.createdAt) >= today).reduce((s, l) => s + l.grossAmount, 0).toFixed(2)),
-      onlineCollection: parseFloat(onlineLedgers.filter(l => new Date(l.createdAt) >= today).reduce((s, l) => s + l.grossAmount, 0).toFixed(2))
-    },
-    overall: {
-      totalGrossRevenue: parseFloat(totalGross.toFixed(2)),
-      totalCommissionEarned: parseFloat(totalCommission.toFixed(2)),
-      totalProviderEarnings: parseFloat(totalProviderEarnings.toFixed(2)),
-      cashCollection: parseFloat(cashCollection.toFixed(2)),
-      onlineCollection: parseFloat(onlineCollection.toFixed(2)),
-      outstandingCommission: parseFloat(outstandingCommission.toFixed(2))
-    },
-    settlements: {
-      pendingCount: pendingSettlements.length,
-      pendingAmount: parseFloat(pendingSettlementAmount.toFixed(2)),
-      completedCount: completedSettlements.length,
-      totalSettled: parseFloat(totalSettled.toFixed(2))
-    },
-    providerWallets
+    totalGrossVolume: parseFloat(totalGrossVolume.toFixed(2)),
+    totalCommissionEarned: parseFloat(totalCommissionEarned.toFixed(2)),
+    totalProviderPayouts: parseFloat(totalProviderPayouts.toFixed(2)),
+    pendingSettlementsCount,
+    totalLedgerEntries: ledgers.length,
+    totalSettlementRequests: settlements.length
   };
 }
 
 async function getCommissionConfig() {
-  const settings = await Settings.find({});
-  const config = {};
-  settings.forEach(s => { config[s.key] = s.value; });
+  let settings = await Settings.findOne({});
+  if (!settings) {
+    settings = { defaultCommissionRate: 10, commissionType: 'percentage' };
+  }
   return {
-    defaultCommissionRate: parseFloat(config.defaultCommissionRate || '20'),
-    commissionType: config.commissionType || 'percentage',
-    categoryRates: config.categoryRates ? JSON.parse(typeof config.categoryRates === 'string' ? config.categoryRates : JSON.stringify(config.categoryRates)) : {},
-    providerRates: config.providerRates ? JSON.parse(typeof config.providerRates === 'string' ? config.providerRates : JSON.stringify(config.providerRates)) : {}
+    defaultCommissionRate: settings.defaultCommissionRate || 10,
+    commissionType: settings.commissionType || 'percentage',
+    categoryRates: settings.categoryRates || {},
+    providerRates: settings.providerRates || {}
   };
 }
 
 async function updateCommissionConfig(defaultCommissionRate, commissionType, categoryRates, providerRates) {
-  const updates = [];
-  if (defaultCommissionRate !== undefined) updates.push({ key: 'defaultCommissionRate', value: parseFloat(defaultCommissionRate) });
-  if (commissionType !== undefined) updates.push({ key: 'commissionType', value: commissionType });
-  if (categoryRates !== undefined) updates.push({ key: 'categoryRates', value: categoryRates });
-  if (providerRates !== undefined) updates.push({ key: 'providerRates', value: providerRates });
-
-  for (const { key, value } of updates) {
-    await Settings.findOneAndUpdate({ key }, { key, value }, { upsert: true });
+  let settings = await Settings.findOne({});
+  if (!settings) {
+    settings = new Settings({});
   }
+  if (defaultCommissionRate !== undefined) settings.defaultCommissionRate = defaultCommissionRate;
+  if (commissionType !== undefined) settings.commissionType = commissionType;
+  if (categoryRates !== undefined) settings.categoryRates = categoryRates;
+  if (providerRates !== undefined) settings.providerRates = providerRates;
 
-  await logPaymentEvent('ledger_updated', {
-    description: `Commission config updated: rate=${defaultCommissionRate}%, type=${commissionType}`,
-    actor: 'admin',
-    metadata: { defaultCommissionRate, commissionType }
-  });
+  await settings.save();
 }
 
-async function getDailyReport(days) {
-  const ledgers = await PaymentLedger.find({});
-  const report = [];
+async function getDailyReport(days = 7) {
+  const numDays = parseInt(days, 10) || 7;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - numDays);
 
-  for (let i = parseInt(days) - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    d.setHours(0, 0, 0, 0);
-    const dEnd = new Date(d);
-    dEnd.setHours(23, 59, 59, 999);
+  const ledgers = await PaymentLedger.find({ createdAt: { $gte: cutoff } });
+  
+  const dailyMap = {};
+  ledgers.forEach(l => {
+    const dateStr = new Date(l.createdAt).toISOString().split('T')[0];
+    if (!dailyMap[dateStr]) {
+      dailyMap[dateStr] = { date: dateStr, gross: 0, commission: 0, earnings: 0, jobs: 0 };
+    }
+    dailyMap[dateStr].gross += l.grossAmount || 0;
+    dailyMap[dateStr].commission += l.commissionAmount || 0;
+    dailyMap[dateStr].earnings += l.providerEarnings || 0;
+    dailyMap[dateStr].jobs += 1;
+  });
 
-    const dayLedgers = ledgers.filter(l => {
-      const ld = new Date(l.createdAt);
-      return ld >= d && ld <= dEnd;
-    });
-
-    report.push({
-      date: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
-      dateIso: d.toISOString().split('T')[0],
-      grossRevenue: parseFloat(dayLedgers.reduce((s, l) => s + l.grossAmount, 0).toFixed(2)),
-      commissionEarned: parseFloat(dayLedgers.reduce((s, l) => s + l.commissionAmount, 0).toFixed(2)),
-      providerEarnings: parseFloat(dayLedgers.reduce((s, l) => s + l.providerEarnings, 0).toFixed(2)),
-      cashCollection: parseFloat(dayLedgers.filter(l => l.paymentMethod === 'cash').reduce((s, l) => s + l.grossAmount, 0).toFixed(2)),
-      onlineCollection: parseFloat(dayLedgers.filter(l => l.paymentMethod !== 'cash').reduce((s, l) => s + l.grossAmount, 0).toFixed(2)),
-      bookingsCount: dayLedgers.length
-    });
-  }
-
-  return report;
+  return Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 async function getCommissionReport() {
@@ -555,6 +632,9 @@ async function getProviderReport(shopId) {
 }
 
 module.exports = {
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  handleRazorpayWebhook,
   getLedgerForBooking,
   getLedgerForShop,
   getAllLedgerEntries,

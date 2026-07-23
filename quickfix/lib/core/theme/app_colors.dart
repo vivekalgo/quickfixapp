@@ -1,28 +1,31 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Brand Colors
-  static const Color primary = Color(0xFFFF4E36); // Vibrant Coral Red
-  static const Color secondary = Color(0xFF0F172A); // Dark Slate Blue
-  static const Color accent = Color(
-    0xFFFFB800,
-  ); // Premium Gold for Membership/Plus
+  // Urban Company & Zomato Signature Brand Palette
+  static const Color primary = Color(0xFF0F172A); // Deep Urban Slate
+  static const Color primaryAccent = Color(0xFF2563EB); // Royal Blue
+  static const Color secondary = Color(0xFF2563EB); // Alias for backward compatibility
+  static const Color actionRed = Color(0xFFFF4E36); // Vibrant Coral Red (CTA/Zomato touch)
+  static const Color accentGold = Color(0xFFFFB800); // Premium Plus & Rating Star Gold
+  static const Color accent = Color(0xFFFFB800); // Alias for backward compatibility
 
   // Neutral Colors (Light Theme)
-  static const Color backgroundLight = Color(0xFFF6F8FA);
-  static const Color surfaceLight = Color(0xFFFFFFFF);
-  static const Color textPrimaryLight = Color(0xFF0F172A);
-  static const Color textSecondaryLight = Color(0xFF475569);
-  static const Color borderLight = Color(0xFFEBEFF5);
+  static const Color backgroundLight = Color(0xFFF8FAFC); // Clean Off-White Background
+  static const Color surfaceLight = Color(0xFFFFFFFF); // Pure White Surface
+  static const Color textPrimaryLight = Color(0xFF0F172A); // High-contrast Slate Text
+  static const Color textSecondaryLight = Color(0xFF64748B); // Muted Slate Subtitle
+  static const Color borderLight = Color(0xFFE2E8F0); // Subtle 1px Card Border
+  static const Color dividerLight = Color(0xFFF1F5F9);
 
   // Neutral Colors (Dark Theme)
-  static const Color backgroundDark = Color(0xFF0A0E17);
-  static const Color surfaceDark = Color(0xFF151E2E);
+  static const Color backgroundDark = Color(0xFF0B1120); // Dark Slate Night Background
+  static const Color surfaceDark = Color(0xFF152033); // Elevated Dark Card
   static const Color textPrimaryDark = Color(0xFFF8FAFC);
   static const Color textSecondaryDark = Color(0xFF94A3B8);
-  static const Color borderDark = Color(0xFF222F43);
+  static const Color borderDark = Color(0xFF1E293B);
+  static const Color dividerDark = Color(0xFF1E293B);
 
-  // Category & Card Colors
+  // Category & Badge Colors (Urban Company Soft Tones)
   static const Color catCleaning = Color(0xFFEEF2FF);
   static const Color catCleaningIcon = Color(0xFF4F46E5);
 
@@ -41,21 +44,27 @@ class AppColors {
   static const Color catMore = Color(0xFFF1F5F9);
   static const Color catMoreIcon = Color(0xFF475569);
 
-  // Semantic Colors
-  static const Color success = Color(0xFF10B981);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color error = Color(0xFFEF4444);
-  static const Color info = Color(0xFF3B82F6);
+  // Semantic Feedback Colors
+  static const Color success = Color(0xFF10B981); // Verified Green
+  static const Color warning = Color(0xFFF59E0B); // Amber Warning
+  static const Color error = Color(0xFFEF4444); // Crimson Error
+  static const Color info = Color(0xFF3B82F6); // Info Blue
 
   // Premium Gradients
   static const Gradient primaryGradient = LinearGradient(
+    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const Gradient actionGradient = LinearGradient(
     colors: [Color(0xFFFF4E36), Color(0xFFFF6F5C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const Gradient plusGradient = LinearGradient(
-    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+    colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

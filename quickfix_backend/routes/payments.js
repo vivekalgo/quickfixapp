@@ -4,6 +4,11 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const paymentController = require('../controllers/paymentController');
 const paymentValidator = require('../validators/paymentValidator');
 
+// --- RAZORPAY INTEGRATION ENDPOINTS ---
+router.post('/create-order', requireAuth, paymentController.createRazorpayOrder);
+router.post('/verify', requireAuth, paymentController.verifyRazorpayPayment);
+router.post('/webhook', paymentController.handleRazorpayWebhook);
+
 // --- PAYMENT LEDGER ROUTES ---
 
 // Get ledger entry for a specific booking

@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const bookingController = require('../controllers/bookingController');
 const bookingValidator = require('../validators/bookingValidator');
+const { bookingLimiter } = require('../middleware/rateLimiter');
+
+// Apply booking rate limiter to all booking endpoints
+router.use(bookingLimiter);
 
 // 1. Get bookings list
 router.get('/', bookingController.getBookings);

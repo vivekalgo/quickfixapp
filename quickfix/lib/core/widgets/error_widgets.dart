@@ -5,15 +5,19 @@ import 'package:quickfix/core/widgets/custom_button.dart';
 import 'package:quickfix/core/widgets/spacing.dart';
 
 class CommonErrorWidget extends StatelessWidget {
+  final String title;
   final String message;
   final VoidCallback? onRetry;
   final String buttonText;
+  final IconData icon;
 
   const CommonErrorWidget({
     super.key,
-    this.message = 'Something went wrong. Please try again.',
+    this.title = 'Connection Issue',
+    this.message = 'We couldn\'t load the details. Please check your internet connection and try again.',
     this.onRetry,
-    this.buttonText = 'Retry',
+    this.buttonText = 'Try Again',
+    this.icon = Icons.wifi_off_rounded,
   });
 
   @override
@@ -27,21 +31,32 @@ class CommonErrorWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              color: AppColors.error,
-              size: 48,
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: AppColors.error,
+                size: 40,
+              ),
             ),
-            AppSpacing.height16,
+            AppSpacing.height20,
             Text(
-              'Oops!',
+              title,
               style: AppTextStyles.headingMedium(isDark),
               textAlign: TextAlign.center,
             ),
             AppSpacing.height8,
             Text(
               message,
-              style: AppTextStyles.bodyMedium(isDark),
+              style: AppTextStyles.bodyMedium(isDark).copyWith(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
               textAlign: TextAlign.center,
             ),
             if (onRetry != null) ...[
@@ -50,8 +65,9 @@ class CommonErrorWidget extends StatelessWidget {
                 text: buttonText,
                 onPressed: onRetry,
                 isFullWidth: false,
-                width: 140,
-                height: 40,
+                width: 160,
+                height: 44,
+                icon: Icons.refresh_rounded,
               ),
             ],
           ],
@@ -88,14 +104,26 @@ class EmptyStateWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
-              size: 64,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.surfaceDark
+                    : AppColors.backgroundLight,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
+              ),
+              child: Icon(
+                icon,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+                size: 48,
+              ),
             ),
-            AppSpacing.height16,
+            AppSpacing.height20,
             Text(
               title,
               style: AppTextStyles.headingMedium(isDark),
@@ -104,7 +132,11 @@ class EmptyStateWidget extends StatelessWidget {
             AppSpacing.height8,
             Text(
               message,
-              style: AppTextStyles.bodyMedium(isDark),
+              style: AppTextStyles.bodyMedium(isDark).copyWith(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
               textAlign: TextAlign.center,
             ),
             if (onAction != null && actionText != null) ...[
@@ -113,8 +145,8 @@ class EmptyStateWidget extends StatelessWidget {
                 text: actionText!,
                 onPressed: onAction,
                 isFullWidth: false,
-                width: 160,
-                height: 40,
+                width: 180,
+                height: 44,
               ),
             ],
           ],

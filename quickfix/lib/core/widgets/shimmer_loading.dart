@@ -47,3 +47,75 @@ class ShimmerLoading extends StatelessWidget {
     );
   }
 }
+
+/// Urban Company Skeletal Shimmer for Category Cards
+class CategoryGridShimmer extends StatelessWidget {
+  const CategoryGridShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 12,
+        childAspectRatio: 0.82,
+      ),
+      itemCount: 8,
+      itemBuilder: (context, index) {
+        return Column(
+          children: const [
+            ShimmerLoading(width: 56, height: 56, borderRadius: 16),
+            SizedBox(height: 8),
+            ShimmerLoading(width: 48, height: 10, borderRadius: 4),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Urban Company Skeletal Shimmer for Service Cards
+class ServiceCardShimmer extends StatelessWidget {
+  const ServiceCardShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.surfaceDark
+            : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.borderDark
+              : AppColors.borderLight,
+        ),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          ShimmerLoading(width: double.infinity, height: 100, borderRadius: 12),
+          SizedBox(height: 12),
+          ShimmerLoading(width: 100, height: 14, borderRadius: 4),
+          SizedBox(height: 6),
+          ShimmerLoading(width: 60, height: 12, borderRadius: 4),
+          SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ShimmerLoading(width: 50, height: 14, borderRadius: 4),
+              ShimmerLoading(width: 28, height: 28, borderRadius: 8),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

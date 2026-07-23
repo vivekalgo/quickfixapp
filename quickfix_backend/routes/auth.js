@@ -3,10 +3,11 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const authController = require('../controllers/authController');
 const authValidator = require('../validators/authValidator');
+const { otpLimiter, authLimiter } = require('../middleware/rateLimiter');
 
-// 1. Customer Authentication (OTP simulation)
-router.post('/send-otp', authValidator.validateSendOtp, authController.sendOtp);
-router.post('/verify-otp', authValidator.validateVerifyOtp, authController.verifyOtp);
+// 1. Customer Authentication (Firebase Phone Auth)
+router.post('/send-otp', otpLimiter, authValidator.validateSendOtp, authController.sendOtp);
+router.post('/verify-otp', authLimiter, authValidator.validateVerifyOtp, authController.verifyOtp);
 
 router.get('/profile', requireAuth, authController.getProfile);
 router.post('/profile/update', requireAuth, authController.updateProfile);

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
 import 'package:quickfix/core/theme/app_text_styles.dart';
 
-enum CustomButtonType { primary, secondary, outlined, text }
+enum CustomButtonType { primary, secondary, actionRed, outlined, text }
 
 class CustomButton extends StatelessWidget {
   final String text;
@@ -44,16 +44,20 @@ class CustomButton extends StatelessWidget {
         buttonColor = backgroundColor ?? AppColors.primary;
         contentColor = textColor ?? Colors.white;
         break;
+      case CustomButtonType.actionRed:
+        buttonColor = backgroundColor ?? AppColors.actionRed;
+        contentColor = textColor ?? Colors.white;
+        break;
       case CustomButtonType.secondary:
         buttonColor =
             backgroundColor ??
-            (isDark ? AppColors.surfaceDark : AppColors.secondary);
+            (isDark ? AppColors.surfaceDark : AppColors.primaryAccent);
         contentColor = textColor ?? Colors.white;
         break;
       case CustomButtonType.outlined:
         buttonColor = Colors.transparent;
         contentColor =
-            textColor ?? (isDark ? Colors.white : AppColors.secondary);
+            textColor ?? (isDark ? Colors.white : AppColors.textPrimaryLight);
         borderSide = BorderSide(
           color: isDark ? AppColors.borderDark : AppColors.borderLight,
           width: 1.5,
@@ -61,14 +65,15 @@ class CustomButton extends StatelessWidget {
         break;
       case CustomButtonType.text:
         buttonColor = Colors.transparent;
-        contentColor = textColor ?? AppColors.primary;
+        contentColor = textColor ?? AppColors.primaryAccent;
         break;
     }
 
     final buttonStyle = ElevatedButton.styleFrom(
       backgroundColor: buttonColor,
       foregroundColor: contentColor,
-      elevation: type == CustomButtonType.primary ? 2 : 0,
+      elevation: type == CustomButtonType.primary || type == CustomButtonType.actionRed ? 1 : 0,
+      shadowColor: Colors.black26,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: borderSide,
@@ -90,7 +95,7 @@ class CustomButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 20, color: contentColor),
+                Icon(icon, size: 18, color: contentColor),
                 const SizedBox(width: 8),
               ],
               Text(

@@ -904,6 +904,15 @@ const PaymentAuditLogSchema = new mongoose.Schema({
   metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
 }, { timestamps: true });
 
+// 21. Admin User Schema (secure admin auth and brute-force protection)
+const AdminUserSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true, default: 'admin' },
+  passwordHash: { type: String, required: true },
+  role: { type: String, default: 'admin' },
+  failedAttempts: { type: Number, default: 0 },
+  lockUntil: { type: Date, default: null }
+}, { timestamps: true });
+
 const MongooseModels = {
   User: mongoose.model('User', UserSchema),
   Shop: mongoose.model('Shop', ShopSchema),
@@ -923,7 +932,8 @@ const MongooseModels = {
   CustomSection: mongoose.model('CustomSection', CustomSectionSchema),
   PaymentLedger: mongoose.model('PaymentLedger', PaymentLedgerSchema),
   Settlement: mongoose.model('Settlement', SettlementSchema),
-  PaymentAuditLog: mongoose.model('PaymentAuditLog', PaymentAuditLogSchema)
+  PaymentAuditLog: mongoose.model('PaymentAuditLog', PaymentAuditLogSchema),
+  AdminUser: mongoose.model('AdminUser', AdminUserSchema)
 };
 
 const LocalModels = {
@@ -945,7 +955,8 @@ const LocalModels = {
   CustomSection: createMockModel('CustomSection', 'customsections'),
   PaymentLedger: createMockModel('PaymentLedger', 'paymentledgers'),
   Settlement: createMockModel('Settlement', 'settlements'),
-  PaymentAuditLog: createMockModel('PaymentAuditLog', 'paymentauditlogs')
+  PaymentAuditLog: createMockModel('PaymentAuditLog', 'paymentauditlogs'),
+  AdminUser: createMockModel('AdminUser', 'adminusers')
 };
 
 function makeModelProxy(modelName) {

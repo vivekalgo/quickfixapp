@@ -1,4 +1,5 @@
 const settingsService = require('../services/settingsService');
+const { logger } = require('../config/logger');
 
 async function submitDemand(req, res) {
   const { phone, address, latitude, longitude } = req.body;
@@ -373,10 +374,8 @@ async function adminLogin(req, res) {
     const token = await settingsService.adminLogin(password);
     res.json({ success: true, token });
   } catch (e) {
-    if (e.statusCode === 401 || e.statusCode === 500) {
-      return res.status(e.statusCode).json({ error: e.message });
-    }
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error('Admin login error:', e);
+    res.status(e.statusCode || 500).json({ success: false, error: e.message || 'Admin login failed' });
   }
 }
 
