@@ -29,21 +29,26 @@ async function sendNotification(data) {
     id: `alert-${Date.now()}`,
     title,
     body,
-    time: 'Just now',
+    time: new Date().toISOString(),
     icon: icon || 'notifications_active',
-    iconColor: iconColor || 'primary'
+    iconColor: iconColor || 'primary',
+    type: 'broadcast'
   });
   await newAlert.save();
 
   const payload = {
     type: 'broadcast',
+    title: title || 'QuickFix Update',
+    body: body || '',
     icon: icon || 'notifications_active',
     iconColor: iconColor || 'primary'
   };
 
-  if (audience === 'shops') {
+  const targetAudience = (audience || 'customers').toLowerCase();
+
+  if (targetAudience === 'shops' || targetAudience === 'providers' || targetAudience === 'partners') {
     sendFcmTopicNotification('providers', title, body, payload);
-  } else if (audience === 'all') {
+  } else if (targetAudience === 'all') {
     sendFcmTopicNotification('customers', title, body, payload);
     sendFcmTopicNotification('providers', title, body, payload);
   } else {

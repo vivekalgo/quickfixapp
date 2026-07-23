@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:quickfix/core/router/app_router.dart';
 import 'package:quickfix/core/logging/app_logger.dart';
 import 'package:quickfix/core/network/api_endpoints.dart';
@@ -133,17 +134,19 @@ class NotificationService {
         final box = Hive.box('local_notifications');
         await box.put(notificationData['id'], notificationData);
 
-        final notification = message.notification;
-        if (notification != null && !kIsWeb) {
+        final title = notificationData['title'] as String? ?? '';
+        final body = notificationData['body'] as String? ?? '';
+
+        if (title.isNotEmpty && !kIsWeb) {
           final data = message.data;
           final payload = Uri(
             queryParameters: data.map((k, v) => MapEntry(k, v.toString())),
           ).query;
 
           _localNotificationsPlugin.show(
-            notification.hashCode,
-            notification.title,
-            notification.body,
+            notificationData['id'].hashCode,
+            title,
+            body,
             NotificationDetails(
               android: AndroidNotificationDetails(
                 _channel.id,
@@ -157,8 +160,8 @@ class NotificationService {
                 enableVibration: true,
                 visibility: NotificationVisibility.public,
                 styleInformation: BigTextStyleInformation(
-                  notification.body ?? '',
-                  contentTitle: notification.title,
+                  body,
+                  contentTitle: title,
                 ),
               ),
             ),
@@ -254,8 +257,9 @@ class NotificationService {
         tag: 'FCM',
       );
 
-      // Android 13+ — also request exact alarm permission for scheduled notifications
+      // Android 13+ — request POST_NOTIFICATIONS runtime permission explicitly
       if (Platform.isAndroid) {
+        await Permission.notification.request();
         final androidPlugin = _localNotificationsPlugin
             .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin
