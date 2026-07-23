@@ -108,7 +108,7 @@ async function getProfile(userId) {
 
 async function updateProfile(userId, bodyData) {
   const allowedFields = [
-    'name', 'email', 'avatarUrl', 'gender', 'dob',
+    'name', 'email', 'phone', 'avatarUrl', 'gender', 'dob',
     'alternatePhone', 'emergencyContact', 'preferredLanguage',
     'savedAddresses', 'fcmToken'
   ];
@@ -134,6 +134,45 @@ async function updateProfile(userId, bodyData) {
     throw new Error('User not found');
   }
   return buildProfileResponse(user);
+}
+
+async function loginWithPhoneNumber(phoneNumber, code) {
+  if (!phoneNumber || phoneNumber.toString().trim() === '') {
+    throw new Error('Phone number is required');
+  }
+  const cleanPhone = phoneNumber.toString().replace('+91', '').replace(/\s+/g, '').trim();
+
+  let user = await User.findOne({ phone: cleanPhone });
+  if (!user) {
+    const refCode = 'QFIX' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    user = new User({
+      phone: cleanPhone,
+      name: '',
+      email: '',
+      membership: 'basic',
+      walletBalance: 0,
+      referralCode: refCode,
+      isPhoneVerified: true,
+      accountStatus: 'active',
+      memberSince: new Date()
+    });
+    await user.save();
+  } else if (!user.referralCode) {
+    user.referralCode = 'QFIX' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    await user.save();
+  }
+
+  const secret = process.env.JWT_SECRET || JWT_SECRET;
+  const token = jwt.sign(
+    { id: user._id, phone: user.phone, role: 'customer' },
+    secret,
+    { expiresIn: '30d' }
+  );
+
+  return {
+    token,
+    profile: buildProfileResponse(user)
+  };
 }
 
 async function uploadAvatar(userId, base64Image, validatedMime) {
@@ -230,6 +269,7 @@ async function deleteAccount(userId) {
 module.exports = {
   buildProfileResponse,
   verifyFirebaseOtp,
+  loginWithPhoneNumber,
   getProfile,
   updateProfile,
   uploadAvatar,

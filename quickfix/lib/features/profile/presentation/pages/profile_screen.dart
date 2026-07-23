@@ -176,7 +176,7 @@ class ProfileScreen extends ConsumerWidget {
                                     children: [
                                       Text(
                                         phone.isNotEmpty
-                                            ? '+91 $phone'
+                                            ? (phone.startsWith('+') ? phone : '+91 ${phone.replaceFirst('+91', '').trim()}')
                                             : 'No phone',
                                         style: const TextStyle(
                                           color: Colors.white70,

@@ -401,7 +401,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        '+91 $phone',
+                        phone.isNotEmpty
+                            ? (phone.startsWith('+') ? phone : '+91 ${phone.replaceFirst('+91', '').trim()}')
+                            : 'Not set',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,

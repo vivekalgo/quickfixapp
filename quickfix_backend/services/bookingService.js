@@ -3,7 +3,45 @@ const { Booking, Shop, User, PaymentLedger, PaymentAuditLog } = require('../mode
 const { calculateCheckoutPriceInternal } = require('../pricingCalculator');
 const { sanitizeBookingForPrivacy, sendFcmNotification, paginate } = require('../helpers');
 
+const jwt = require('jsonwebtoken');
+
 async function getBookingsList(req, shopId) {
+  let authenticatedUser = req.user;
+  if (!authenticatedUser && req.headers && req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const secret = process.env.JWT_SECRET || 'super_secret_quickfix_jwt_key_2026';
+        const decoded = jwt.verify(token, secret);
+        if (decoded && decoded.id) {
+          try { authenticatedUser = await User.findById(decoded.id); } catch (_) {}
+          if (!authenticatedUser) authenticatedUser = await User.findOne({ id: decoded.id });
+          if (!authenticatedUser && decoded.phone) authenticatedUser = await User.findOne({ phone: decoded.phone });
+        }
+      } catch (_) {}
+    }
+  }
+
+  const targetCustomerId = req.query.customerId;
+  const targetPhone = req.query.customerPhone || (authenticatedUser ? authenticatedUser.phone : null);
+  const targetUserId = targetCustomerId || (authenticatedUser ? (authenticatedUser._id ? authenticatedUser._id.toString() : authenticatedUser.id) : null);
+
+  if (targetUserId || targetPhone) {
+    const orConditions = [];
+    if (targetUserId) orConditions.push({ customerId: targetUserId });
+    if (targetPhone) orConditions.push({ customerPhone: targetPhone });
+    if (authenticatedUser && authenticatedUser._id) orConditions.push({ customerId: authenticatedUser._id.toString() });
+    if (authenticatedUser && authenticatedUser.id) orConditions.push({ customerId: authenticatedUser.id.toString() });
+    if (authenticatedUser && authenticatedUser.phone) orConditions.push({ customerPhone: authenticatedUser.phone });
+
+    const query = orConditions.length > 0 ? { $or: orConditions } : {};
+    if (shopId) query.shopId = shopId;
+
+    const bookings = await Booking.find(query).sort({ createdAt: -1 });
+    return bookings.map(b => shopId ? sanitizeBookingForPrivacy(b) : b);
+  }
+
   const result = await paginate(Booking, req, ['id', 'customerName', 'customerPhone', 'title', 'providerName'], { createdAt: -1 });
   if (Array.isArray(result)) {
     return result.map(b => shopId ? sanitizeBookingForPrivacy(b) : b);

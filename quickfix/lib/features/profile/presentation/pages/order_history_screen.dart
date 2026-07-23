@@ -38,10 +38,8 @@ class OrderItem {
   });
 }
 
-// Fetches bookings for the REAL authenticated user (not hardcoded cust-789)
 final customerBookingsProvider = FutureProvider<List<OrderItem>>((ref) async {
-  final user = ref.watch(authProvider.select((state) => state.user));
-  final userId = user?['id']?.toString() ?? '';
+  final userId = ref.watch(authProvider.select((state) => state.user?['id']?.toString())) ?? '';
   final repository = ref.watch(profileRepositoryProvider);
   final data = await repository.getBookings(userId);
   return data.map((json) {

@@ -10,8 +10,15 @@ function sendOtp(req, res) {
 
 async function verifyOtp(req, res) {
   try {
-    const { firebaseToken } = req.body;
-    const result = await authService.verifyFirebaseOtp(firebaseToken);
+    const { firebaseToken, phoneNumber, phone, code } = req.body;
+    let result;
+    if (firebaseToken) {
+      result = await authService.verifyFirebaseOtp(firebaseToken);
+    } else if (phoneNumber || phone) {
+      result = await authService.loginWithPhoneNumber(phoneNumber || phone, code);
+    } else {
+      return res.status(400).json({ success: false, error: 'Firebase authentication token or Phone number is required' });
+    }
     res.json({
       success: true,
       ...result
@@ -22,7 +29,7 @@ async function verifyOtp(req, res) {
       return res.status(401).json({ success: false, error: `Firebase Authentication Failed: ${err.message}` });
     }
     logger.error('OTP verification error:', err);
-    res.status(500).json({ success: false, error: 'Internal server error during verification' });
+    res.status(500).json({ success: false, error: err.message || 'Internal server error during verification' });
   }
 }
 

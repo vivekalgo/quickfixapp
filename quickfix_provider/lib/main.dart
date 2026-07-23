@@ -10,9 +10,26 @@ import 'package:quickfix_provider/core/storage/hive_service.dart';
 import 'package:quickfix_provider/features/auth/presentation/controllers/auth_provider.dart';
 import 'package:quickfix_provider/core/widgets/offline_overlay.dart';
 
+import 'dart:ui';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  FlutterError.onError = (details) {
+    debugPrint('Provider Framework Error: ${details.exception}');
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Provider Async Error: $error');
+    return true;
+  };
+
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase init warning: $e');
+  }
+
   await Hive.initFlutter();
   await HiveService.init();
   await NotificationService.init();
