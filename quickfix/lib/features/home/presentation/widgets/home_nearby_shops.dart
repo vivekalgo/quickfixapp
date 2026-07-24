@@ -40,7 +40,7 @@ class HomeNearbyShops extends ConsumerWidget {
               return _buildComingSoonCard(context, ref, isDark);
             }
             return SizedBox(
-              height: 316,
+              height: 310,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -48,319 +48,305 @@ class HomeNearbyShops extends ConsumerWidget {
                 itemCount: shops.length,
                 itemBuilder: (context, index) {
                   final shop = shops[index];
-                    return GestureDetector(
-                        onTap: () {
-                          AppHaptics.mediumTap();
-                          context.push('/shop/${shop.id}', extra: shop);
-                        },
-                        child: Container(
-                          width: 290,
-                          margin: const EdgeInsets.only(right: 16, bottom: 8),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.surfaceDark
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(
-                                  alpha: isDark ? 0.35 : 0.06,
+                  return GestureDetector(
+                    onTap: () {
+                      AppHaptics.mediumTap();
+                      context.push('/shop/${shop.id}', extra: shop);
+                    },
+                    child: Container(
+                      width: 270,
+                      margin: const EdgeInsets.only(right: 16, bottom: 8),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.surfaceDark
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.35 : 0.06,
+                            ),
+                            blurRadius: 20,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : const Color(0xFFF0F4F8),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── Shop Image ──────────────────────────────
+                          Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(22),
                                 ),
-                                blurRadius: 24,
-                                spreadRadius: 0,
-                                offset: const Offset(0, 8),
+                                child: Image.network(
+                                  shop.imagePath,
+                                  height: 138,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: 540,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    height: 138,
+                                    color: isDark
+                                        ? AppColors.surfaceDark
+                                        : const Color(0xFFF1F5F9),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.store_outlined,
+                                        size: 40,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Rating badge
+                              Positioned(
+                                top: 10,
+                                right: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(
+                                      alpha: 0.95,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.08,
+                                        ),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.star_rounded,
+                                        color: Color(0xFFFFB800),
+                                        size: 13,
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        shop.rating.toStringAsFixed(1),
+                                        style: GoogleFonts.outfit(
+                                          color: AppColors.primary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      if (shop.reviewsCount > 0) ...[
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '(${shop.reviewsCount})',
+                                          style: GoogleFonts.inter(
+                                            color: AppColors.textSecondaryLight,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              // Favourite button
+                              Positioned(
+                                top: 10,
+                                left: 10,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    AppHaptics.mediumTap();
+                                    ref
+                                        .read(wishlistProvider.notifier)
+                                        .toggleFavourite(shop.id);
+                                    final isNowFav = ref
+                                        .read(wishlistProvider.notifier)
+                                        .isFavourite(shop.id);
+                                    ScaffoldMessenger.of(
+                                      context,
+                                    ).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          isNowFav
+                                              ? 'Added ${shop.name} to Wishlist'
+                                              : 'Removed ${shop.name} from Wishlist',
+                                        ),
+                                        duration: const Duration(
+                                          seconds: 1,
+                                        ),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.90,
+                                      ),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Icon(
+                                      ref
+                                              .watch(wishlistProvider)
+                                              .contains(shop.id)
+                                          ? Icons.favorite_rounded
+                                          : Icons.favorite_border_rounded,
+                                      color: ref
+                                              .watch(wishlistProvider)
+                                              .contains(shop.id)
+                                          ? const Color(0xFFEF4444)
+                                          : const Color(0xFF94A3B8),
+                                      size: 15,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
-                            border: Border.all(
-                              color: isDark
-                                  ? AppColors.borderDark
-                                  : const Color(0xFFF0F4F8),
-                              width: 1,
-                            ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // ── Shop Image ──────────────────────────────
-                              Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(24),
-                                    ),
-                                    child: Image.network(
-                                      shop.imagePath,
-                                      height: 172,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      cacheWidth: 580,
-                                      errorBuilder: (_, __, ___) => Container(
-                                        height: 172,
-                                        color: isDark
-                                            ? AppColors.surfaceDark
-                                            : const Color(0xFFF1F5F9),
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.store_outlined,
-                                            size: 40,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  // Gradient overlay on image bottom
-                                  Positioned(
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: 60,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Colors.black.withValues(alpha: 0.40),
-                                            Colors.transparent,
-                                          ],
-                                          begin: Alignment.bottomCenter,
-                                          end: Alignment.topCenter,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  // Rating badge
-                                  Positioned(
-                                    top: 12,
-                                    right: 12,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 9,
-                                        vertical: 5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.95,
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.08,
-                                            ),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.star_rounded,
-                                            color: Color(0xFFFFB800),
-                                            size: 13,
-                                          ),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            shop.rating.toStringAsFixed(1),
-                                            style: GoogleFonts.outfit(
-                                              color: AppColors.primary,
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          if (shop.reviewsCount > 0) ...[
-                                            const SizedBox(width: 2),
-                                            Text(
-                                              '(${shop.reviewsCount})',
-                                              style: GoogleFonts.inter(
-                                                color: AppColors
-                                                    .textSecondaryLight,
-                                                fontSize: 9.5,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  // Favourite button
-                                  Positioned(
-                                    top: 12,
-                                    left: 12,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        AppHaptics.mediumTap();
-                                        ref
-                                            .read(wishlistProvider.notifier)
-                                            .toggleFavourite(shop.id);
-                                        final isNowFav = ref
-                                            .read(wishlistProvider.notifier)
-                                            .isFavourite(shop.id);
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              isNowFav
-                                                  ? 'Added ${shop.name} to Wishlist'
-                                                  : 'Removed ${shop.name} from Wishlist',
-                                            ),
-                                            duration: const Duration(
-                                              seconds: 1,
-                                            ),
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      },
-                                      child: Container(
-                                        width: 34,
-                                        height: 34,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.88,
-                                          ),
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withValues(
-                                                alpha: 0.08,
-                                              ),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Icon(
-                                          ref
-                                                  .watch(wishlistProvider)
-                                                  .contains(shop.id)
-                                              ? Icons.favorite_rounded
-                                              : Icons.favorite_border_rounded,
-                                          color: ref
-                                                  .watch(wishlistProvider)
-                                                  .contains(shop.id)
-                                              ? const Color(0xFFEF4444)
-                                              : const Color(0xFF94A3B8),
-                                          size: 16,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
 
-                              // ── Info Row ────────────────────────────────
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  14,
-                                  12,
-                                  14,
-                                  12,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                          // ── Info Row ────────────────────────────────
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
                                   children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            shop.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: -0.3,
-                                              color: isDark
-                                                  ? Colors.white
-                                                  : AppColors.textPrimaryLight,
-                                            ),
-                                          ),
+                                    Expanded(
+                                      child: Text(
+                                        shop.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.3,
+                                          color: isDark
+                                              ? Colors.white
+                                              : AppColors.textPrimaryLight,
                                         ),
-                                        // Verified badge
-                                        const Icon(
-                                          Icons.verified_rounded,
-                                          size: 15,
-                                          color: Color(0xFF3B82F6),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      shop.categories.join(' • '),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        color: isDark
-                                            ? AppColors.textSecondaryDark
-                                            : const Color(0xFF6B7280),
                                       ),
                                     ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        _InfoPill(
-                                          icon:
-                                              Icons.access_time_filled_rounded,
-                                          label: shop.estimatedTimeDisplay,
-                                          isDark: isDark,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        _InfoPill(
-                                          icon: Icons.near_me_rounded,
-                                          label: '${shop.distanceKm} km',
-                                          isDark: isDark,
-                                        ),
-                                        const Spacer(),
-                                        Text(
-                                          shop.priceRange,
-                                          style: GoogleFonts.outfit(
-                                            color: AppColors.primaryAccent,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 14,
-                                            letterSpacing: -0.2,
-                                          ),
-                                        ),
-                                      ],
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.verified_rounded,
+                                      size: 14,
+                                      color: Color(0xFF3B82F6),
                                     ),
-                                    const SizedBox(height: 12),
-                                    // Book Now button
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton(
-                                        onPressed: () {
-                                          AppHaptics.mediumTap();
-                                          context.push('/shop/${shop.id}', extra: shop);
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor: Colors.white,
-                                          elevation: 0,
-                                          padding: const EdgeInsets.symmetric(vertical: 10),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'Book Now',
-                                          style: GoogleFonts.outfit(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: -0.2,
-                                          ),
-                                        ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  shop.categories.join(' • '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? AppColors.textSecondaryDark
+                                        : const Color(0xFF6B7280),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _InfoPill(
+                                      icon: Icons.access_time_filled_rounded,
+                                      label: shop.estimatedTimeDisplay,
+                                      isDark: isDark,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    _InfoPill(
+                                      icon: Icons.near_me_rounded,
+                                      label: '${shop.distanceKm} km',
+                                      isDark: isDark,
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      shop.priceRange,
+                                      style: GoogleFonts.outfit(
+                                        color: AppColors.primaryAccent,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13,
+                                        letterSpacing: -0.2,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 10),
+                                // Book Now button
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 36,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      AppHaptics.mediumTap();
+                                      context.push('/shop/${shop.id}', extra: shop);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: EdgeInsets.zero,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Book Now',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.2,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 13,
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      )
+                        ],
+                      ),
+                    ),
+                  )
                       .animate(delay: (index * 80).ms)
                       .fadeIn(duration: 400.ms, curve: Curves.easeOutCubic)
                       .slideY(
@@ -374,7 +360,7 @@ class HomeNearbyShops extends ConsumerWidget {
             );
           },
           loading: () => SizedBox(
-            height: 316,
+            height: 310,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -382,9 +368,9 @@ class HomeNearbyShops extends ConsumerWidget {
               itemBuilder: (context, index) => const Padding(
                 padding: EdgeInsets.only(right: 16),
                 child: ShimmerLoading(
-                  width: 290,
-                  height: 270,
-                  borderRadius: 24,
+                  width: 270,
+                  height: 290,
+                  borderRadius: 22,
                 ),
               ),
             ),
