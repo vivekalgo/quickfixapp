@@ -87,7 +87,31 @@ class CustomBottomNavBar extends ConsumerWidget {
               ),
             ),
           ),
-
+          Positioned(
+            top: -24,
+            child: GestureDetector(
+              onTap: () {
+                AppHaptics.heavyTap();
+                context.push('/booking-quick');
+              },
+              child: Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryAccent,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryAccent.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 28),
+              ),
+            ),
+          ),
         ],
       ),
     );

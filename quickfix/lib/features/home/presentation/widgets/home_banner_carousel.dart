@@ -28,7 +28,7 @@ class _HomeBannerCarouselState extends ConsumerState<HomeBannerCarousel> {
     final bannersCount = widget.banners.length;
     final initialPage = bannersCount > 1 ? bannersCount * 1000 : 0;
     _bannerController = PageController(
-      viewportFraction: 0.94,
+      viewportFraction: 0.92,
       initialPage: initialPage,
     );
     _currentBannerIndex = 0;
@@ -91,7 +91,7 @@ class _HomeBannerCarouselState extends ConsumerState<HomeBannerCarousel> {
       children: [
         // ── Banner Pages ───────────────────────────────────────────────────
         SizedBox(
-          height: 236,
+          height: 196,
           child: RepaintBoundary(
             child: NotificationListener<ScrollNotification>(
               onNotification: (notification) {
@@ -140,18 +140,18 @@ class _HomeBannerCarouselState extends ConsumerState<HomeBannerCarousel> {
           children: List.generate(widget.banners.length, (index) {
             final isActive = _currentBannerIndex == index;
             return AnimatedContainer(
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeInOutCubic,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
               margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: isActive ? 28 : 7,
-              height: 7,
+              width: isActive ? 24 : 6,
+              height: 6,
               decoration: BoxDecoration(
                 color: isActive
                     ? AppColors.primaryAccent
                     : (isDark
                         ? AppColors.borderDark
                         : const Color(0xFFCBD5E1)),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(3),
               ),
             );
           }),
@@ -179,18 +179,18 @@ class _BannerCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
-              blurRadius: 22,
+              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.10),
+              blurRadius: 20,
               spreadRadius: 0,
-              offset: const Offset(0, 8),
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(24),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -223,153 +223,139 @@ class _BannerCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.black.withValues(alpha: 0.82),
-                        Colors.black.withValues(alpha: 0.50),
-                        Colors.black.withValues(alpha: 0.10),
+                        Colors.black.withValues(alpha: 0.65),
+                        Colors.black.withValues(alpha: 0.30),
+                        Colors.black.withValues(alpha: 0.05),
                       ],
                       begin: Alignment.bottomLeft,
                       end: Alignment.topRight,
-                      stops: const [0.0, 0.52, 1.0],
+                      stops: const [0.0, 0.55, 1.0],
                     ),
                   ),
                 ),
 
-              // ── Text overlay ──────────────────────────────────────────────
+              // ── Text overlay on the left ──────────────────────────────────
               if (!showFullWidthImage)
                 Positioned(
-                  left: 20,
-                  top: 18,
-                  right: 20,
-                  bottom: 18,
+                  left: 18,
+                  top: 16,
+                  right: MediaQuery.of(context).size.width * 0.92 * 0.40,
+                  bottom: 16,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Top row: badge
+                      // "Limited Time Offer" pill badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          'Limited Time Offer',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+
+                      // Main Title
+                      if (banner.title.isNotEmpty)
+                        Text(
+                          banner.title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                            letterSpacing: -0.4,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Code + Book Now row
                       Row(
                         children: [
+                          // Use Code pill
+                          if (banner.code.isNotEmpty)
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    width: 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'USE: ${banner.code}',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          if (banner.code.isNotEmpty)
+                            const SizedBox(width: 8),
+                          // Book Now CTA
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 11,
-                              vertical: 5.5,
+                              horizontal: 14,
+                              vertical: 7,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryAccent.withValues(alpha: 0.90),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.25),
-                                width: 1,
-                              ),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
-                                  Icons.star_rounded,
-                                  color: Color(0xFFFFB800),
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 4),
                                 Text(
-                                  'FEATURED SERVICE',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 9.5,
+                                  'Book Now',
+                                  style: GoogleFonts.outfit(
+                                    color: AppColors.primary,
+                                    fontSize: 10.5,
                                     fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: 0.8,
+                                    letterSpacing: -0.1,
                                   ),
+                                ),
+                                const SizedBox(width: 2),
+                                const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 11,
+                                  color: AppColors.primary,
                                 ),
                               ],
                             ),
                           ),
                         ],
-                      ),
-
-                      // Center: code subtitle + title
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (banner.code.isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'USE CODE: ${banner.code}',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          if (banner.code.isNotEmpty) const SizedBox(height: 6),
-                          if (banner.title.isNotEmpty)
-                            Text(
-                              banner.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.outfit(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                height: 1.15,
-                                letterSpacing: -0.6,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black.withValues(alpha: 0.6),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-
-                      // Bottom: Book Now CTA
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.18),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Book Now',
-                              style: GoogleFonts.outfit(
-                                color: AppColors.primary,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 14,
-                              color: AppColors.primary,
-                            ),
-                          ],
-                        ),
                       ),
                     ],
                   ),
@@ -378,36 +364,31 @@ class _BannerCard extends StatelessWidget {
               // ── Discount badge — top right corner ─────────────────────────
               if (!showFullWidthImage && banner.percent.isNotEmpty)
                 Positioned(
-                  top: 16,
-                  right: 16,
+                  top: 14,
+                  right: 14,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 13,
-                      vertical: 8,
+                      horizontal: 11,
+                      vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFFFB800),
-                          Color(0xFFF59E0B),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(22),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFFB800).withValues(alpha: 0.45),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
                     child: Text(
                       banner.percent,
                       style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 13,
+                        color: AppColors.primaryAccent,
+                        fontSize: 12,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -0.3,
+                        letterSpacing: -0.2,
                       ),
                     ),
                   ),
