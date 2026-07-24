@@ -91,7 +91,7 @@ class _HomeBannerCarouselState extends ConsumerState<HomeBannerCarousel> {
       children: [
         // ── Banner Pages ───────────────────────────────────────────────────
         SizedBox(
-          height: 228,
+          height: 236,
           child: RepaintBoundary(
             child: NotificationListener<ScrollNotification>(
               onNotification: (notification) {
@@ -179,18 +179,18 @@ class _BannerCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(26),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.10),
-              blurRadius: 20,
+              color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
+              blurRadius: 22,
               spreadRadius: 0,
-              offset: const Offset(0, 6),
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(26),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -223,13 +223,13 @@ class _BannerCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.black.withValues(alpha: 0.78),
-                        Colors.black.withValues(alpha: 0.48),
-                        Colors.black.withValues(alpha: 0.08),
+                        Colors.black.withValues(alpha: 0.82),
+                        Colors.black.withValues(alpha: 0.50),
+                        Colors.black.withValues(alpha: 0.10),
                       ],
                       begin: Alignment.bottomLeft,
                       end: Alignment.topRight,
-                      stops: const [0.0, 0.50, 1.0],
+                      stops: const [0.0, 0.52, 1.0],
                     ),
                   ),
                 ),
@@ -245,46 +245,71 @@ class _BannerCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Top row: badge + discount
+                      // Top row: badge
                       Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
+                              horizontal: 11,
+                              vertical: 5.5,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryAccent.withValues(alpha: 0.85),
+                              color: AppColors.primaryAccent.withValues(alpha: 0.90),
                               borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'LIMITED TIME',
-                              style: GoogleFonts.inter(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.8,
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.25),
+                                width: 1,
                               ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  color: Color(0xFFFFB800),
+                                  size: 12,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'FEATURED SERVICE',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
 
-                      // Center: subtitle + title
+                      // Center: code subtitle + title
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (banner.code.isNotEmpty)
-                            Text(
-                              'USE CODE: ${banner.code}',
-                              style: GoogleFonts.inter(
-                                color: Colors.white.withValues(alpha: 0.80),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'USE CODE: ${banner.code}',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                             ),
-                          if (banner.code.isNotEmpty) const SizedBox(height: 4),
+                          if (banner.code.isNotEmpty) const SizedBox(height: 6),
                           if (banner.title.isNotEmpty)
                             Text(
                               banner.title,
@@ -298,7 +323,7 @@ class _BannerCard extends StatelessWidget {
                                 letterSpacing: -0.6,
                                 shadows: [
                                   Shadow(
-                                    color: Colors.black.withValues(alpha: 0.5),
+                                    color: Colors.black.withValues(alpha: 0.6),
                                     blurRadius: 10,
                                     offset: const Offset(0, 3),
                                   ),
@@ -319,8 +344,8 @@ class _BannerCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 10,
+                              color: Colors.black.withValues(alpha: 0.18),
+                              blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
                           ],
@@ -361,11 +386,16 @@ class _BannerCard extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFB800),
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFFFFB800),
+                          Color(0xFFF59E0B),
+                        ],
+                      ),
                       borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFFB800).withValues(alpha: 0.40),
+                          color: const Color(0xFFFFB800).withValues(alpha: 0.45),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
