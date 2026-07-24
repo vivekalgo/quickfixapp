@@ -398,21 +398,42 @@ async function updateBookingStatus(id, status, providerName) {
     console.error('Ledger state update failed:', ledgerErr.message);
   }
 
+  let name = providerName || booking.providerName;
+  if (!name || name === 'Assigning Expert...') {
+    try {
+      const shop = await Shop.findOne({ id: booking.shopId });
+      if (shop && shop.name) name = shop.name;
+    } catch (_) {}
+  }
+  if (!name || name === 'Assigning Expert...') name = 'Service provider';
+
   const titleMap = {
+    accepted: 'Booking Accepted 🎉',
+    rejected: 'Booking Declined ⚠️',
+    cancelled: 'Booking Cancelled ❌',
     navigating: 'Provider on the Way 🚀',
     arrived: 'Provider Arrived 📍',
     work_started: 'Work in Progress 🛠️',
-    completed: 'Booking Completed 🎉'
+    completed: 'Booking Completed 🎉',
+    closed: 'Booking Completed 🎉'
   };
 
   const bodyMap = {
-    navigating: `Our service provider has started navigating to your location for QF-${id}.`,
-    arrived: 'The service provider has arrived at your address.',
-    work_started: 'The service provider has started the job.',
-    completed: `Your booking QF-${id} for "${booking.title}" has been completed.`
+    accepted: `${name} has accepted your booking QF-${id} for "${booking.title}".`,
+    rejected: `Your booking QF-${id} for "${booking.title}" was declined by ${name}.`,
+    cancelled: `Your booking QF-${id} for "${booking.title}" has been cancelled.`,
+    navigating: `${name} has started navigating to your location for QF-${id}.`,
+    arrived: `${name} has arrived at your address.`,
+    work_started: `${name} has started the job.`,
+    completed: `Your booking QF-${id} for "${booking.title}" has been completed.`,
+    closed: `Your booking QF-${id} for "${booking.title}" has been completed.`
   };
 
   if (titleMap[status]) {
+    const iconColor = (status === 'completed' || status === 'accepted' || status === 'closed') 
+      ? 'success' 
+      : (status === 'rejected' || status === 'cancelled') ? 'error' : 'info';
+
     sendFcmNotification(
       booking.customerId,
       titleMap[status],
@@ -420,7 +441,7 @@ async function updateBookingStatus(id, status, providerName) {
       {
         type: 'booking_status',
         bookingId: id,
-        iconColor: status === 'completed' ? 'success' : 'info'
+        iconColor: iconColor
       }
     );
   }
