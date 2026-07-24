@@ -2,7 +2,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { 
   Settings, Category, Banner, Offer, AuditLog, Review, Professional, 
-  User, Shop, Booking, Notification, CmsSection, CustomSection, Demand, AdminUser 
+  User, Shop, Booking, Notification, CmsSection, CustomSection, Demand, AdminUser,
+  Promotion, SpecialCard
 } = require('../models');
 const cloudinary = require('../config/cloudinary');
 const { calculateDistance, deleteFromCloudinary, sendFcmNotification, paginate } = require('../helpers');
@@ -81,8 +82,68 @@ async function uploadBannerImage(base64Image, validatedMime) {
   return uploadResponse.secure_url;
 }
 
+async function getBanners(includeInactive = false) {
+  let query = includeInactive ? {} : { isActive: true };
+  let banners = await Banner.find(query);
+  if (!banners || banners.length === 0) {
+    const defaultBanners = [
+      {
+        id: 'banner_1',
+        title: 'Flat 20% Off Home Deep Cleaning',
+        code: 'CLEAN20',
+        percent: '20% OFF',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800',
+        redirectUrl: '',
+        priority: 1,
+        expiryDate: '2026-12-31',
+        isActive: true
+      },
+      {
+        id: 'banner_2',
+        title: 'AC Repair & Servicing Special',
+        code: 'ACFREE',
+        percent: '₹150 OFF',
+        imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800',
+        redirectUrl: '',
+        priority: 2,
+        expiryDate: '2026-12-31',
+        isActive: true
+      }
+    ];
+    try {
+      await Banner.insertMany(defaultBanners);
+    } catch (_) {}
+    return defaultBanners;
+  }
+  return banners;
+}
+
+async function getAdminBanners() {
+  return getBanners(true);
+}
+
+async function createBanner(bannerData) {
+  const { title, code, percent, imageUrl, redirectUrl, priority, expiryDate } = bannerData;
+  const newBanner = new Banner({
+    id: `banner_${Date.now()}`,
+    title: title || '',
+    code: code || '',
+    percent: percent || '',
+    imageUrl: imageUrl || '',
+    redirectUrl: redirectUrl || '',
+    priority: parseInt(priority) || 0,
+    expiryDate: expiryDate || '',
+    isActive: true
+  });
+  await newBanner.save();
+  return newBanner;
+}
+
 async function updateBanner(id, updateData) {
-  const banner = await Banner.findOne({ id });
+  let banner = await Banner.findOne({ id });
+  if (!banner) {
+    banner = await Banner.findById(id);
+  }
   if (!banner) {
     throw new Error('Banner not found');
   }
@@ -107,8 +168,36 @@ async function updateBanner(id, updateData) {
   return banner;
 }
 
-async function getOffers() {
-  let offers = await Offer.find({ isActive: true });
+async function toggleBanner(id) {
+  let banner = await Banner.findOne({ id });
+  if (!banner) {
+    banner = await Banner.findById(id);
+  }
+  if (!banner) {
+    throw new Error('Banner not found');
+  }
+  banner.isActive = !banner.isActive;
+  await banner.save();
+  return banner;
+}
+
+async function deleteBanner(id) {
+  let deleted = await Banner.findOneAndDelete({ id });
+  if (!deleted) {
+    deleted = await Banner.findByIdAndDelete(id);
+  }
+  if (!deleted) {
+    throw new Error('Banner not found');
+  }
+  if (deleted.imageUrl) {
+    deleteFromCloudinary(deleted.imageUrl);
+  }
+  return deleted;
+}
+
+async function getOffers(includeInactive = false) {
+  let query = includeInactive ? {} : { isActive: true };
+  let offers = await Offer.find(query);
   if (!offers || offers.length === 0) {
     const defaultOffers = [
       {
@@ -149,6 +238,41 @@ async function getOffers() {
     return defaultOffers;
   }
   return offers;
+}
+
+async function getAdminOffers() {
+  return getOffers(true);
+}
+
+async function createOffer(offerData) {
+  const { code, title, description, minOrderAmount, maxDiscount, expiryDate, usageLimit } = offerData;
+  if (!code || !title) {
+    throw new Error('Offer code and title are required');
+  }
+  const cleanCode = code.toUpperCase();
+  let existing = await Offer.findOne({ code: cleanCode });
+  if (existing) {
+    existing.title = title;
+    existing.description = description || existing.description;
+    existing.minOrderAmount = parseFloat(minOrderAmount) || 0;
+    existing.maxDiscount = parseFloat(maxDiscount) || 0;
+    existing.expiryDate = expiryDate || existing.expiryDate;
+    existing.usageLimit = parseInt(usageLimit) || 0;
+    await existing.save();
+    return existing;
+  }
+  const newOffer = new Offer({
+    code: cleanCode,
+    title,
+    description: description || '',
+    minOrderAmount: parseFloat(minOrderAmount) || 0,
+    maxDiscount: parseFloat(maxDiscount) || 0,
+    expiryDate: expiryDate || '',
+    usageLimit: parseInt(usageLimit) || 1,
+    isActive: true
+  });
+  await newOffer.save();
+  return newOffer;
 }
 
 async function applyOffer(code, amount = 0) {
@@ -830,6 +954,214 @@ async function toggleUserStatus(userId) {
   return user.accountStatus;
 }
 
+// --- CMS HELPER FUNCTIONS ---
+
+async function getPromotions(includeInactive = false) {
+  let query = includeInactive ? {} : { isActive: true };
+  let list = await Promotion.find(query);
+  if (!list || list.length === 0) {
+    const defaultPromotions = [
+      {
+        id: 'promo-festive-summer',
+        title: 'Summer Care Carnival',
+        subtitle: 'Beat the heat with heavy discounts',
+        description: 'Get up to 40% off on all AC servicing, plumbing, and deep home cleaning.',
+        offerPercentage: '40% OFF',
+        couponCode: 'SUMMER40',
+        ctaButtonText: 'Grab Now',
+        ctaButtonAction: 'Category',
+        ctaButtonActionValue: 'AC Repair',
+        bannerImage: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800',
+        backgroundColor: '#FFF1F0',
+        textColor: '#000000',
+        buttonColor: '#FF4D4F',
+        buttonTextColor: '#FFFFFF',
+        priority: 1,
+        isActive: true
+      }
+    ];
+    try {
+      await Promotion.insertMany(defaultPromotions);
+    } catch (_) {}
+    return defaultPromotions;
+  }
+  return list;
+}
+
+async function getAdminPromotions() {
+  return getPromotions(true);
+}
+
+async function savePromotion(id, data) {
+  let promo;
+  if (id) {
+    promo = await Promotion.findOne({ id });
+    if (!promo) promo = await Promotion.findById(id);
+  }
+  if (promo) {
+    Object.assign(promo, data);
+    await promo.save();
+    return promo;
+  } else {
+    const newPromo = new Promotion({
+      ...data,
+      id: id || `promo-${Date.now()}`
+    });
+    await newPromo.save();
+    return newPromo;
+  }
+}
+
+async function togglePromotion(id) {
+  let promo = await Promotion.findOne({ id });
+  if (!promo) promo = await Promotion.findById(id);
+  if (!promo) throw new Error('Promotion not found');
+  promo.isActive = !promo.isActive;
+  await promo.save();
+  return promo;
+}
+
+async function deletePromotion(id) {
+  let deleted = await Promotion.findOneAndDelete({ id });
+  if (!deleted) deleted = await Promotion.findByIdAndDelete(id);
+  if (!deleted) throw new Error('Promotion not found');
+  return deleted;
+}
+
+async function getSpecialCards(includeInactive = false) {
+  let query = includeInactive ? {} : { isActive: true };
+  let list = await SpecialCard.find(query);
+  if (!list || list.length === 0) {
+    const defaultCards = [
+      {
+        id: 'special-1',
+        title: 'Emergency Plumbing',
+        subtitle: '24/7 Fast Arrival',
+        description: 'Pipe leaks, tap fixes, & drain unclogging in 30 mins',
+        icon: 'faucet',
+        backgroundColor: '#E6F7FF',
+        buttonText: 'Book Now',
+        ctaAction: 'Category',
+        ctaActionValue: 'Plumbing',
+        priority: 1,
+        isActive: true
+      }
+    ];
+    try {
+      await SpecialCard.insertMany(defaultCards);
+    } catch (_) {}
+    return defaultCards;
+  }
+  return list;
+}
+
+async function getAdminSpecialCards() {
+  return getSpecialCards(true);
+}
+
+async function saveSpecialCard(id, data) {
+  let card;
+  if (id) {
+    card = await SpecialCard.findOne({ id });
+    if (!card) card = await SpecialCard.findById(id);
+  }
+  if (card) {
+    Object.assign(card, data);
+    await card.save();
+    return card;
+  } else {
+    const newCard = new SpecialCard({
+      ...data,
+      id: id || `special-${Date.now()}`
+    });
+    await newCard.save();
+    return newCard;
+  }
+}
+
+async function toggleSpecialCard(id) {
+  let card = await SpecialCard.findOne({ id });
+  if (!card) card = await SpecialCard.findById(id);
+  if (!card) throw new Error('Special card not found');
+  card.isActive = !card.isActive;
+  await card.save();
+  return card;
+}
+
+async function deleteSpecialCard(id) {
+  let deleted = await SpecialCard.findOneAndDelete({ id });
+  if (!deleted) deleted = await SpecialCard.findByIdAndDelete(id);
+  if (!deleted) throw new Error('Special card not found');
+  return deleted;
+}
+
+async function getAdminProfessionals() {
+  return Professional.find({});
+}
+
+async function saveProfessional(id, data) {
+  let prof;
+  if (id) {
+    prof = await Professional.findOne({ id });
+    if (!prof) prof = await Professional.findById(id);
+  }
+  if (prof) {
+    Object.assign(prof, data);
+    await prof.save();
+    return prof;
+  } else {
+    const newProf = new Professional({
+      ...data,
+      id: id || `prof-${Date.now()}`
+    });
+    await newProf.save();
+    return newProf;
+  }
+}
+
+async function toggleProfessional(id) {
+  let prof = await Professional.findOne({ id });
+  if (!prof) prof = await Professional.findById(id);
+  if (!prof) throw new Error('Professional not found');
+  prof.isActive = !prof.isActive;
+  await prof.save();
+  return prof;
+}
+
+async function deleteProfessional(id) {
+  let deleted = await Professional.findOneAndDelete({ id });
+  if (!deleted) deleted = await Professional.findByIdAndDelete(id);
+  if (!deleted) throw new Error('Professional not found');
+  return deleted;
+}
+
+async function toggleReviewFeatured(id) {
+  let rev = await Review.findOne({ id });
+  if (!rev) rev = await Review.findById(id);
+  if (!rev) throw new Error('Review not found');
+  rev.isFeatured = !rev.isFeatured;
+  await rev.save();
+  return rev;
+}
+
+async function updateReviewStatus(id, status) {
+  let rev = await Review.findOne({ id });
+  if (!rev) rev = await Review.findById(id);
+  if (!rev) throw new Error('Review not found');
+  rev.status = status;
+  await rev.save();
+  return rev;
+}
+
+async function toggleCustomSection(id) {
+  let sec = await CustomSection.findOne({ id });
+  if (!sec) sec = await CustomSection.findById(id);
+  if (!sec) throw new Error('Custom section not found');
+  sec.isActive = !sec.isActive;
+  await sec.save();
+  return sec;
+}
+
 module.exports = {
   submitDemand,
   getDemands,
@@ -838,9 +1170,16 @@ module.exports = {
   createCategory,
   updateCategory,
   deleteCategory,
+  getBanners,
+  getAdminBanners,
+  createBanner,
   uploadBannerImage,
   updateBanner,
+  toggleBanner,
+  deleteBanner,
   getOffers,
+  getAdminOffers,
+  createOffer,
   applyOffer,
   updateOffer,
   toggleOffer,
@@ -856,16 +1195,33 @@ module.exports = {
   approveReview,
   saveReview,
   deleteReview,
+  toggleReviewFeatured,
+  updateReviewStatus,
   getProfessionals,
+  getAdminProfessionals,
+  saveProfessional,
+  toggleProfessional,
+  deleteProfessional,
   getHomepageLayout,
   getAdminHomepageLayout,
   updateHomepageLayout,
   reorderHomepageLayout,
+  getPromotions,
+  getAdminPromotions,
+  savePromotion,
+  togglePromotion,
+  deletePromotion,
+  getSpecialCards,
+  getAdminSpecialCards,
+  saveSpecialCard,
+  toggleSpecialCard,
+  deleteSpecialCard,
   getCustomSections,
   getAdminCustomSections,
   getCustomSectionById,
   saveCustomSection,
   deleteCustomSection,
+  toggleCustomSection,
   adminLogin,
   getAdminStats,
   getReportsSummary,

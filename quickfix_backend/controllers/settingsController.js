@@ -78,6 +78,33 @@ async function deleteCategory(req, res) {
   }
 }
 
+async function getBanners(req, res) {
+  try {
+    const banners = await settingsService.getBanners(false);
+    res.json(banners);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch banners' });
+  }
+}
+
+async function getAdminBanners(req, res) {
+  try {
+    const banners = await settingsService.getAdminBanners();
+    res.json(banners);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch admin banners' });
+  }
+}
+
+async function createBanner(req, res) {
+  try {
+    const banner = await settingsService.createBanner(req.body);
+    res.json({ success: true, banner });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to create banner' });
+  }
+}
+
 async function uploadBannerImage(req, res) {
   const { base64Image } = req.body;
   try {
@@ -102,12 +129,55 @@ async function updateBanner(req, res) {
   }
 }
 
+async function toggleBanner(req, res) {
+  const { id } = req.body;
+  try {
+    const banner = await settingsService.toggleBanner(id);
+    res.json({ success: true, banner });
+  } catch (e) {
+    if (e.message === 'Banner not found') {
+      return res.status(404).json({ error: e.message });
+    }
+    res.status(500).json({ error: 'Toggle banner failed' });
+  }
+}
+
+async function deleteBanner(req, res) {
+  try {
+    const deleted = await settingsService.deleteBanner(req.params.id);
+    res.json({ success: true, banner: deleted });
+  } catch (e) {
+    if (e.message === 'Banner not found') {
+      return res.status(404).json({ error: e.message });
+    }
+    res.status(500).json({ error: 'Delete banner failed' });
+  }
+}
+
 async function getOffers(req, res) {
   try {
-    const offers = await settingsService.getOffers();
+    const offers = await settingsService.getOffers(true); // Return all offers for admin/client view
     res.json(offers);
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch offers' });
+  }
+}
+
+async function getAdminOffers(req, res) {
+  try {
+    const offers = await settingsService.getAdminOffers();
+    res.json(offers);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch admin offers' });
+  }
+}
+
+async function createOffer(req, res) {
+  try {
+    const offer = await settingsService.createOffer(req.body);
+    res.json({ success: true, offer });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Failed to create offer' });
   }
 }
 
@@ -456,6 +526,164 @@ async function toggleUserStatus(req, res) {
   }
 }
 
+// --- PROMOTIONS ---
+async function getPromotions(req, res) {
+  try {
+    const list = await settingsService.getPromotions(false);
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load promotions' });
+  }
+}
+
+async function getAdminPromotions(req, res) {
+  try {
+    const list = await settingsService.getAdminPromotions();
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load admin promotions' });
+  }
+}
+
+async function savePromotion(req, res) {
+  try {
+    const promotion = await settingsService.savePromotion(req.body.id, req.body);
+    res.json({ success: true, promotion });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save promotion' });
+  }
+}
+
+async function togglePromotion(req, res) {
+  try {
+    await settingsService.togglePromotion(req.body.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to toggle promotion' });
+  }
+}
+
+async function deletePromotion(req, res) {
+  try {
+    await settingsService.deletePromotion(req.params.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete promotion' });
+  }
+}
+
+// --- SPECIAL CARDS ---
+async function getSpecialCards(req, res) {
+  try {
+    const list = await settingsService.getSpecialCards(false);
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load special cards' });
+  }
+}
+
+async function getAdminSpecialCards(req, res) {
+  try {
+    const list = await settingsService.getAdminSpecialCards();
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load admin special cards' });
+  }
+}
+
+async function saveSpecialCard(req, res) {
+  try {
+    const card = await settingsService.saveSpecialCard(req.body.id, req.body);
+    res.json({ success: true, card });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save special card' });
+  }
+}
+
+async function toggleSpecialCard(req, res) {
+  try {
+    await settingsService.toggleSpecialCard(req.body.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to toggle special card' });
+  }
+}
+
+async function deleteSpecialCard(req, res) {
+  try {
+    await settingsService.deleteSpecialCard(req.params.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete special card' });
+  }
+}
+
+// --- PROFESSIONALS / FEATURED EXPERTS ---
+async function getAdminProfessionals(req, res) {
+  try {
+    const list = await settingsService.getAdminProfessionals();
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load admin professionals' });
+  }
+}
+
+async function saveProfessional(req, res) {
+  try {
+    const professional = await settingsService.saveProfessional(req.body.id, req.body);
+    res.json({ success: true, professional });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save professional profile' });
+  }
+}
+
+async function toggleProfessional(req, res) {
+  try {
+    await settingsService.toggleProfessional(req.body.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to toggle professional' });
+  }
+}
+
+async function deleteProfessional(req, res) {
+  try {
+    await settingsService.deleteProfessional(req.params.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete professional' });
+  }
+}
+
+// --- REVIEWS EXTENSIONS ---
+async function toggleReviewFeatured(req, res) {
+  try {
+    await settingsService.toggleReviewFeatured(req.body.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to toggle review featured status' });
+  }
+}
+
+async function updateReviewStatus(req, res) {
+  try {
+    await settingsService.updateReviewStatus(req.body.id, req.body.status);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update review status' });
+  }
+}
+
+// --- CUSTOM SECTIONS EXTENSIONS ---
+async function toggleCustomSection(req, res) {
+  try {
+    await settingsService.toggleCustomSection(req.body.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to toggle custom section' });
+  }
+}
+
 module.exports = {
   submitDemand,
   getDemands,
@@ -464,9 +692,16 @@ module.exports = {
   createCategory,
   updateCategory,
   deleteCategory,
+  getBanners,
+  getAdminBanners,
+  createBanner,
   uploadBannerImage,
   updateBanner,
+  toggleBanner,
+  deleteBanner,
   getOffers,
+  getAdminOffers,
+  createOffer,
   applyOffer,
   updateOffer,
   toggleOffer,
@@ -482,16 +717,33 @@ module.exports = {
   approveReview,
   saveReview,
   deleteReview,
+  toggleReviewFeatured,
+  updateReviewStatus,
   getProfessionals,
+  getAdminProfessionals,
+  saveProfessional,
+  toggleProfessional,
+  deleteProfessional,
   getHomepageLayout,
   getAdminHomepageLayout,
   updateHomepageLayout,
   reorderHomepageLayout,
+  getPromotions,
+  getAdminPromotions,
+  savePromotion,
+  togglePromotion,
+  deletePromotion,
+  getSpecialCards,
+  getAdminSpecialCards,
+  saveSpecialCard,
+  toggleSpecialCard,
+  deleteSpecialCard,
   getCustomSections,
   getAdminCustomSections,
   getCustomSectionById,
   saveCustomSection,
   deleteCustomSection,
+  toggleCustomSection,
   adminLogin,
   getAdminStats,
   getReportsSummary,

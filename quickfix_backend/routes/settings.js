@@ -17,16 +17,37 @@ router.post('/categories/update', requireAdmin, settingsValidator.validateCatego
 router.delete('/categories/:id', requireAdmin, settingsController.deleteCategory);
 
 // --- BANNERS ENDPOINTS ---
+router.get('/banners', publicLimiter, settingsController.getBanners);
+router.get('/admin/banners', requireAdmin, settingsController.getAdminBanners);
+router.post('/banners', requireAdmin, settingsController.createBanner);
 router.post('/banners/upload-image', requireAdmin, settingsValidator.validateBannerUploadImage, settingsController.uploadBannerImage);
 router.post('/banners/update', requireAdmin, settingsController.updateBanner);
+router.post('/banners/toggle', requireAdmin, settingsController.toggleBanner);
+router.delete('/banners/:id', requireAdmin, settingsController.deleteBanner);
 
 // --- OFFERS & COUPONS ENDPOINTS ---
 router.get('/offers', publicLimiter, settingsController.getOffers);
+router.get('/admin/offers', requireAdmin, settingsController.getAdminOffers);
+router.post('/offers', requireAdmin, settingsController.createOffer);
 router.post('/offers/apply', settingsController.applyOffer);
 router.post('/offers/update', requireAdmin, settingsController.updateOffer);
 router.post('/offers/toggle', requireAdmin, settingsController.toggleOffer);
 router.delete('/offers/:code', requireAdmin, settingsController.deleteOffer);
 router.post('/coupons/validate', settingsValidator.validateCouponValidate, settingsController.validateCoupon);
+
+// --- PROMOTIONS ENDPOINTS ---
+router.get('/promotions', publicLimiter, settingsController.getPromotions);
+router.get('/admin/promotions', requireAdmin, settingsController.getAdminPromotions);
+router.post('/promotions', requireAdmin, settingsController.savePromotion);
+router.post('/promotions/toggle', requireAdmin, settingsController.togglePromotion);
+router.delete('/promotions/:id', requireAdmin, settingsController.deletePromotion);
+
+// --- SPECIAL CARDS ENDPOINTS ---
+router.get('/special-cards', publicLimiter, settingsController.getSpecialCards);
+router.get('/admin/special-cards', requireAdmin, settingsController.getAdminSpecialCards);
+router.post('/special-cards', requireAdmin, settingsController.saveSpecialCard);
+router.post('/special-cards/toggle', requireAdmin, settingsController.toggleSpecialCard);
+router.delete('/special-cards/:id', requireAdmin, settingsController.deleteSpecialCard);
 
 // --- PRICING CHECKOUT ENDPOINT ---
 router.post('/checkout/calculate', settingsValidator.validateCheckoutCalculate, settingsController.calculateCheckout);
@@ -44,14 +65,21 @@ router.get('/reviews', publicLimiter, settingsController.getReviews);
 router.get('/admin/reviews', requireAdmin, settingsController.getAdminReviews);
 router.post('/reviews/approve', requireAdmin, settingsController.approveReview);
 router.post('/reviews', requireAuth, settingsController.saveReview);
+router.post('/reviews/toggle-featured', requireAdmin, settingsController.toggleReviewFeatured);
+router.post('/reviews/status', requireAdmin, settingsController.updateReviewStatus);
 router.delete('/reviews/:id', requireAdmin, settingsController.deleteReview);
 
 // --- PROFESSIONALS ENDPOINTS ---
 router.get('/professionals', publicLimiter, settingsController.getProfessionals);
+router.get('/admin/professionals', requireAdmin, settingsController.getAdminProfessionals);
+router.post('/professionals', requireAdmin, settingsController.saveProfessional);
+router.post('/professionals/toggle', requireAdmin, settingsController.toggleProfessional);
+router.delete('/professionals/:id', requireAdmin, settingsController.deleteProfessional);
 
 // --- HOMEPAGE LAYOUTS ENDPOINTS ---
 router.get('/homepage/layout', publicLimiter, settingsController.getHomepageLayout);
 router.get('/homepage/layout/admin', requireAdmin, settingsController.getAdminHomepageLayout);
+router.get('/admin/homepage/layout', requireAdmin, settingsController.getAdminHomepageLayout);
 router.post('/homepage/layout/update', requireAdmin, settingsController.updateHomepageLayout);
 router.post('/homepage/layout/reorder', requireAdmin, settingsController.reorderHomepageLayout);
 
@@ -60,6 +88,7 @@ router.get('/custom-sections', publicLimiter, settingsController.getCustomSectio
 router.get('/admin/custom-sections', requireAdmin, settingsController.getAdminCustomSections);
 router.get('/custom-sections/:id', publicLimiter, settingsController.getCustomSectionById);
 router.post('/custom-sections', requireAdmin, settingsController.saveCustomSection);
+router.post('/custom-sections/toggle', requireAdmin, settingsController.toggleCustomSection);
 router.delete('/custom-sections/:id', requireAdmin, settingsController.deleteCustomSection);
 
 // --- ADMIN MANAGEMENT ENDPOINTS ---

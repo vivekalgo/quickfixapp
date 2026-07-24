@@ -1,10 +1,20 @@
-const API_URL = 'https://quickfixapp-production.up.railway.app/api';
+// --- JIO ISP DNS BLOCK AUTO-BYPASS FOR ADMIN PANEL ---
+let PRIMARY_API_URL = 'https://quickfixapp-production.up.railway.app/api';
+let PROXY_API_URL = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) 
+  ? window.location.origin + '/api' 
+  : 'http://localhost:8080/api';
+let LOCAL_API_URL = 'http://localhost:5000/api';
 
-// Global fetch interceptor for Admin Auth Token
+let activeApiBase = PRIMARY_API_URL;
+let isJioBypassActive = false;
+
+const API_URL = PRIMARY_API_URL;
+
+// Global fetch interceptor for Admin Auth Token & Jio ISP Bypass
 // TokenStore is defined in security.js (loaded before this file)
 const originalFetch = window.fetch;
-window.fetch = function (url, options = {}) {
-  const token = TokenStore.get();
+window.fetch = async function (url, options = {}) {
+  const token = typeof TokenStore !== 'undefined' ? TokenStore.get() : null;
   if (token) {
     options.headers = options.headers || {};
     if (!(options.headers instanceof Headers)) {
@@ -13,14 +23,48 @@ window.fetch = function (url, options = {}) {
       options.headers.set('Authorization', `Bearer ${token}`);
     }
   }
-  return originalFetch(url, options).then(response => {
-    if ((response.status === 401 || response.status === 403) && !url.includes('/admin/login')) {
-      TokenStore.clear();
-      stopPolling();
-      showAdminLoginScreen();
+
+  // Replace PRIMARY_API_URL with activeApiBase if activeApiBase was updated
+  let targetUrl = url;
+  if (typeof targetUrl === 'string' && targetUrl.startsWith(PRIMARY_API_URL)) {
+    targetUrl = targetUrl.replace(PRIMARY_API_URL, activeApiBase);
+  }
+
+  try {
+    const response = await originalFetch(targetUrl, options);
+    if ((response.status === 401 || response.status === 403) && !targetUrl.includes('/admin/login')) {
+      if (typeof TokenStore !== 'undefined') TokenStore.clear();
+      if (typeof stopPolling === 'function') stopPolling();
+      if (typeof showAdminLoginScreen === 'function') showAdminLoginScreen();
     }
     return response;
-  });
+  } catch (networkError) {
+    // If request to PRIMARY_API_URL failed due to ISP DNS/SNI block ("Failed to fetch")
+    if (typeof url === 'string' && (url.startsWith(PRIMARY_API_URL) || url.startsWith(activeApiBase)) && activeApiBase !== PROXY_API_URL) {
+      console.warn('[Jio ISP DNS Block Detected] Primary API failed. Retrying via Proxy Bypass...', networkError);
+      activeApiBase = PROXY_API_URL;
+      isJioBypassActive = true;
+      if (typeof showToast === 'function') {
+        showToast('Jio ISP network bypass active', 'info');
+      }
+      const retryUrl = url.replace(PRIMARY_API_URL, PROXY_API_URL);
+      try {
+        const retryRes = await originalFetch(retryUrl, options);
+        if ((retryRes.status === 401 || retryRes.status === 403) && !retryUrl.includes('/admin/login')) {
+          if (typeof TokenStore !== 'undefined') TokenStore.clear();
+          if (typeof stopPolling === 'function') stopPolling();
+          if (typeof showAdminLoginScreen === 'function') showAdminLoginScreen();
+        }
+        return retryRes;
+      } catch (proxyError) {
+        // Fallback to local API if proxy also fails
+        activeApiBase = LOCAL_API_URL;
+        const localUrl = url.replace(PRIMARY_API_URL, LOCAL_API_URL);
+        return originalFetch(localUrl, options);
+      }
+    }
+    throw networkError;
+  }
 };
 
 function showAdminLoginScreen() {
@@ -812,7 +856,7 @@ function renderBannersGrid() {
         <div style="display:flex; align-items:center; gap:8px;">
           <span>Active State</span>
           <label class="switch">
-            <input type="checkbox" ${b.isActive ? 'checked' : ''} onchange="toggleBanner('&quot;${esc(b.id)}&quot;')">
+            <input type="checkbox" ${b.isActive ? 'checked' : ''} onchange="toggleBanner('${esc(b.id)}')">
             <span class="slider"></span>
           </label>
         </div>
