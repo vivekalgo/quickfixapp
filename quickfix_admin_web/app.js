@@ -3,7 +3,19 @@ let PRIMARY_API_URL = 'https://quickfixapp-production.up.railway.app/api';
 let PROXY_API_URL = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) 
   ? window.location.origin + '/api' 
   : 'http://localhost:8080/api';
-let LOCAL_API_URL = 'http://localhost:5000/api';
+
+let CANDIDATE_API_URLS = [
+  PRIMARY_API_URL,
+  PROXY_API_URL,
+  'http://localhost:8080/api',
+  'http://localhost:5000/api',
+  'http://localhost:3000/api',
+  'http://127.0.0.1:8080/api',
+  'http://127.0.0.1:5000/api'
+];
+
+// Deduplicate candidate URLs
+CANDIDATE_API_URLS = Array.from(new Set(CANDIDATE_API_URLS));
 
 let activeApiBase = PRIMARY_API_URL;
 let isJioBypassActive = false;
@@ -39,28 +51,30 @@ window.fetch = async function (url, options = {}) {
     }
     return response;
   } catch (networkError) {
-    // If request to PRIMARY_API_URL failed due to ISP DNS/SNI block ("Failed to fetch")
-    if (typeof url === 'string' && (url.startsWith(PRIMARY_API_URL) || url.startsWith(activeApiBase)) && activeApiBase !== PROXY_API_URL) {
-      console.warn('[Jio ISP DNS Block Detected] Primary API failed. Retrying via Proxy Bypass...', networkError);
-      activeApiBase = PROXY_API_URL;
-      isJioBypassActive = true;
-      if (typeof showToast === 'function') {
-        showToast('Jio ISP network bypass active', 'info');
-      }
-      const retryUrl = url.replace(PRIMARY_API_URL, PROXY_API_URL);
-      try {
-        const retryRes = await originalFetch(retryUrl, options);
-        if ((retryRes.status === 401 || retryRes.status === 403) && !retryUrl.includes('/admin/login')) {
-          if (typeof TokenStore !== 'undefined') TokenStore.clear();
-          if (typeof stopPolling === 'function') stopPolling();
-          if (typeof showAdminLoginScreen === 'function') showAdminLoginScreen();
+    // If request failed due to ISP DNS/SNI block ("Failed to fetch")
+    if (typeof url === 'string' && (url.startsWith(PRIMARY_API_URL) || url.startsWith(activeApiBase))) {
+      console.warn('[Jio ISP Network Block Detected] Attempting candidate URL failovers...', networkError);
+      
+      for (const candidateBase of CANDIDATE_API_URLS) {
+        if (candidateBase === activeApiBase) continue;
+        const candidateUrl = url.replace(PRIMARY_API_URL, candidateBase).replace(activeApiBase, candidateBase);
+        try {
+          const retryRes = await originalFetch(candidateUrl, options);
+          if ((retryRes.status === 401 || retryRes.status === 403) && !candidateUrl.includes('/admin/login')) {
+            if (typeof TokenStore !== 'undefined') TokenStore.clear();
+            if (typeof stopPolling === 'function') stopPolling();
+            if (typeof showAdminLoginScreen === 'function') showAdminLoginScreen();
+          }
+          activeApiBase = candidateBase;
+          isJioBypassActive = true;
+          console.log(`[Jio ISP Bypass] Successfully connected via ${activeApiBase}`);
+          if (typeof showToast === 'function') {
+            showToast('Connected via Jio Network Bypass', 'info');
+          }
+          return retryRes;
+        } catch (_) {
+          // Continue trying next candidate URL
         }
-        return retryRes;
-      } catch (proxyError) {
-        // Fallback to local API if proxy also fails
-        activeApiBase = LOCAL_API_URL;
-        const localUrl = url.replace(PRIMARY_API_URL, LOCAL_API_URL);
-        return originalFetch(localUrl, options);
       }
     }
     throw networkError;
@@ -93,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = passwordInput.value;
       
       try {
-        const response = await originalFetch(`${API_URL}/admin/login`, {
+        const response = await fetch(`${API_URL}/admin/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password })
