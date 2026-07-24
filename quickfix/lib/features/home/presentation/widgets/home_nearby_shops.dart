@@ -40,7 +40,7 @@ class HomeNearbyShops extends ConsumerWidget {
               return _buildComingSoonCard(context, ref, isDark);
             }
             return SizedBox(
-              height: 286,
+              height: 316,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -48,13 +48,13 @@ class HomeNearbyShops extends ConsumerWidget {
                 itemCount: shops.length,
                 itemBuilder: (context, index) {
                   final shop = shops[index];
-                  return GestureDetector(
+                    return GestureDetector(
                         onTap: () {
                           AppHaptics.mediumTap();
                           context.push('/shop/${shop.id}', extra: shop);
                         },
                         child: Container(
-                          width: 268,
+                          width: 290,
                           margin: const EdgeInsets.only(right: 16, bottom: 8),
                           decoration: BoxDecoration(
                             color: isDark
@@ -90,12 +90,12 @@ class HomeNearbyShops extends ConsumerWidget {
                                     ),
                                     child: Image.network(
                                       shop.imagePath,
-                                      height: 148,
+                                      height: 172,
                                       width: double.infinity,
                                       fit: BoxFit.cover,
-                                      cacheWidth: 540,
+                                      cacheWidth: 580,
                                       errorBuilder: (_, __, ___) => Container(
-                                        height: 148,
+                                        height: 172,
                                         color: isDark
                                             ? AppColors.surfaceDark
                                             : const Color(0xFFF1F5F9),
@@ -105,6 +105,25 @@ class HomeNearbyShops extends ConsumerWidget {
                                             size: 40,
                                             color: Colors.grey,
                                           ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Gradient overlay on image bottom
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: 60,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.black.withValues(alpha: 0.40),
+                                            Colors.transparent,
+                                          ],
+                                          begin: Alignment.bottomCenter,
+                                          end: Alignment.topCenter,
                                         ),
                                       ),
                                     ),
@@ -251,7 +270,7 @@ class HomeNearbyShops extends ConsumerWidget {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: GoogleFonts.outfit(
-                                              fontSize: 15,
+                                              fontSize: 16,
                                               fontWeight: FontWeight.w800,
                                               letterSpacing: -0.3,
                                               color: isDark
@@ -268,13 +287,13 @@ class HomeNearbyShops extends ConsumerWidget {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 3),
+                                    const SizedBox(height: 4),
                                     Text(
                                       shop.categories.join(' • '),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: isDark
                                             ? AppColors.textSecondaryDark
                                             : const Color(0xFF6B7280),
@@ -301,11 +320,39 @@ class HomeNearbyShops extends ConsumerWidget {
                                           style: GoogleFonts.outfit(
                                             color: AppColors.primaryAccent,
                                             fontWeight: FontWeight.w800,
-                                            fontSize: 13,
+                                            fontSize: 14,
                                             letterSpacing: -0.2,
                                           ),
                                         ),
                                       ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // Book Now button
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          AppHaptics.mediumTap();
+                                          context.push('/shop/${shop.id}', extra: shop);
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: Colors.white,
+                                          elevation: 0,
+                                          padding: const EdgeInsets.symmetric(vertical: 10),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Book Now',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.2,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -327,7 +374,7 @@ class HomeNearbyShops extends ConsumerWidget {
             );
           },
           loading: () => SizedBox(
-            height: 286,
+            height: 316,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -335,8 +382,8 @@ class HomeNearbyShops extends ConsumerWidget {
               itemBuilder: (context, index) => const Padding(
                 padding: EdgeInsets.only(right: 16),
                 child: ShimmerLoading(
-                  width: 268,
-                  height: 240,
+                  width: 290,
+                  height: 270,
                   borderRadius: 24,
                 ),
               ),
