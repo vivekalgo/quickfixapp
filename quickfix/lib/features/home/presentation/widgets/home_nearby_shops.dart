@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/core/widgets/shimmer_loading.dart';
 import 'package:quickfix/core/widgets/section_header.dart';
@@ -24,7 +24,7 @@ class HomeNearbyShops extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Nearby Service Centers',
+          title: 'Featured Services',
           isDark: isDark,
           onSeeAll: () {
             AppHaptics.lightTap();
@@ -40,7 +40,7 @@ class HomeNearbyShops extends ConsumerWidget {
               return _buildComingSoonCard(context, ref, isDark);
             }
             return SizedBox(
-              height: 270,
+              height: 286,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -54,46 +54,62 @@ class HomeNearbyShops extends ConsumerWidget {
                           context.push('/shop/${shop.id}', extra: shop);
                         },
                         child: Container(
-                          width: 260,
-                          margin: const EdgeInsets.only(right: 16, bottom: 12),
+                          width: 268,
+                          margin: const EdgeInsets.only(right: 16, bottom: 8),
                           decoration: BoxDecoration(
                             color: isDark
                                 ? AppColors.surfaceDark
                                 : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(
-                                  alpha: isDark ? 0.35 : 0.04,
+                                  alpha: isDark ? 0.35 : 0.06,
                                 ),
-                                blurRadius: 18,
+                                blurRadius: 24,
+                                spreadRadius: 0,
                                 offset: const Offset(0, 8),
                               ),
                             ],
                             border: Border.all(
                               color: isDark
                                   ? AppColors.borderDark
-                                  : const Color(0xFFF1F5F9),
+                                  : const Color(0xFFF0F4F8),
                               width: 1,
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // ── Shop Image ──────────────────────────────
                               Stack(
                                 children: [
                                   ClipRRect(
                                     borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(20),
+                                      top: Radius.circular(24),
                                     ),
                                     child: Image.network(
                                       shop.imagePath,
-                                      height: 140,
+                                      height: 148,
                                       width: double.infinity,
                                       fit: BoxFit.cover,
-                                      cacheWidth: 520,
+                                      cacheWidth: 540,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        height: 148,
+                                        color: isDark
+                                            ? AppColors.surfaceDark
+                                            : const Color(0xFFF1F5F9),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.store_outlined,
+                                            size: 40,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
+                                  // Rating badge
                                   Positioned(
                                     top: 12,
                                     right: 12,
@@ -103,31 +119,19 @@ class HomeNearbyShops extends ConsumerWidget {
                                         vertical: 5,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: isDark
-                                            ? AppColors.surfaceDark.withValues(
-                                                alpha: 0.9,
-                                              )
-                                            : Colors.white.withValues(
-                                                alpha: 0.95,
-                                              ),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.95,
+                                        ),
                                         borderRadius: BorderRadius.circular(10),
                                         boxShadow: [
                                           BoxShadow(
                                             color: Colors.black.withValues(
-                                              alpha: 0.06,
+                                              alpha: 0.08,
                                             ),
-                                            blurRadius: 4,
+                                            blurRadius: 6,
                                             offset: const Offset(0, 2),
                                           ),
                                         ],
-                                        border: Border.all(
-                                          color: isDark
-                                              ? Colors.white.withValues(
-                                                  alpha: 0.08,
-                                                )
-                                              : const Color(0xFFEFF2F5),
-                                          width: 1,
-                                        ),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -135,29 +139,25 @@ class HomeNearbyShops extends ConsumerWidget {
                                           const Icon(
                                             Icons.star_rounded,
                                             color: Color(0xFFFFB800),
-                                            size: 14,
+                                            size: 13,
                                           ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: 3),
                                           Text(
                                             shop.rating.toStringAsFixed(1),
-                                            style: TextStyle(
-                                              color: isDark
-                                                  ? Colors.white
-                                                  : AppColors.secondary,
-                                              fontSize: 11,
+                                            style: GoogleFonts.outfit(
+                                              color: AppColors.primary,
+                                              fontSize: 11.5,
                                               fontWeight: FontWeight.w800,
                                             ),
                                           ),
                                           if (shop.reviewsCount > 0) ...[
-                                            const SizedBox(width: 3),
+                                            const SizedBox(width: 2),
                                             Text(
                                               '(${shop.reviewsCount})',
-                                              style: TextStyle(
-                                                color: isDark
-                                                    ? Colors.white70
-                                                    : AppColors
-                                                          .textSecondaryLight,
-                                                fontSize: 10,
+                                              style: GoogleFonts.inter(
+                                                color: AppColors
+                                                    .textSecondaryLight,
+                                                fontSize: 9.5,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -166,6 +166,7 @@ class HomeNearbyShops extends ConsumerWidget {
                                       ),
                                     ),
                                   ),
+                                  // Favourite button
                                   Positioned(
                                     top: 12,
                                     left: 12,
@@ -195,41 +196,34 @@ class HomeNearbyShops extends ConsumerWidget {
                                         );
                                       },
                                       child: Container(
-                                        padding: const EdgeInsets.all(7),
+                                        width: 34,
+                                        height: 34,
                                         decoration: BoxDecoration(
-                                          color: isDark
-                                              ? Colors.black.withValues(
-                                                  alpha: 0.5,
-                                                )
-                                              : Colors.white.withValues(
-                                                  alpha: 0.85,
-                                                ),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: isDark
-                                                ? Colors.white.withValues(
-                                                    alpha: 0.1,
-                                                  )
-                                                : Colors.black.withValues(
-                                                    alpha: 0.05,
-                                                  ),
-                                            width: 1,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.88,
                                           ),
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.08,
+                                              ),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
                                         ),
                                         child: Icon(
                                           ref
                                                   .watch(wishlistProvider)
                                                   .contains(shop.id)
-                                              ? Icons.favorite
-                                              : Icons.favorite_border,
-                                          color:
-                                              ref
+                                              ? Icons.favorite_rounded
+                                              : Icons.favorite_border_rounded,
+                                          color: ref
                                                   .watch(wishlistProvider)
                                                   .contains(shop.id)
-                                              ? const Color(0xFFFF4E36)
-                                              : (isDark
-                                                    ? Colors.white
-                                                    : AppColors.secondary),
+                                              ? const Color(0xFFEF4444)
+                                              : const Color(0xFF94A3B8),
                                           size: 16,
                                         ),
                                       ),
@@ -237,49 +231,66 @@ class HomeNearbyShops extends ConsumerWidget {
                                   ),
                                 ],
                               ),
+
+                              // ── Info Row ────────────────────────────────
                               Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
+                                padding: const EdgeInsets.fromLTRB(
+                                  14,
+                                  12,
+                                  14,
+                                  12,
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      shop.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTextStyles.headingSmall(isDark)
-                                          .copyWith(
-                                            fontSize: 14.5,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: -0.2,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      shop.categories.join(', '),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTextStyles.bodySmall(isDark)
-                                          .copyWith(
-                                            fontSize: 11,
-                                            color: isDark
-                                                ? AppColors.textSecondaryDark
-                                                : const Color(0xFF6B7280),
-                                          ),
-                                    ),
-                                    const SizedBox(height: 12),
                                     Row(
                                       children: [
-                                        _buildInfoPill(
+                                        Expanded(
+                                          child: Text(
+                                            shop.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: -0.3,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : AppColors.textPrimaryLight,
+                                            ),
+                                          ),
+                                        ),
+                                        // Verified badge
+                                        const Icon(
+                                          Icons.verified_rounded,
+                                          size: 15,
+                                          color: Color(0xFF3B82F6),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      shop.categories.join(' • '),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? AppColors.textSecondaryDark
+                                            : const Color(0xFF6B7280),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        _InfoPill(
                                           icon:
                                               Icons.access_time_filled_rounded,
                                           label: shop.estimatedTimeDisplay,
                                           isDark: isDark,
                                         ),
-                                        const SizedBox(width: 8),
-                                        _buildInfoPill(
+                                        const SizedBox(width: 6),
+                                        _InfoPill(
                                           icon: Icons.near_me_rounded,
                                           label: '${shop.distanceKm} km',
                                           isDark: isDark,
@@ -287,10 +298,10 @@ class HomeNearbyShops extends ConsumerWidget {
                                         const Spacer(),
                                         Text(
                                           shop.priceRange,
-                                          style: const TextStyle(
-                                            color: AppColors.primary,
+                                          style: GoogleFonts.outfit(
+                                            color: AppColors.primaryAccent,
                                             fontWeight: FontWeight.w800,
-                                            fontSize: 12.5,
+                                            fontSize: 13,
                                             letterSpacing: -0.2,
                                           ),
                                         ),
@@ -306,7 +317,7 @@ class HomeNearbyShops extends ConsumerWidget {
                       .animate(delay: (index * 80).ms)
                       .fadeIn(duration: 400.ms, curve: Curves.easeOutCubic)
                       .slideY(
-                        begin: 0.15,
+                        begin: 0.12,
                         end: 0,
                         duration: 450.ms,
                         curve: Curves.easeOutCubic,
@@ -316,7 +327,7 @@ class HomeNearbyShops extends ConsumerWidget {
             );
           },
           loading: () => SizedBox(
-            height: 258,
+            height: 286,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -324,9 +335,9 @@ class HomeNearbyShops extends ConsumerWidget {
               itemBuilder: (context, index) => const Padding(
                 padding: EdgeInsets.only(right: 16),
                 child: ShimmerLoading(
-                  width: 260,
-                  height: 220,
-                  borderRadius: 16,
+                  width: 268,
+                  height: 240,
+                  borderRadius: 24,
                 ),
               ),
             ),
@@ -357,22 +368,16 @@ class HomeNearbyShops extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [const Color(0xFF1E1E2A), const Color(0xFF252535)]
-              : [const Color(0xFFF0F4FF), const Color(0xFFE8F0FE)],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isDark
               ? AppColors.borderDark
-              : AppColors.primary.withValues(alpha: 0.15),
+              : AppColors.primaryAccent.withValues(alpha: 0.15),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.08),
+            color: AppColors.primaryAccent.withValues(alpha: 0.06),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -384,24 +389,17 @@ class HomeNearbyShops extends ConsumerWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.primary, AppColors.secondary],
-              ),
+              color: AppColors.primaryAccent.withValues(alpha: 0.08),
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.35),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              border: Border.all(
+                color: AppColors.primaryAccent.withValues(alpha: 0.2),
+                width: 2,
+              ),
             ),
             child: const Icon(
               Icons.rocket_launch_outlined,
-              color: Colors.white,
-              size: 38,
+              color: AppColors.primaryAccent,
+              size: 36,
             ),
           ).animate().scale(
             delay: 100.ms,
@@ -412,12 +410,12 @@ class HomeNearbyShops extends ConsumerWidget {
           const SizedBox(height: 20),
 
           Text(
-            'We\'re Coming Soon! 🚀',
-            style: TextStyle(
+            "We're Coming Soon! 🚀",
+            style: GoogleFonts.outfit(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : AppColors.secondary,
-              letterSpacing: -0.3,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+              color: isDark ? Colors.white : AppColors.primary,
             ),
           ).animate().fadeIn(delay: 200.ms),
 
@@ -426,9 +424,13 @@ class HomeNearbyShops extends ConsumerWidget {
           Text(
             'QuickFix is expanding! We\'re onboarding trusted service partners near you. Be the first to know when we go live.',
             textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmall(
-              isDark,
-            ).copyWith(fontSize: 12.5, height: 1.55),
+            style: GoogleFonts.inter(
+              fontSize: 12.5,
+              height: 1.55,
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
           ).animate().fadeIn(delay: 300.ms),
 
           const SizedBox(height: 24),
@@ -441,11 +443,11 @@ class HomeNearbyShops extends ConsumerWidget {
               icon: const Icon(Icons.notifications_active_outlined, size: 18),
               label: const Text('Notify Me When Available'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: AppColors.primaryAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 elevation: 0,
               ),
@@ -470,7 +472,7 @@ class HomeNearbyShops extends ConsumerWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: isDark
                         ? Colors.white70
-                        : AppColors.secondary,
+                        : AppColors.textPrimaryLight,
                     side: BorderSide(
                       color: isDark
                           ? AppColors.borderDark
@@ -498,8 +500,8 @@ class HomeNearbyShops extends ConsumerWidget {
                     style: TextStyle(fontSize: 12),
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
+                    foregroundColor: AppColors.primaryAccent,
+                    side: const BorderSide(color: AppColors.primaryAccent),
                     padding: const EdgeInsets.symmetric(vertical: 11),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -525,16 +527,29 @@ class HomeNearbyShops extends ConsumerWidget {
       builder: (ctx) => NotifyMeDialog(isDark: isDark, currentLoc: currentLoc),
     );
   }
+}
 
-  Widget _buildInfoPill({
-    required IconData icon,
-    required String label,
-    required bool isDark,
-  }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// INTERNAL WIDGETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _InfoPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDark;
+
+  const _InfoPill({
+    required this.icon,
+    required this.label,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A38) : const Color(0xFFF3F4F6),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -542,14 +557,16 @@ class HomeNearbyShops extends ConsumerWidget {
         children: [
           Icon(
             icon,
-            size: 12,
-            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+            size: 11,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
           ),
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
-              color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+            style: GoogleFonts.inter(
+              color: isDark
+                  ? const Color(0xFFCBD5E1)
+                  : const Color(0xFF374151),
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),

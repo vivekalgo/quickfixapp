@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_shadows.dart';
 import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/core/widgets/shimmer_loading.dart';
 import 'package:quickfix/core/widgets/section_header.dart';
@@ -19,7 +19,6 @@ class HomeCategoriesGrid extends ConsumerStatefulWidget {
 }
 
 class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
-  // Track the tapped index for active state (resets after animation)
   int? _tappedIndex;
 
   @override
@@ -43,13 +42,13 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
           child: categoriesAsync.when(
             data: (categories) {
               final List<ServiceCategory> displayedCategories;
-              if (categories.length > 5) {
-                displayedCategories = categories.take(5).toList()
+              if (categories.length > 7) {
+                displayedCategories = categories.take(7).toList()
                   ..add(
                     const ServiceCategory(
                       id: 'more',
                       name: 'More',
-                      icon: Icons.more_horiz,
+                      icon: Icons.apps_rounded,
                       backgroundColor: Color(0xFFF1F5F9),
                       iconColor: Color(0xFF475569),
                     ),
@@ -62,10 +61,10 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 0.84,
+                  crossAxisCount: 4,
+                  childAspectRatio: 0.82,
                   crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
+                  mainAxisSpacing: 12,
                 ),
                 itemCount: displayedCategories.length,
                 itemBuilder: (context, index) {
@@ -76,7 +75,7 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                     onTap: () {
                       AppHaptics.mediumTap();
                       setState(() => _tappedIndex = index);
-                      Future.delayed(const Duration(milliseconds: 300), () {
+                      Future.delayed(const Duration(milliseconds: 280), () {
                         if (mounted) setState(() => _tappedIndex = null);
                       });
                       if (cat.id == 'more') {
@@ -85,60 +84,56 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                         context.push('/category/${cat.id}');
                       }
                     },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                    child: AnimatedScale(
+                      scale: isActive ? 0.93 : 1.0,
+                      duration: const Duration(milliseconds: 180),
                       curve: Curves.easeInOut,
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: isActive
-                            ? Border.all(color: AppColors.primary, width: 1.8)
-                            : isDark
-                            ? Border.all(color: AppColors.borderDark, width: 1)
-                            : Border.all(
-                                color: const Color(0xFFF1F4F8),
-                                width: 1,
-                              ),
-                        boxShadow: isDark ? [] : AppShadows.chip,
-                      ),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // ── Icon Container ─────────────────────────────
-                          AnimatedScale(
-                            scale: isActive ? 0.92 : 1.0,
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeInOut,
-                            child: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? cat.iconColor.withValues(alpha: 0.15)
-                                    : cat.backgroundColor,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Center(child: _buildIcon(cat, isDark)),
+                          // ── Icon Container ──────────────────────────────
+                          Container(
+                            width: double.infinity,
+                            height: 62,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? cat.iconColor.withValues(alpha: 0.12)
+                                  : cat.backgroundColor,
+                              borderRadius: BorderRadius.circular(18),
+                              border: isActive
+                                  ? Border.all(
+                                      color: AppColors.primaryAccent,
+                                      width: 1.5,
+                                    )
+                                  : isDark
+                                  ? Border.all(
+                                      color: AppColors.borderDark,
+                                      width: 1,
+                                    )
+                                  : Border.all(
+                                      color: const Color(0xFFEEF2F7),
+                                      width: 1,
+                                    ),
+                            ),
+                            child: Center(
+                              child: _buildIcon(cat, isDark),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 7),
                           // ── Label ──────────────────────────────────────
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: Text(
-                              cat.name,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                height: 1.2,
-                                letterSpacing: -0.1,
-                                color: isDark
-                                    ? Colors.white
-                                    : AppColors.textPrimaryLight,
-                              ),
+                          Text(
+                            cat.name,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              height: 1.2,
+                              letterSpacing: -0.1,
+                              color: isDark
+                                  ? Colors.white
+                                  : AppColors.textPrimaryLight,
                             ),
                           ),
                         ],
@@ -152,16 +147,16 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 0.88,
+                crossAxisCount: 4,
+                childAspectRatio: 0.85,
                 crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
+                mainAxisSpacing: 12,
               ),
-              itemCount: 6,
+              itemCount: 8,
               itemBuilder: (context, index) => const ShimmerLoading(
                 width: double.infinity,
-                height: 100,
-                borderRadius: 14,
+                height: 80,
+                borderRadius: 18,
               ),
             ),
             error: (e, s) => Padding(
@@ -183,7 +178,7 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
 
   Widget _buildIcon(ServiceCategory cat, bool isDark) {
     if (cat.iconUrl == null || cat.iconUrl!.trim().isEmpty) {
-      return Icon(cat.icon, color: cat.iconColor, size: 30);
+      return Icon(cat.icon, color: cat.iconColor, size: 26);
     }
 
     final url = cat.iconUrl!.trim().startsWith('http://')
@@ -194,7 +189,7 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
         url.toLowerCase().contains('.svg') ||
         url.toLowerCase().contains('format=svg');
 
-    const double imageSize = 46.0;
+    const double imageSize = 40.0;
 
     if (isSvg) {
       return SvgPicture.network(
@@ -203,12 +198,12 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
         height: imageSize,
         fit: BoxFit.contain,
         placeholderBuilder: (_) =>
-            Icon(cat.icon, color: cat.iconColor, size: 30),
+            Icon(cat.icon, color: cat.iconColor, size: 26),
       );
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(8),
       child: Image.network(
         url,
         width: imageSize,
@@ -216,7 +211,7 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
         fit: BoxFit.contain,
         cacheWidth: 120,
         errorBuilder: (_, __, ___) =>
-            Icon(cat.icon, color: cat.iconColor, size: 30),
+            Icon(cat.icon, color: cat.iconColor, size: 26),
       ),
     );
   }

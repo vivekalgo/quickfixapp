@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
-import 'package:quickfix/core/theme/app_shadows.dart';
 import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/core/utils/cta_handler.dart';
 import 'package:quickfix/core/widgets/section_header.dart';
@@ -25,55 +24,45 @@ class HomeSpecialForYou extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(title: 'Special For You 🔥', isDark: isDark),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: cards.length,
-              itemBuilder: (context, index) {
-                final item = cards[index];
+            SizedBox(
+              height: 128,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: cards.length,
+                itemBuilder: (context, index) {
+                  final item = cards[index];
 
-                Color bgColor = isDark ? AppColors.surfaceDark : Colors.white;
-                try {
-                  if (item.backgroundColor.isNotEmpty && !isDark) {
-                    bgColor = Color(
-                      int.parse(item.backgroundColor.replaceAll('#', '0xFF')),
-                    );
+                  Color bgColor = isDark
+                      ? AppColors.surfaceDark
+                      : Colors.white;
+                  try {
+                    if (item.backgroundColor.isNotEmpty && !isDark) {
+                      bgColor = Color(
+                        int.parse(item.backgroundColor.replaceAll('#', '0xFF')),
+                      );
+                    }
+                  } catch (e) {
+                    // Fallback
                   }
-                } catch (e) {
-                  // Fallback
-                }
 
-                IconData iconData = Icons.star_outline;
-                if (item.icon == 'water_drop_outlined') {
-                  iconData = Icons.water_drop_outlined;
-                } else if (item.icon == 'flash_on_outlined')
-                  iconData = Icons.flash_on_outlined;
-                else if (item.icon == 'discount_outlined')
-                  iconData = Icons.discount_outlined;
-                else if (item.icon == 'cleaning_services_outlined')
-                  iconData = Icons.cleaning_services_outlined;
-                else if (item.icon == 'plumbing_outlined')
-                  iconData = Icons.plumbing_outlined;
-                else if (item.icon == 'bolt_outlined')
-                  iconData = Icons.bolt_outlined;
+                  IconData iconData = Icons.star_outline_rounded;
+                  if (item.icon == 'water_drop_outlined') {
+                    iconData = Icons.water_drop_outlined;
+                  } else if (item.icon == 'flash_on_outlined') {
+                    iconData = Icons.flash_on_outlined;
+                  } else if (item.icon == 'discount_outlined') {
+                    iconData = Icons.discount_outlined;
+                  } else if (item.icon == 'cleaning_services_outlined') {
+                    iconData = Icons.cleaning_services_outlined;
+                  } else if (item.icon == 'plumbing_outlined') {
+                    iconData = Icons.plumbing_outlined;
+                  } else if (item.icon == 'bolt_outlined') {
+                    iconData = Icons.bolt_outlined;
+                  }
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: isDark ? [] : AppShadows.card,
-                    border: Border.all(
-                      color: isDark
-                          ? AppColors.borderDark
-                          : AppColors.borderLight,
-                    ),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 2,
-                    ),
+                  return GestureDetector(
                     onTap: () {
                       AppHaptics.lightTap();
                       handleCtaAction(
@@ -82,36 +71,115 @@ class HomeSpecialForYou extends ConsumerWidget {
                         item.ctaActionValue,
                       );
                     },
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
+                    child: Container(
+                      width: 210,
+                      margin: const EdgeInsets.only(right: 12, bottom: 4),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        shape: BoxShape.circle,
+                        color: bgColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border(
+                          left: const BorderSide(
+                            color: AppColors.primaryAccent,
+                            width: 3,
+                          ),
+                          top: BorderSide(
+                            color: isDark
+                                ? AppColors.borderDark
+                                : const Color(0xFFE8ECF4),
+                            width: 1,
+                          ),
+                          right: BorderSide(
+                            color: isDark
+                                ? AppColors.borderDark
+                                : const Color(0xFFE8ECF4),
+                            width: 1,
+                          ),
+                          bottom: BorderSide(
+                            color: isDark
+                                ? AppColors.borderDark
+                                : const Color(0xFFE8ECF4),
+                            width: 1,
+                          ),
+                        ),
+                        boxShadow: isDark
+                            ? []
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                       ),
-                      child: Icon(iconData, color: AppColors.primary, size: 22),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryAccent.withValues(
+                                    alpha: 0.08,
+                                  ),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Icon(
+                                  iconData,
+                                  color: AppColors.primaryAccent,
+                                  size: 18,
+                                ),
+                              ),
+                              const Spacer(),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 12,
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight,
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                  color: isDark
+                                      ? Colors.white
+                                      : AppColors.textPrimaryLight,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                item.subtitle.isNotEmpty
+                                    ? item.subtitle
+                                    : item.description,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondaryLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    title: Text(
-                      item.title,
-                      style: AppTextStyles.headingSmall(
-                        isDark,
-                      ).copyWith(fontSize: 14),
-                    ),
-                    subtitle: Text(
-                      item.subtitle.isNotEmpty
-                          ? item.subtitle
-                          : item.description,
-                      style: AppTextStyles.bodySmall(isDark),
-                    ),
-                    trailing: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 20,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondaryLight,
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ],
         );
@@ -133,27 +201,21 @@ class HomeOfferPromoSection extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
       child: Row(
         children: [
+          // Refer & Earn
           Expanded(
             child: Container(
-              height: 150,
+              height: 148,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: isDark
-                    ? const LinearGradient(
-                        colors: [Color(0xFF064E3B), Color(0xFF022C22)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : const LinearGradient(
-                        colors: [Color(0xFFECFDF5), Color(0xFFD1FAE5)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                borderRadius: BorderRadius.circular(16),
+                color: isDark
+                    ? AppColors.surfaceDark
+                    : const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isDark
-                      ? Colors.green.withValues(alpha: 0.25)
-                      : Colors.green.withValues(alpha: 0.15),
+                      ? AppColors.borderDark
+                      : const Color(0xFFBBF7D0),
+                  width: 1,
                 ),
               ),
               child: Column(
@@ -163,83 +225,92 @@ class HomeOfferPromoSection extends ConsumerWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Refer & Earn',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isDark
-                              ? Colors.green.shade300
-                              : Colors.green.shade800,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Refer & Earn',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF16A34A),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
                         'Get ₹100\nfor every friend',
-                        style: AppTextStyles.headingSmall(isDark).copyWith(
-                          color: isDark ? Colors.white : AppColors.secondary,
-                          fontWeight: FontWeight.bold,
-                          height: 1.2,
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                          letterSpacing: -0.3,
+                          color: isDark ? Colors.white : AppColors.primary,
                         ),
                       ),
                     ],
                   ),
-                  ElevatedButton(
-                    onPressed: () {
+                  GestureDetector(
+                    onTap: () {
                       AppHaptics.heavyTap();
                       context.push('/refer-earn');
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark
-                          ? Colors.green.shade500
-                          : Colors.green.shade600,
-                      foregroundColor: Colors.white,
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 14,
+                        vertical: 8,
                       ),
-                      minimumSize: const Size(80, 32),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF16A34A),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Refer Now',
-                          style: AppTextStyles.badgeText.copyWith(fontSize: 11),
-                        ),
-                        const Icon(Icons.chevron_right, size: 12),
-                      ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Refer Now',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
+          // First Booking Discount
           Expanded(
             child: Container(
-              height: 150,
+              height: 148,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: isDark
-                    ? const LinearGradient(
-                        colors: [Color(0xFF1E3A8A), Color(0xFF172554)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : const LinearGradient(
-                        colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                borderRadius: BorderRadius.circular(16),
+                color: isDark
+                    ? AppColors.surfaceDark
+                    : const Color(0xFFF0F4FF),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isDark
-                      ? Colors.blue.withValues(alpha: 0.25)
-                      : Colors.blue.withValues(alpha: 0.15),
+                      ? AppColors.borderDark
+                      : const Color(0xFFC7D2FE),
+                  width: 1,
                 ),
               ),
               child: Column(
@@ -249,55 +320,70 @@ class HomeOfferPromoSection extends ConsumerWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Flat 15% OFF',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isDark
-                              ? Colors.blue.shade300
-                              : Colors.blue.shade800,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryAccent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Flat 15% OFF',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryAccent,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
                         'On First App\nBooking',
-                        style: AppTextStyles.headingSmall(isDark).copyWith(
-                          color: isDark ? Colors.white : AppColors.secondary,
-                          fontWeight: FontWeight.bold,
-                          height: 1.2,
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                          letterSpacing: -0.3,
+                          color: isDark ? Colors.white : AppColors.primary,
                         ),
                       ),
                     ],
                   ),
-                  ElevatedButton(
-                    onPressed: () {
+                  GestureDetector(
+                    onTap: () {
                       AppHaptics.heavyTap();
                       context.push('/category/all');
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark
-                          ? Colors.blue.shade500
-                          : Colors.blue.shade600,
-                      foregroundColor: Colors.white,
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 14,
+                        vertical: 8,
                       ),
-                      minimumSize: const Size(80, 32),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryAccent,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Book Now',
-                          style: AppTextStyles.badgeText.copyWith(fontSize: 11),
-                        ),
-                        const Icon(Icons.chevron_right, size: 12),
-                      ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Book Now',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
