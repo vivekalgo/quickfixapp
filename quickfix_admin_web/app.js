@@ -1090,6 +1090,10 @@ function setupForms() {
     
     if (hasFile) {
       const file = fileInput.files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('Image file size exceeds 10MB limit. Please select a smaller file.', 'error');
+        return;
+      }
       showToast('Uploading banner image...', 'warning');
       try {
         const base64Data = await convertFileToBase64(file);
@@ -1268,6 +1272,10 @@ function setupForms() {
       // If a new file is chosen, we upload it first
       if (fileInput && fileInput.files && fileInput.files[0]) {
         const file = fileInput.files[0];
+        if (file.size > 10 * 1024 * 1024) {
+          showToast('Image file size exceeds 10MB limit. Please select a smaller file.', 'error');
+          return;
+        }
         showToast('Uploading category icon...', 'warning');
         try {
           const base64Data = await convertFileToBase64(file);

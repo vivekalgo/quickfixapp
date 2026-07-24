@@ -47,14 +47,14 @@ app.use(httpAccessLogger);
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
 
-// Request payload limits (1MB max for JSON and URL-encoded)
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ limit: '1mb', extended: true }));
+// Request payload limits (10MB max for JSON and URL-encoded for image uploads)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Express JSON payload error handler (catches 413 / bad JSON)
 app.use((err, req, res, next) => {
   if (err && (err.type === 'entity.too.large' || err.status === 413)) {
-    return res.status(413).json({ success: false, error: 'Payload too large. Maximum allowed size is 1MB.' });
+    return res.status(413).json({ success: false, error: 'Payload too large. Maximum allowed size is 10MB.' });
   }
   if (err && err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({ success: false, error: 'Invalid JSON payload structure' });
