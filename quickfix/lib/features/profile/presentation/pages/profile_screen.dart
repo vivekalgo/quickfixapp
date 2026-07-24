@@ -12,6 +12,7 @@ import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/features/home/presentation/controllers/home_providers.dart';
 import 'package:quickfix/features/auth/presentation/controllers/auth_providers.dart';
 import 'package:quickfix/features/profile/presentation/pages/order_history_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -89,11 +90,7 @@ class ProfileScreen extends ConsumerWidget {
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFFF4E36), Color(0xFFFF2D55)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: AppColors.primary,
                 ),
                 child: SafeArea(
                   child: Padding(
@@ -113,12 +110,12 @@ class ProfileScreen extends ConsumerWidget {
                                 alignment: Alignment.bottomRight,
                                 children: [
                                   Container(
-                                    width: 78,
-                                    height: 78,
+                                    width: 82,
+                                    height: 82,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: Colors.white,
+                                        color: AppColors.primaryAccent,
                                         width: 2.5,
                                       ),
                                       color: Colors.white.withValues(
@@ -163,10 +160,10 @@ class ProfileScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     name.isNotEmpty ? name : 'Set Your Name',
-                                    style: const TextStyle(
+                                    style: GoogleFonts.outfit(
                                       color: Colors.white,
                                       fontSize: 20,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -178,7 +175,7 @@ class ProfileScreen extends ConsumerWidget {
                                         phone.isNotEmpty
                                             ? (phone.startsWith('+') ? phone : '+91 ${phone.replaceFirst('+91', '').trim()}')
                                             : 'No phone',
-                                        style: const TextStyle(
+                                        style: GoogleFonts.inter(
                                           color: Colors.white70,
                                           fontSize: 13,
                                         ),
@@ -203,18 +200,18 @@ class ProfileScreen extends ConsumerWidget {
                                                   .withValues(alpha: 0.5),
                                             ),
                                           ),
-                                          child: const Row(
+                                          child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Icon(
+                                              const Icon(
                                                 Icons.verified,
                                                 size: 10,
                                                 color: AppColors.success,
                                               ),
-                                              SizedBox(width: 3),
+                                              const SizedBox(width: 3),
                                               Text(
                                                 'Verified',
-                                                style: TextStyle(
+                                                style: GoogleFonts.outfit(
                                                   color: AppColors.success,
                                                   fontSize: 9,
                                                   fontWeight: FontWeight.bold,
@@ -244,9 +241,9 @@ class ProfileScreen extends ConsumerWidget {
                                           email.isNotEmpty
                                               ? email
                                               : 'Add Email Address',
-                                          style: TextStyle(
+                                          style: GoogleFonts.inter(
                                             color: email.isNotEmpty
-                                                ? Colors.white70
+                                                ? Colors.white60
                                                 : Colors.white.withValues(
                                                     alpha: 0.5,
                                                   ),
@@ -294,14 +291,14 @@ class ProfileScreen extends ConsumerWidget {
                                 size: 14,
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                'QuickFix ${membership.toUpperCase()} Member${memberSince.isNotEmpty ? " • Since $memberSince" : ""}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                                Text(
+                                  'QuickFix ${membership.toUpperCase()} Member${memberSince.isNotEmpty ? " • Since $memberSince" : ""}',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -549,16 +546,16 @@ class ProfileScreen extends ConsumerWidget {
                       color: Colors.white,
                       size: 18,
                     ),
-                    label: const Text(
+                    label: Text(
                       'Logout',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w700,
                         color: Colors.white,
                         fontSize: 15,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade600,
+                      backgroundColor: AppColors.primary,
                       minimumSize: const Size(double.infinity, 52),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -600,7 +597,7 @@ class ProfileScreen extends ConsumerWidget {
       child: Center(
         child: Text(
           initials,
-          style: const TextStyle(
+          style: GoogleFonts.outfit(
             color: AppColors.primary,
             fontSize: 26,
             fontWeight: FontWeight.bold,
@@ -636,7 +633,7 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 6),
             Text(
               value,
-              style: TextStyle(
+              style: GoogleFonts.outfit(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
                 color: isDark ? Colors.white : AppColors.secondary,
@@ -644,7 +641,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
             Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 11,
                 color: isDark
                     ? AppColors.textSecondaryDark
@@ -670,7 +667,7 @@ class ProfileScreen extends ConsumerWidget {
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         label.toUpperCase(),
-        style: TextStyle(
+        style: GoogleFonts.outfit(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: isDark
@@ -780,7 +777,7 @@ class ProfileScreen extends ConsumerWidget {
                           children: [
                             Text(
                               tile.label,
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14.5,
                                 color: isDark
@@ -790,7 +787,7 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                             Text(
                               tile.subtitle,
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 12,
                                 color: isDark
                                     ? AppColors.textSecondaryDark
@@ -834,9 +831,9 @@ class ProfileScreen extends ConsumerWidget {
       builder: (context) => AlertDialog(
         backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
+        title: Text(
           'Logout?',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
         ),
         content: const Text(
           'Are you sure you want to logout from your account?',
@@ -851,7 +848,7 @@ class ProfileScreen extends ConsumerWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
             ),
-            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+            child: Text('Logout', style: GoogleFonts.inter(color: Colors.white)),
           ),
         ],
       ),
@@ -868,13 +865,13 @@ class ProfileScreen extends ConsumerWidget {
       builder: (context) => AlertDialog(
         backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 8),
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 8),
             Text(
               'Delete Account?',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              style: GoogleFonts.outfit(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -906,7 +903,7 @@ class ProfileScreen extends ConsumerWidget {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: Text('Delete', style: GoogleFonts.inter(color: Colors.white)),
           ),
         ],
       ),

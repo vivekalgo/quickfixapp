@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/widgets/custom_button.dart';
-import 'package:quickfix/core/widgets/spacing.dart';
 
 class CommonErrorWidget extends StatelessWidget {
   final String title;
@@ -13,10 +12,10 @@ class CommonErrorWidget extends StatelessWidget {
 
   const CommonErrorWidget({
     super.key,
-    this.title = 'Connection Issue',
+    this.title = 'No Connection',
     this.message = 'We couldn\'t load the details. Please check your internet connection and try again.',
     this.onRetry,
-    this.buttonText = 'Try Again',
+    this.buttonText = 'Retry',
     this.icon = Icons.wifi_off_rounded,
   });
 
@@ -25,52 +24,74 @@ class CommonErrorWidget extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
-      padding: AppSpacing.all24,
+      padding: const EdgeInsets.all(24.0),
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: AppColors.error,
-                size: 40,
-              ),
-            ),
-            AppSpacing.height20,
-            Text(
-              title,
-              style: AppTextStyles.headingMedium(isDark),
-              textAlign: TextAlign.center,
-            ),
-            AppSpacing.height8,
-            Text(
-              message,
-              style: AppTextStyles.bodyMedium(isDark).copyWith(
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (onRetry != null) ...[
-              AppSpacing.height24,
-              CustomButton(
-                text: buttonText,
-                onPressed: onRetry,
-                isFullWidth: false,
-                width: 160,
-                height: 44,
-                icon: Icons.refresh_rounded,
-              ),
+        child: Container(
+          padding: const EdgeInsets.all(24.0),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.surfaceDark : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              if (!isDark)
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
             ],
-          ],
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: Colors.red,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                title,
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : AppColors.primary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 24),
+                CustomButton(
+                  text: buttonText,
+                  onPressed: onRetry,
+                  isFullWidth: true,
+                  type: CustomButtonType.accent,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -88,7 +109,7 @@ class EmptyStateWidget extends StatelessWidget {
     super.key,
     required this.title,
     required this.message,
-    this.icon = Icons.inbox_outlined,
+    this.icon = Icons.notifications_none_outlined,
     this.onAction,
     this.actionText,
   });
@@ -98,7 +119,7 @@ class EmptyStateWidget extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
-      padding: AppSpacing.all24,
+      padding: const EdgeInsets.all(24.0),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -107,9 +128,7 @@ class EmptyStateWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: isDark
-                    ? AppColors.surfaceDark
-                    : AppColors.backgroundLight,
+                color: isDark ? AppColors.surfaceDark : AppColors.backgroundLight,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isDark ? AppColors.borderDark : AppColors.borderLight,
@@ -123,16 +142,21 @@ class EmptyStateWidget extends StatelessWidget {
                 size: 48,
               ),
             ),
-            AppSpacing.height20,
+            const SizedBox(height: 20),
             Text(
               title,
-              style: AppTextStyles.headingMedium(isDark),
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : AppColors.primary,
+              ),
               textAlign: TextAlign.center,
             ),
-            AppSpacing.height8,
+            const SizedBox(height: 8),
             Text(
               message,
-              style: AppTextStyles.bodyMedium(isDark).copyWith(
+              style: GoogleFonts.inter(
+                fontSize: 14,
                 color: isDark
                     ? AppColors.textSecondaryDark
                     : AppColors.textSecondaryLight,
@@ -140,7 +164,7 @@ class EmptyStateWidget extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             if (onAction != null && actionText != null) ...[
-              AppSpacing.height24,
+              const SizedBox(height: 24),
               CustomButton(
                 text: actionText!,
                 onPressed: onAction,

@@ -1,6 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
 import 'package:quickfix/features/home/presentation/controllers/home_providers.dart';
 import 'package:quickfix/core/utils/haptics.dart';
@@ -10,129 +12,108 @@ class CustomBottomNavBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentIndex = ref.watch(currentNavIndexProvider);
+    
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Stack(
-      alignment: Alignment.bottomCenter,
-      clipBehavior: Clip.none,
-      children: [
-        // The bottom navigation bar background & tabs
-        Container(
-          height: 72,
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            border: Border(
-              top: BorderSide(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            height: 72,
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark.withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
                 color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                width: 0.8,
+                width: 1,
               ),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, -3),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                context: context,
-                ref: ref,
-                index: 0,
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home,
-                label: 'Home',
-                route: '/home',
-              ),
-              _buildNavItem(
-                context: context,
-                ref: ref,
-                index: 1,
-                icon: Icons.assignment_outlined,
-                activeIcon: Icons.assignment,
-                label: 'Orders',
-                route: '/orders',
-              ),
-              // Empty space for the floating action button
-              const SizedBox(width: 60),
-              _buildNavItem(
-                context: context,
-                ref: ref,
-                index: 3,
-                icon: Icons.favorite_border_outlined,
-                activeIcon: Icons.favorite,
-                label: 'Wishlist',
-                route: '/wishlist',
-              ),
-              _buildNavItem(
-                context: context,
-                ref: ref,
-                index: 4,
-                icon: Icons.local_offer_outlined,
-                activeIcon: Icons.local_offer,
-                label: 'Offers',
-                route: '/offers',
-              ),
-            ],
-          ),
-        ),
-
-        // Floating "Book Now" Circle Button
-        Positioned(
-          top: -24,
-          child: GestureDetector(
-            onTap: () {
-              AppHaptics.heavyTap();
-              context.push('/booking-quick');
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.35),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6),
-                        spreadRadius: 1,
-                      ),
-                    ],
-                    border: Border.all(
-                      color: isDark
-                          ? AppColors.surfaceDark
-                          : AppColors.surfaceLight,
-                      width: 4,
-                    ),
-                  ),
-                  child: const Icon(Icons.build, color: Colors.white, size: 24),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Book Now',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: currentIndex == 2
-                        ? AppColors.primary
-                        : (isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight),
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildNavItem(
+                      context: context,
+                      ref: ref,
+                      index: 0,
+                      icon: Icons.home_outlined,
+                      activeIcon: Icons.home,
+                      label: 'Home',
+                      route: '/home',
+                    ),
+                    _buildNavItem(
+                      context: context,
+                      ref: ref,
+                      index: 1,
+                      icon: Icons.assignment_outlined,
+                      activeIcon: Icons.assignment,
+                      label: 'Orders',
+                      route: '/orders',
+                    ),
+                    const SizedBox(width: 58), // Spacer for FAB
+                    _buildNavItem(
+                      context: context,
+                      ref: ref,
+                      index: 3,
+                      icon: Icons.favorite_border_outlined,
+                      activeIcon: Icons.favorite,
+                      label: 'Wishlist',
+                      route: '/wishlist',
+                    ),
+                    _buildNavItem(
+                      context: context,
+                      ref: ref,
+                      index: 4,
+                      icon: Icons.local_offer_outlined,
+                      activeIcon: Icons.local_offer,
+                      label: 'Offers',
+                      route: '/offers',
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-      ],
+          Positioned(
+            top: -24,
+            child: GestureDetector(
+              onTap: () {
+                AppHaptics.heavyTap();
+                context.push('/booking-quick');
+              },
+              child: Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryAccent,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryAccent.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 28),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -148,53 +129,40 @@ class CustomBottomNavBar extends ConsumerWidget {
     final currentIndex = ref.watch(currentNavIndexProvider);
     final isSelected = currentIndex == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final activeColor = isDark ? Colors.white : AppColors.primary;
-    final inactiveColor = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+    const activeColor = AppColors.primaryAccent;
+    final inactiveColor = isDark ? Colors.white54 : AppColors.textSecondaryLight;
 
-    return InkWell(
+    return GestureDetector(
       onTap: () {
         AppHaptics.lightTap();
         ref.read(currentNavIndexProvider.notifier).state = index;
         context.go(route);
       },
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
+      behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 62,
-        height: 62,
+        width: 60,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedScale(
-              scale: isSelected ? 1.10 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: Icon(
-                isSelected ? activeIcon : icon,
-                color: isSelected ? activeColor : inactiveColor,
-                size: 23,
-              ),
+            Icon(
+              isSelected ? activeIcon : icon,
+              color: isSelected ? activeColor : inactiveColor,
+              size: 24,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                letterSpacing: -0.1,
-                color: isSelected ? activeColor : inactiveColor,
-              ),
-            ),
-            const SizedBox(height: 3),
-            // Active indicator pill
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: isSelected ? 16 : 0,
-              height: isSelected ? 3 : 0,
-              decoration: BoxDecoration(
-                color: activeColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
+              style: isSelected
+                  ? GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: activeColor,
+                    )
+                  : GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                      color: inactiveColor,
+                    ),
             ),
           ],
         ),

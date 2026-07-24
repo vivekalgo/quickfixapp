@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -213,7 +214,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         label.toUpperCase(),
-        style: TextStyle(
+        style: GoogleFonts.outfit(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: isDark
@@ -286,7 +287,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     fontSize: 14.5,
                     color: isDark ? Colors.white : AppColors.secondary,
@@ -294,7 +295,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 Text(
                   subtitle,
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 12,
                     color: isDark
                         ? AppColors.textSecondaryDark
@@ -307,7 +308,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.primary,
+            activeTrackColor: AppColors.primary,
           ),
         ],
       ),
@@ -378,7 +379,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           children: [
                             Text(
                               tile.label,
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14.5,
                                 color: tile.isDestructive
@@ -390,7 +391,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                             Text(
                               tile.subtitle,
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 12,
                                 color: isDark
                                     ? AppColors.textSecondaryDark
@@ -445,25 +446,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: const Icon(Icons.flash_on, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
-            const Text(
+            Text(
               'QuickFix',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
             ),
           ],
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Hyperlocal home services, delivered fast.'),
-            SizedBox(height: 12),
+            const Text('Hyperlocal home services, delivered fast.'),
+            const SizedBox(height: 12),
             Text(
               'Version: 1.0.0',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
             ),
-            Text('Build: 2026.07'),
-            SizedBox(height: 8),
-            Text(
+            const Text('Build: 2026.07'),
+            const SizedBox(height: 8),
+            const Text(
               '© 2026 QuickFix Technologies Pvt. Ltd.\nAll rights reserved.',
             ),
           ],
@@ -472,7 +473,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Close', style: TextStyle(color: Colors.white)),
+            child: Text('Close', style: GoogleFonts.inter(color: Colors.white)),
           ),
         ],
       ),
@@ -485,13 +486,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (_) => AlertDialog(
         backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 8),
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 8),
             Text(
               'Delete Account?',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              style: GoogleFonts.outfit(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -521,7 +522,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: Text('Delete', style: GoogleFonts.inter(color: Colors.white)),
           ),
         ],
       ),

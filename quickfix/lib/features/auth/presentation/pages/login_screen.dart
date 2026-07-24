@@ -3,15 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/storage/hive_service.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/features/home/presentation/controllers/home_providers.dart';
 import 'package:quickfix/features/auth/presentation/controllers/auth_providers.dart';
 import 'package:quickfix/core/utils/input_sanitizer.dart';
 import 'package:quickfix/core/network/error_handler.dart';
-import 'package:quickfix/core/config/app_config.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -159,9 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      if (_verificationId == null) {
-        _verificationId = 'mock-verification-id-${_phoneController.text.trim()}';
-      }
+      _verificationId ??= 'mock-verification-id-${_phoneController.text.trim()}';
 
       // Check if demo OTP '123456' OR mock verification session is used
       if (otp == '123456' || _verificationId!.startsWith('mock-verification-id-')) {
@@ -246,243 +243,374 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isDark = ref.watch(isDarkModeProvider);
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(28.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-
-              // App logo
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(10),
+      backgroundColor: AppColors.primary,
+      body: Column(
+        children: [
+          // Top 40% Hero
+          Expanded(
+            flex: 4,
+            child: SafeArea(
+              bottom: false,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryAccent.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.build,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.build,
-                      color: Colors.white,
-                      size: 20,
+                    const SizedBox(height: 16),
+                    Text(
+                      'QuickFix',
+                      style: GoogleFonts.outfit(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'QuickFix',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.secondary,
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your trusted home service partner',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Colors.white60,
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // Bottom 60% Form
+          Expanded(
+            flex: 6,
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
+                ),
+                boxShadow: isDark ? null : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  )
                 ],
               ),
-
-              const SizedBox(height: 28),
-
-              if (!_isOtpSent) ...[
-                // PHONE NUMBER ENTRY STATE
-                Text(
-                  'Verify Your Phone',
-                  style: AppTextStyles.headingLarge(isDark),
-                ).animate().fadeIn().slideY(begin: 0.1, end: 0),
-                const SizedBox(height: 6),
-                Text(
-                  'We will send a 6-digit verification code.',
-                  style: AppTextStyles.bodyMedium(isDark),
-                ).animate().fadeIn(delay: 100.ms),
-
-                const SizedBox(height: 36),
-
-                // Phone Input field
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark
-                          ? AppColors.borderDark
-                          : AppColors.borderLight,
-                    ),
-                  ),
-                  child: Row(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        '+91 ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          maxLength: 10,
-                          decoration: const InputDecoration(
-                            hintText: 'Enter phone number',
-                            border: InputBorder.none,
-                            counterText: '',
+                      if (!_isOtpSent) ...[
+                        Text(
+                          'Welcome Back',
+                          style: GoogleFonts.outfit(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : AppColors.primary,
                           ),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                        ).animate().fadeIn().slideY(begin: 0.1, end: 0),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Enter your phone number to continue',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
-                        ),
-                      ),
+                        ).animate().fadeIn(delay: 100.ms),
+
+                        const SizedBox(height: 32),
+
+                        // Phone Input Field
+                        Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    right: BorderSide(
+                                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                    ),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '+91',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      color: isDark ? Colors.white : AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: TextField(
+                                  controller: _phoneController,
+                                  keyboardType: TextInputType.phone,
+                                  maxLength: 10,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white : AppColors.primary,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter phone number',
+                                    hintStyle: GoogleFonts.inter(
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    border: InputBorder.none,
+                                    counterText: '',
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ).animate().fadeIn(delay: 200.ms),
+
+                        const SizedBox(height: 32),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _sendOtp,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryAccent,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                                    ),
+                                  )
+                                : Text(
+                                    'Continue',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 17,
+                                    ),
+                                  ),
+                          ),
+                        ).animate().fadeIn(delay: 250.ms),
+
+                      ] else ...[
+                        Text(
+                          'Verify OTP',
+                          style: GoogleFonts.outfit(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : AppColors.primary,
+                          ),
+                        ).animate().fadeIn().slideY(begin: 0.1, end: 0),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Code sent to +91 ${_phoneController.text}',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
+                        ).animate().fadeIn(delay: 100.ms),
+
+                        const SizedBox(height: 32),
+
+                        Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _otpController,
+                            keyboardType: TextInputType.number,
+                            maxLength: 6,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 12.0,
+                              color: isDark ? Colors.white : AppColors.primary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: '000000',
+                              hintStyle: GoogleFonts.inter(
+                                color: (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight).withValues(alpha: 0.5),
+                                letterSpacing: 12.0,
+                              ),
+                              border: InputBorder.none,
+                              counterText: '',
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ).animate().fadeIn(delay: 200.ms),
+
+                        const SizedBox(height: 16),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _timerCount > 0
+                                  ? 'Resend code in ${_timerCount}s'
+                                  : 'Didn\'t receive code?',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                            if (_timerCount == 0)
+                              TextButton(
+                                onPressed: () {
+                                  AppHaptics.lightTap();
+                                  setState(() {
+                                    _timerCount = 30;
+                                    _otpController.clear();
+                                  });
+                                  _startTimer();
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  'Resend',
+                                  style: GoogleFonts.inter(
+                                    color: AppColors.primaryAccent,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ).animate().fadeIn(delay: 250.ms),
+
+                        const SizedBox(height: 32),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _verifyOtp,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryAccent,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                                    ),
+                                  )
+                                : Text(
+                                    'Verify & Proceed',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 17,
+                                    ),
+                                  ),
+                          ),
+                        ).animate().fadeIn(delay: 300.ms),
+                      ],
+                      
+                      const SizedBox(height: 48),
+
+                      // Trust Badges
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildTrustBadge(Icons.lock_outline, 'Secure', isDark),
+                          _buildTrustBadge(Icons.shield_outlined, 'Verified', isDark),
+                          _buildTrustBadge(Icons.flash_on, 'Instant', isDark),
+                        ],
+                      ).animate().fadeIn(delay: 400.ms),
                     ],
                   ),
-                ).animate().fadeIn(delay: 200.ms),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                const SizedBox(height: 24),
-
-                // Action button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _sendOtp,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          )
-                        : const Text(
-                            'Send Verification OTP',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                  ),
-                ).animate().fadeIn(delay: 250.ms),
-              ] else ...[
-                // OTP CODE VERIFICATION STATE
-                Text(
-                  'Enter Code',
-                  style: AppTextStyles.headingLarge(isDark),
-                ).animate().fadeIn().slideY(begin: 0.1, end: 0),
-                const SizedBox(height: 6),
-                Text(
-                  'Enter the 6-digit code sent to +91 ${_phoneController.text}',
-                  style: AppTextStyles.bodyMedium(isDark),
-                ).animate().fadeIn(delay: 100.ms),
-
-                const SizedBox(height: 36),
-
-                // OTP pin Input field
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark
-                          ? AppColors.borderDark
-                          : AppColors.borderLight,
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _otpController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter 6-digit OTP code',
-                      border: InputBorder.none,
-                      counterText: '',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 8.0,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ).animate().fadeIn(delay: 200.ms),
-
-                const SizedBox(height: 16),
-
-                // Timer & Resend
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _timerCount > 0
-                          ? 'Resend code in ${_timerCount}s'
-                          : 'Didn\'t receive code?',
-                      style: AppTextStyles.bodySmall(isDark),
-                    ),
-                    if (_timerCount == 0)
-                      TextButton(
-                        onPressed: () {
-                          AppHaptics.lightTap();
-                          setState(() {
-                            _timerCount = 30;
-                            _otpController.clear();
-                          });
-                          _startTimer();
-                        },
-                        child: const Text(
-                          'Resend OTP',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ).animate().fadeIn(delay: 250.ms),
-
-                const SizedBox(height: 24),
-
-                // Verify Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _verifyOtp,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          )
-                        : const Text(
-                            'Verify & Proceed',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                  ),
-                ).animate().fadeIn(delay: 300.ms),
-              ],
-            ],
+  Widget _buildTrustBadge(IconData icon, String text, bool isDark) {
+    return Column(
+      children: [
+        Icon(
+          icon,
+          color: AppColors.success,
+          size: 24,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          text,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
           ),
         ),
-      ),
+      ],
     );
   }
 }

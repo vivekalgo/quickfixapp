@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
@@ -45,7 +46,7 @@ class TermsConditionsScreen extends ConsumerWidget {
           children: [
             Text(
               'Last Updated: July 2026',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 12,
                 color: isDark
                     ? AppColors.textSecondaryDark
@@ -133,7 +134,7 @@ class TermsConditionsScreen extends ConsumerWidget {
         children: [
           Text(
             title,
-            style: TextStyle(
+            style: GoogleFonts.outfit(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : AppColors.secondary,
@@ -145,7 +146,7 @@ class TermsConditionsScreen extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 6.0),
               child: Text(
                 p,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 13.5,
                   height: 1.5,
                   color: isDark

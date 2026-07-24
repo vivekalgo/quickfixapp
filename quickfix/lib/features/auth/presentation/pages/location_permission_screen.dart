@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/core/storage/hive_service.dart';
 import 'package:quickfix/features/home/presentation/controllers/home_providers.dart';
@@ -78,47 +78,52 @@ class _LocationPermissionScreenState
     final isDark = ref.watch(isDarkModeProvider);
 
     return Scaffold(
+      backgroundColor: isDark ? AppColors.backgroundDark : Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(32.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
 
-              // Animated location pin map illustration
+              // Animated location pin
               Container(
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.share_location,
-                      color: AppColors.primary,
-                      size: 80,
-                    ),
-                  )
-                  .animate()
-                  .scale(duration: 500.ms, curve: Curves.easeOutBack)
-                  .shake(delay: 600.ms, duration: 400.ms),
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryAccent.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.share_location,
+                  color: AppColors.primaryAccent,
+                  size: 40,
+                ),
+              ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
 
               Text(
-                'Enable Location and Notifications',
+                'Enable Location',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.headingLarge(
-                  isDark,
-                ).copyWith(fontSize: 24),
+                style: GoogleFonts.outfit(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : AppColors.primary,
+                ),
               ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1, end: 0),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               Text(
-                'QuickFix uses your location to find nearby experts and notifications to keep booking updates, arrival alerts, and offers in sync.',
+                'We need your location to show available experts near you and ensure accurate service delivery.',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMedium(isDark),
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  height: 1.5,
+                ),
               ).animate().fadeIn(delay: 350.ms),
 
               const Spacer(),
@@ -126,62 +131,74 @@ class _LocationPermissionScreenState
               // Action buttons
               Column(
                 children: [
-                  ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () => _finishFlow(requestLocation: true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 52),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : () => _finishFlow(requestLocation: true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
                       ),
-                      elevation: 4,
-                      shadowColor: AppColors.primary.withValues(alpha: 0.25),
-                    ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          )
-                        : const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.gps_fixed, size: 18),
-                              SizedBox(width: 8),
-                              Text(
-                                'Continue',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                valueColor: AlwaysStoppedAnimation(Colors.white),
                               ),
-                            ],
-                          ),
+                            )
+                          : Text(
+                              'Allow Location Access',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 17,
+                              ),
+                            ),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () async {
-                            AppHaptics.lightTap();
-                            await HiveService.setInitialPermissionFlowComplete();
-                            final isAuthenticated = ref
-                                .read(authProvider)
-                                .isAuthenticated;
-                            if (mounted) {
-                              context.go(isAuthenticated ? '/home' : '/login');
-                            }
-                          },
-                    child: Text(
-                      'Enter Address Manually',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.secondary,
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: _isLoading ? null : () async {
+                        AppHaptics.lightTap();
+                        await HiveService.setInitialPermissionFlowComplete();
+                        final isAuthenticated = ref.read(authProvider).isAuthenticated;
+                        if (!context.mounted) return;
+                        context.go(isAuthenticated ? '/home' : '/login');
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isDark ? Colors.white : AppColors.primary,
+                        side: BorderSide(
+                          color: isDark ? AppColors.borderDark : AppColors.primary,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
+                      child: Text(
+                        'Skip for Now',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 17,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Your data is encrypted and secure.',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: const Color(0xFF64748B), // slate
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],

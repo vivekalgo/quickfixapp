@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -130,13 +131,17 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.primary,
+          labelColor: Colors.white,
           unselectedLabelColor: isDark
               ? AppColors.textSecondaryDark
               : AppColors.textSecondaryLight,
-          indicatorColor: AppColors.primary,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(
+          indicator: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: AppColors.primaryAccent,
+          ),
+          indicatorPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: -4),
+          dividerColor: Colors.transparent,
+          labelStyle: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             fontSize: 13,
           ),
@@ -259,9 +264,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                           context.go('/home');
                         },
                         icon: const Icon(Icons.add, color: Colors.white),
-                        label: const Text(
+                        label: Text(
                           'Book a Service',
-                          style: TextStyle(
+                          style: GoogleFonts.outfit(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
@@ -368,7 +373,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                   if (order.pricingType == 'inspection' && order.amount == 0)
                     Text(
                       'Awaiting Quote',
-                      style: TextStyle(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic,
@@ -378,7 +383,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                   else
                     Text(
                       '₹${order.amount.toStringAsFixed(0)}',
-                      style: TextStyle(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: isDark ? Colors.white : AppColors.secondary,
@@ -405,7 +410,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                             : order.pricingType == 'starting'
                             ? 'Starts From'
                             : 'Price Range',
-                        style: TextStyle(
+                        style: GoogleFonts.outfit(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                           color: order.pricingType == 'inspection'
@@ -434,9 +439,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Cancel',
-                          style: TextStyle(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -453,9 +458,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                         size: 14,
                         color: Colors.white,
                       ),
-                      label: const Text(
+                      label: Text(
                         'Track',
-                        style: TextStyle(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -475,9 +480,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                       onPressed: () =>
                           _triggerInvoiceDownload(context, order.id),
                       icon: const Icon(Icons.download_outlined, size: 14),
-                      label: const Text(
+                      label: Text(
                         'Invoice',
-                        style: TextStyle(fontSize: 12),
+                        style: GoogleFonts.inter(fontSize: 12),
                       ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -495,9 +500,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                         size: 14,
                         color: Colors.white,
                       ),
-                      label: const Text(
+                      label: Text(
                         'Rate',
-                        style: TextStyle(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -609,7 +614,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
       ),
       child: Text(
         label,
-        style: TextStyle(
+        style: GoogleFonts.outfit(
           fontSize: 9,
           fontWeight: FontWeight.w900,
           color: textColor,
@@ -630,9 +635,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Text(
+          title: Text(
             'Cancel Booking?',
-            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            style: GoogleFonts.outfit(color: Colors.red, fontWeight: FontWeight.bold),
           ),
           content: const Text(
             'Cancellations within 2 hours of scheduled service may incur a ₹99 convenience fee.',
@@ -696,9 +701,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text(
+                  : Text(
                       'Yes, Cancel',
-                      style: TextStyle(color: Colors.white),
+                      style: GoogleFonts.inter(color: Colors.white),
                     ),
             ),
           ],
@@ -788,7 +793,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                   'Very Good',
                   'Excellent!',
                 ][currentRating],
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: Colors.amber.shade700,
@@ -808,7 +813,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                       : Colors.grey.shade50,
                 ),
                 maxLines: 3,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   color: isDark ? Colors.white : AppColors.secondary,
                 ),
               ),
@@ -880,9 +885,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
+                    : Text(
                         'Submit Review',
-                        style: TextStyle(
+                        style: GoogleFonts.outfit(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,

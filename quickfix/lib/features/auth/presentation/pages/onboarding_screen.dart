@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/core/storage/hive_service.dart';
 import 'package:quickfix/features/home/presentation/controllers/home_providers.dart';
@@ -72,9 +72,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
     } else {
       await HiveService.setOnboardingComplete();
-      if (mounted) {
-        context.go('/location');
-      }
+      if (!mounted) return;
+      context.go('/location');
     }
   }
 
@@ -83,35 +82,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final isDark = ref.watch(isDarkModeProvider);
 
     return Scaffold(
+      backgroundColor: isDark ? AppColors.backgroundDark : Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
           child: Column(
             children: [
-              // Top Skip Row
               Align(
                 alignment: Alignment.topRight,
                 child: TextButton(
                   onPressed: () async {
                     AppHaptics.lightTap();
                     await HiveService.setOnboardingComplete();
-                    if (mounted) {
-                      context.go('/location');
-                    }
+                    if (!context.mounted) return;
+                    context.go('/location');
                   },
                   child: Text(
                     'Skip',
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondaryLight,
-                      fontWeight: FontWeight.bold,
+                    style: GoogleFonts.inter(
+                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
                     ),
                   ),
                 ),
               ),
 
-              // Page View carousel
               Expanded(
                 child: PageView.builder(
                   controller: _pageController,
@@ -127,32 +123,39 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                              padding: const EdgeInsets.all(28),
-                              decoration: BoxDecoration(
-                                color: p.color.withValues(alpha: 0.08),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(p.icon, color: p.color, size: 72),
-                            )
-                            .animate(key: ValueKey(index))
-                            .scale(duration: 400.ms, curve: Curves.easeOutBack),
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: p.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          child: Icon(p.icon, color: p.color, size: 56),
+                        )
+                        .animate(key: ValueKey(index))
+                        .scale(duration: 400.ms, curve: Curves.easeOutBack),
 
-                        const SizedBox(height: 36),
+                        const SizedBox(height: 32),
 
                         Text(
                           p.title,
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.headingLarge(
-                            isDark,
-                          ).copyWith(fontSize: 24),
+                          style: GoogleFonts.outfit(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : AppColors.primary,
+                          ),
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
 
                         Text(
                           p.description,
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.bodyMedium(isDark),
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            height: 1.5,
+                          ),
                         ),
                       ],
                     );
@@ -160,58 +163,47 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
               ),
 
-              // Bottom indicators & Navigation Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Bottom Area
+              Column(
                 children: [
-                  // Indicators
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(_pages.length, (index) {
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
                         margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentIndex == index ? 24 : 8,
-                        height: 8,
+                        width: _currentIndex == index ? 20 : 6,
+                        height: 6,
                         decoration: BoxDecoration(
                           color: _currentIndex == index
-                              ? AppColors.primary
-                              : (isDark
-                                    ? AppColors.borderDark
-                                    : AppColors.borderLight),
+                              ? AppColors.primaryAccent
+                              : (isDark ? AppColors.borderDark : AppColors.borderLight),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       );
                     }),
                   ),
-
-                  // Action primary button
-                  ElevatedButton(
-                    onPressed: _onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          _currentIndex == _pages.length - 1
-                              ? 'Get Started'
-                              : 'Next',
-                          style: AppTextStyles.badgeText.copyWith(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _onNext,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        const SizedBox(width: 6),
-                        const Icon(Icons.arrow_forward, size: 14),
-                      ],
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        _currentIndex == _pages.length - 1 ? 'Get Started' : 'Next',
+                        style: GoogleFonts.outfit(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                 ],

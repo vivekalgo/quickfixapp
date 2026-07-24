@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 
-enum CustomButtonType { primary, secondary, actionRed, outlined, text }
+enum CustomButtonType { primary, secondary, actionRed, outlined, text, accent }
 
 class CustomButton extends StatelessWidget {
   final String text;
@@ -23,7 +23,7 @@ class CustomButton extends StatelessWidget {
     this.type = CustomButtonType.primary,
     this.isLoading = false,
     this.isFullWidth = true,
-    this.height = 50,
+    this.height = 52,
     this.width,
     this.icon,
     this.backgroundColor,
@@ -44,24 +44,22 @@ class CustomButton extends StatelessWidget {
         buttonColor = backgroundColor ?? AppColors.primary;
         contentColor = textColor ?? Colors.white;
         break;
-      case CustomButtonType.actionRed:
-        buttonColor = backgroundColor ?? AppColors.actionRed;
-        contentColor = textColor ?? Colors.white;
-        break;
       case CustomButtonType.secondary:
-        buttonColor =
-            backgroundColor ??
-            (isDark ? AppColors.surfaceDark : AppColors.primaryAccent);
-        contentColor = textColor ?? Colors.white;
-        break;
       case CustomButtonType.outlined:
         buttonColor = Colors.transparent;
-        contentColor =
-            textColor ?? (isDark ? Colors.white : AppColors.textPrimaryLight);
+        contentColor = textColor ?? AppColors.primary;
         borderSide = BorderSide(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          color: isDark ? AppColors.borderDark : AppColors.primary,
           width: 1.5,
         );
+        break;
+      case CustomButtonType.accent:
+        buttonColor = backgroundColor ?? AppColors.primaryAccent;
+        contentColor = textColor ?? Colors.white;
+        break;
+      case CustomButtonType.actionRed:
+        buttonColor = backgroundColor ?? Colors.red;
+        contentColor = textColor ?? Colors.white;
         break;
       case CustomButtonType.text:
         buttonColor = Colors.transparent;
@@ -72,10 +70,10 @@ class CustomButton extends StatelessWidget {
     final buttonStyle = ElevatedButton.styleFrom(
       backgroundColor: buttonColor,
       foregroundColor: contentColor,
-      elevation: type == CustomButtonType.primary || type == CustomButtonType.actionRed ? 0 : 0,
-      shadowColor: Colors.black12,
+      elevation: 0,
+      shadowColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         side: borderSide,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -85,9 +83,9 @@ class CustomButton extends StatelessWidget {
         ? SizedBox(
             height: 20,
             width: 20,
-            child: CircularProgressIndicator(
+            child: const CircularProgressIndicator(
               strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(contentColor),
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           )
         : Row(
@@ -100,7 +98,11 @@ class CustomButton extends StatelessWidget {
               ],
               Text(
                 text,
-                style: AppTextStyles.buttonText.copyWith(color: contentColor),
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: contentColor,
+                ),
               ),
             ],
           );
@@ -108,7 +110,7 @@ class CustomButton extends StatelessWidget {
     return SizedBox(
       height: height,
       width: isFullWidth ? double.infinity : width,
-      child: type == CustomButtonType.text || type == CustomButtonType.outlined
+      child: type == CustomButtonType.text || type == CustomButtonType.outlined || type == CustomButtonType.secondary
           ? TextButton(
               onPressed: isLoading ? null : onPressed,
               style: buttonStyle,

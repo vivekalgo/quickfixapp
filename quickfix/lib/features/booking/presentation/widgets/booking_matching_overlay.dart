@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 
 class BookingMatchingOverlay extends StatelessWidget {
   final bool isDark;
@@ -20,10 +20,10 @@ class BookingMatchingOverlay extends StatelessWidget {
     return Positioned.fill(
       child: Container(
         color: isDark
-            ? Colors.black87.withValues(alpha: 0.85)
-            : Colors.white.withValues(alpha: 0.92),
+            ? AppColors.backgroundDark.withValues(alpha: 0.9)
+            : AppColors.backgroundLight.withValues(alpha: 0.9),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
+          filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
           child: SafeArea(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -31,46 +31,49 @@ class BookingMatchingOverlay extends StatelessWidget {
                 const Spacer(),
                 RadarPulse(
                   child: Container(
-                    width: 76,
-                    height: 76,
+                    width: 80,
+                    height: 80,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: AppColors.surfaceDark,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          blurRadius: 22,
-                          spreadRadius: 2,
+                          color: AppColors.primaryAccent.withValues(alpha: 0.3),
+                          blurRadius: 24,
+                          spreadRadius: 4,
                         ),
                       ],
                     ),
                     child: const Icon(
-                      Icons.build_rounded,
+                      Icons.search_rounded,
                       color: Colors.white,
-                      size: 32,
+                      size: 36,
                     ),
                   ),
                 ),
-                const SizedBox(height: 50),
+                const SizedBox(height: 56),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 40.0),
                   child: Column(
                     children: [
                       Text(
-                        'Finding Your Expert',
-                        style: AppTextStyles.headingMedium(
-                          isDark,
-                        ).copyWith(fontSize: 22, fontWeight: FontWeight.bold),
+                        'Finding the best professional...',
+                        style: GoogleFonts.outfit(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : AppColors.primary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
                         child: Text(
                           matchingStatus,
                           key: ValueKey<String>(matchingStatus),
-                          style: AppTextStyles.bodyMedium(isDark).copyWith(
-                            color: AppColors.primary,
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            color: AppColors.primaryAccent,
                             fontWeight: FontWeight.w600,
                           ),
                           textAlign: TextAlign.center,
@@ -79,32 +82,33 @@ class BookingMatchingOverlay extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 48),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(4, (index) {
                     final isActive = index <= matchingStep;
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: 8,
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      width: isActive ? 24 : 8,
                       height: 8,
                       decoration: BoxDecoration(
                         color: isActive
-                            ? AppColors.primary
-                            : (isDark ? Colors.white24 : Colors.black12),
-                        shape: BoxShape.circle,
+                            ? AppColors.primaryAccent
+                            : (isDark ? Colors.white24 : AppColors.borderLight),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     );
                   }),
                 ),
                 const Spacer(),
                 Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(32.0),
                   child: Text(
                     'Instant dispatch is covered by QuickFix Safety Insurance.',
-                    style: AppTextStyles.bodySmall(isDark).copyWith(
-                      color: isDark ? Colors.white38 : Colors.black38,
-                      fontSize: 11,
+                    style: GoogleFonts.inter(
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      fontSize: 12,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -155,17 +159,17 @@ class _RadarPulseState extends State<RadarPulse>
             animation: _controller,
             builder: (context, child) {
               final double progress = (_controller.value + (i / 3)) % 1.0;
-              final double size = 76.0 + (progress * 150.0);
-              final double opacity = (1.0 - progress) * 0.45;
+              final double size = 80.0 + (progress * 180.0);
+              final double opacity = (1.0 - progress) * 0.5;
               return Container(
                 width: size,
                 height: size,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: opacity),
+                  color: AppColors.primaryAccent.withValues(alpha: opacity),
                   border: Border.all(
-                    color: AppColors.primary.withValues(alpha: opacity * 1.5),
-                    width: 1.5,
+                    color: AppColors.primaryAccent.withValues(alpha: opacity * 1.5),
+                    width: 2,
                   ),
                 ),
               );

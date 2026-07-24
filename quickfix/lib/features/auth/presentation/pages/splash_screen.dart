@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/storage/hive_service.dart';
 import 'package:quickfix/features/home/presentation/controllers/home_providers.dart';
 import 'package:quickfix/features/auth/presentation/controllers/auth_providers.dart';
@@ -60,7 +60,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = ref.watch(isDarkModeProvider);
+    ref.watch(isDarkModeProvider);
 
     // Listen to authState changes to trigger navigation side-effects reactively
     ref.listen<AuthState>(authProvider, (previous, next) {
@@ -70,18 +70,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     });
 
     return Scaffold(
+      backgroundColor: AppColors.primary,
       body: Stack(
         alignment: Alignment.center,
         children: [
-          // Background subtle gradient
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.backgroundDark : Colors.white,
-              ),
-            ),
-          ),
-
           // Central Logo and Title
           Center(
             child: Column(
@@ -89,59 +81,67 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               children: [
                 // Animated logo circle
                 Container(
-                      width: 80,
-                      height: 80,
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primaryAccent.withValues(alpha: 0.2),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
+                        color: AppColors.primaryAccent,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.35),
-                            blurRadius: 16,
-                            offset: const Offset(0, 8),
+                            color: AppColors.primaryAccent.withValues(alpha: 0.5),
+                            blurRadius: 20,
+                            spreadRadius: 4,
                           ),
                         ],
                       ),
                       child: const Icon(
                         Icons.build,
                         color: Colors.white,
-                        size: 36,
+                        size: 32,
                       ),
-                    )
-                    .animate()
-                    .scale(duration: 800.ms, curve: Curves.elasticOut)
-                    .rotate(duration: 800.ms),
+                    ),
+                  ),
+                )
+                .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.1, 1.1), duration: 1000.ms, curve: Curves.easeInOut),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
                 Text(
                   'QuickFix',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppColors.secondary,
-                    letterSpacing: -1.0,
+                  style: GoogleFonts.outfit(
+                    fontSize: 38,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
                   ),
                 ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
 
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
 
                 Text(
                   'Fix Fast, Live Easy',
-                  style: AppTextStyles.bodyMedium(
-                    isDark,
-                  ).copyWith(letterSpacing: 1.0, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.white60,
+                  ),
                 ).animate().fadeIn(delay: 500.ms),
               ],
             ),
           ),
 
-          // Footer version info
+          // Footer progress indicator
           Positioned(
-            bottom: 24,
-            child: Text(
-              'v1.0.0 • Enterprise Edition',
-              style: AppTextStyles.bodySmall(isDark),
+            bottom: 48,
+            child: const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation(AppColors.primaryAccent),
             ).animate().fadeIn(delay: 800.ms),
           ),
         ],

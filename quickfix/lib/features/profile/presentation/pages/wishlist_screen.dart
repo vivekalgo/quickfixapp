@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -235,7 +236,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen>
                             const SizedBox(width: 2),
                             Text(
                               shop.rating.toStringAsFixed(1),
-                              style: TextStyle(
+                              style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.bold,
                                 color: isDark
                                     ? Colors.white70
@@ -247,7 +248,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen>
                               const SizedBox(width: 3),
                               Text(
                                 '(${shop.reviewsCount})',
-                                style: TextStyle(
+                                style: GoogleFonts.inter(
                                   color: isDark
                                       ? Colors.white54
                                       : Colors.grey[600],
@@ -381,7 +382,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen>
                             const SizedBox(width: 4),
                             Text(
                               '${prof.rating} (${prof.reviewsCount} reviews)',
-                              style: TextStyle(
+                              style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.bold,
                                 color: isDark
                                     ? Colors.white70
@@ -486,9 +487,9 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Explore Services',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],

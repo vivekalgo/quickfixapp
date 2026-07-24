@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -21,8 +22,9 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
   IconData _getIconForLabel(String label) {
     final lower = label.toLowerCase();
     if (lower.contains('home')) return Icons.home_outlined;
-    if (lower.contains('work') || lower.contains('office'))
+    if (lower.contains('work') || lower.contains('office')) {
       return Icons.work_outline;
+    }
     return Icons.location_on_outlined;
   }
 
@@ -40,23 +42,23 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
       await ref.read(authProvider.notifier).updateProfile({
         'savedAddresses': currentList,
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Address deleted successfully'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      if (!mounted) return;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Address deleted successfully'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete address: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete address: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -89,24 +91,24 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
             (address['longitude'] as num?)?.toDouble() ?? 80.3156,
           );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Default address updated'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
+      if (!mounted) return;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Default address updated'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.success,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -161,29 +163,29 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                   );
             }
 
-            if (mounted) {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    existingAddress != null
-                        ? 'Address updated'
-                        : 'Address added',
-                  ),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.success,
+            if (!mounted) return;
+            if (!context.mounted) return;
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  existingAddress != null
+                      ? 'Address updated'
+                      : 'Address added',
                 ),
-              );
-            }
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: AppColors.success,
+              ),
+            );
           } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Failed to save address: $e'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
+            if (!mounted) return;
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to save address: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         },
       ),
@@ -350,9 +352,9 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                                                           6,
                                                         ),
                                                   ),
-                                                  child: const Text(
+                                                  child: Text(
                                                     'DEFAULT',
-                                                    style: TextStyle(
+                                                    style: GoogleFonts.outfit(
                                                       color: AppColors.primary,
                                                       fontSize: 9,
                                                       fontWeight:
@@ -423,9 +425,9 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
             child: ElevatedButton.icon(
               onPressed: () => _showAddressForm(),
               icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text(
+              label: Text(
                 'Add New Address',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -537,14 +539,14 @@ class _AddressFormSheetState extends ConsumerState<_AddressFormSheet> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not get GPS location: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not get GPS location: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
@@ -613,7 +615,7 @@ class _AddressFormSheetState extends ConsumerState<_AddressFormSheet> {
               const SizedBox(height: 16),
               Text(
                 'Complete Address',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white70 : AppColors.secondary,
@@ -626,13 +628,13 @@ class _AddressFormSheetState extends ConsumerState<_AddressFormSheet> {
                 validator: (v) => v == null || v.trim().isEmpty
                     ? 'Address detail is required'
                     : null,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   color: isDark ? Colors.white : AppColors.secondary,
                   fontSize: 14,
                 ),
                 decoration: InputDecoration(
                   hintText: 'House/Flat No., Road Name, Suburb, City, Pin Code',
-                  hintStyle: const TextStyle(
+                  hintStyle: GoogleFonts.inter(
                     color: AppColors.textSecondaryLight,
                     fontSize: 13,
                   ),
@@ -669,7 +671,7 @@ class _AddressFormSheetState extends ConsumerState<_AddressFormSheet> {
               const SizedBox(height: 16),
               Text(
                 'Save Address As',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white70 : AppColors.secondary,
@@ -686,7 +688,7 @@ class _AddressFormSheetState extends ConsumerState<_AddressFormSheet> {
                       selected: isSelected,
                       selectedColor: AppColors.primary,
                       checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
+                      labelStyle: GoogleFonts.inter(
                         color: isSelected
                             ? Colors.white
                             : (isDark ? Colors.white70 : AppColors.secondary),
@@ -712,13 +714,13 @@ class _AddressFormSheetState extends ConsumerState<_AddressFormSheet> {
                           (v == null || v.trim().isEmpty)
                       ? 'Please enter a custom label'
                       : null,
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     color: isDark ? Colors.white : AppColors.secondary,
                     fontSize: 14,
                   ),
                   decoration: InputDecoration(
                     hintText: 'e.g. Friends House, Gym, Parents Home',
-                    hintStyle: const TextStyle(
+                    hintStyle: GoogleFonts.inter(
                       color: AppColors.textSecondaryLight,
                       fontSize: 13,
                     ),
@@ -795,9 +797,9 @@ class _AddressFormSheetState extends ConsumerState<_AddressFormSheet> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
+                child: Text(
                   'Save Address',
-                  style: TextStyle(
+                  style: GoogleFonts.outfit(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,

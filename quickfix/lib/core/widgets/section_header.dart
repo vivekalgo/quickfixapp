@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 
-/// Unified section header used across all home widgets.
-/// Provides consistent title + optional subtitle + optional "See All" action.
 class SectionHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -17,7 +15,7 @@ class SectionHeader extends StatelessWidget {
     required this.title,
     required this.isDark,
     this.subtitle,
-    this.seeAllLabel = 'View All',
+    this.seeAllLabel = 'See All',
     this.onSeeAll,
     this.padding = const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
   });
@@ -29,7 +27,6 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Title + optional subtitle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,45 +34,38 @@ class SectionHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppTextStyles.headingSmall(isDark).copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
+                  style: GoogleFonts.outfit(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    color: isDark ? Colors.white : AppColors.primary,
                   ),
                 ),
                 if (subtitle != null && subtitle!.isNotEmpty) ...[
                   const SizedBox(height: 2),
-                  Text(subtitle!, style: AppTextStyles.bodySmall(isDark)),
+                  Text(
+                    subtitle!,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
-
-          // See All action
           if (onSeeAll != null)
             GestureDetector(
               onTap: onSeeAll,
               child: Padding(
                 padding: const EdgeInsets.only(left: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      seeAllLabel,
-                      style: TextStyle(
-                        color: isDark ? AppColors.primaryAccent : AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 16,
-                      color: isDark ? AppColors.primaryAccent : AppColors.primary,
-                    ),
-                  ],
+                child: Text(
+                  seeAllLabel,
+                  style: GoogleFonts.inter(
+                    color: AppColors.primaryAccent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),

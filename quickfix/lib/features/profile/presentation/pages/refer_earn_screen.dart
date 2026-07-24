@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,10 +97,10 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Invite Friends,\nEarn Rewards!',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: GoogleFonts.outfit(
                       color: Colors.white,
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -107,10 +108,10 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'You get ₹100 discount coupon for every friend who joins,\nyour friend gets ₹50 as a welcome bonus!',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       color: Colors.white70,
                       fontSize: 13,
                       height: 1.4,
@@ -148,9 +149,9 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                         ),
-                        child: const Text(
+                        child: Text(
                           'Retry',
-                          style: TextStyle(color: Colors.white),
+                          style: GoogleFonts.inter(color: Colors.white),
                         ),
                       ),
                     ],
@@ -191,7 +192,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                           children: [
                             Text(
                               'Your Referral Code',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: isDark
@@ -219,11 +220,11 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                               ),
                               child: Text(
                                 code.isNotEmpty ? code : '---',
-                                style: const TextStyle(
+                                style: GoogleFonts.outfit(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: 3,
-                                  color: Color(0xFF6C3AFF),
+                                  color: const Color(0xFF6C3AFF),
                                 ),
                               ),
                             ),
@@ -265,9 +266,9 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                                       size: 16,
                                       color: Colors.white,
                                     ),
-                                    label: const Text(
+                                    label: Text(
                                       'Share Link',
-                                      style: TextStyle(color: Colors.white),
+                                      style: GoogleFonts.inter(color: Colors.white),
                                     ),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF6C3AFF),
@@ -391,9 +392,9 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    Text(
                                       '• ',
-                                      style: TextStyle(
+                                      style: GoogleFonts.inter(
                                         color: AppColors.textSecondaryLight,
                                         fontSize: 11,
                                       ),
@@ -455,7 +456,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
             const SizedBox(height: 8),
             Text(
               value,
-              style: TextStyle(
+              style: GoogleFonts.outfit(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: isDark ? Colors.white : AppColors.secondary,
@@ -463,7 +464,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
             ),
             Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 11,
                 color: isDark
                     ? AppColors.textSecondaryDark
@@ -500,7 +501,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
             child: Center(
               child: Text(
                 step.number,
-                style: const TextStyle(
+                style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
@@ -514,7 +515,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
               children: [
                 Text(
                   step.title,
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: isDark ? Colors.white : AppColors.secondary,
@@ -522,7 +523,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen> {
                 ),
                 Text(
                   step.desc,
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 12,
                     color: isDark
                         ? AppColors.textSecondaryDark

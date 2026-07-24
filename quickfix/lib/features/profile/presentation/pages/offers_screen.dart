@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -188,7 +189,7 @@ class OffersScreen extends ConsumerWidget {
                     quarterTurns: 3,
                     child: Text(
                       code,
-                      style: const TextStyle(
+                      style: GoogleFonts.outfit(
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.w900,
@@ -272,9 +273,9 @@ class OffersScreen extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'COPY',
-                              style: TextStyle(
+                              style: GoogleFonts.outfit(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,

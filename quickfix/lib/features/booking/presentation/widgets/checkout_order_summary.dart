@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/features/booking/presentation/controllers/cart_provider.dart';
 
@@ -15,150 +15,118 @@ class CheckoutOrderSummary extends ConsumerWidget {
     required this.cart,
   });
 
-  BoxDecoration _buildBoxDecoration() {
-    return BoxDecoration(
-      color: isDark ? AppColors.surfaceDark : Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-          blurRadius: 16,
-          offset: const Offset(0, 8),
-        ),
-      ],
-      border: Border.all(
-        color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        width: 1,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _buildBoxDecoration(),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: isDark ? [] : [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
+      ),
+      padding: const EdgeInsets.all(20),
       child: Column(
-        children: [
-          ...cart.values.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.title,
-                          style: AppTextStyles.bodyMedium(
-                            isDark,
-                          ).copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            if (item.pricingType == 'inspection')
-                              Text(
-                                'Price after inspection',
-                                style: AppTextStyles.bodySmall(
-                                  isDark,
-                                ).copyWith(fontStyle: FontStyle.italic),
-                              )
-                            else if (item.pricingType == 'starting')
-                              Text(
-                                'Starting from ₹${item.price.toInt()} x ${item.quantity}',
-                                style: AppTextStyles.bodySmall(isDark),
-                              )
-                            else
-                              Text(
-                                '₹${item.price.toInt()} x ${item.quantity}',
-                                style: AppTextStyles.bodySmall(isDark),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: item.pricingType == 'inspection'
-                                ? Colors.orange.withValues(alpha: 0.1)
-                                : item.pricingType == 'starting'
-                                ? Colors.amber.withValues(alpha: 0.1)
-                                : item.pricingType == 'range'
-                                ? Colors.blue.withValues(alpha: 0.1)
-                                : Colors.green.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            item.pricingType == 'inspection'
-                                ? 'Quote Required'
-                                : item.pricingType == 'starting'
-                                ? 'Starts From'
-                                : item.pricingType == 'range'
-                                ? 'Price Range'
-                                : 'Fixed Price',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: item.pricingType == 'inspection'
-                                  ? Colors.orange
-                                  : item.pricingType == 'starting'
-                                  ? Colors.amber.shade700
-                                  : item.pricingType == 'range'
-                                  ? Colors.blue
-                                  : Colors.green,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+        children: cart.values.map((item) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Thumbnail
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  Row(
+                  child: const Icon(
+                    Icons.home_repair_service_rounded,
+                    color: AppColors.primaryAccent,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.remove_circle_outline,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          AppHaptics.lightTap();
-                          ref
-                              .read(cartProvider.notifier)
-                              .removeItem(item.id);
-                        },
-                      ),
                       Text(
-                        '${item.quantity}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                        item.title,
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : AppColors.primary,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.add_circle_outline,
-                          color: AppColors.primary,
-                          size: 20,
+                      const SizedBox(height: 4),
+                      Text(
+                        item.pricingType == 'inspection'
+                            ? 'Price after inspection'
+                            : '₹${item.price.toInt()}',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primaryAccent,
                         ),
-                        onPressed: () {
-                          AppHaptics.lightTap();
-                          ref
-                              .read(cartProvider.notifier)
-                              .addItem(item.id, item.title, item.price);
-                        },
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                // Qty Selector
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove, size: 16),
+                        color: isDark ? Colors.white : AppColors.primary,
+                        onPressed: () {
+                          AppHaptics.lightTap();
+                          ref.read(cartProvider.notifier).removeItem(item.id);
+                        },
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: EdgeInsets.zero,
+                      ),
+                      Text(
+                        '${item.quantity}',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : AppColors.primary,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add, size: 16),
+                        color: isDark ? Colors.white : AppColors.primary,
+                        onPressed: () {
+                          AppHaptics.lightTap();
+                          ref.read(cartProvider.notifier).addItem(item.id, item.title, item.price);
+                        },
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }

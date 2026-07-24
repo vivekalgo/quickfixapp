@@ -1,121 +1,87 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/network/connectivity_provider.dart';
+import 'package:quickfix/core/theme/app_colors.dart';
+import 'package:quickfix/core/widgets/custom_button.dart';
 
-class OfflineOverlay extends ConsumerStatefulWidget {
+class OfflineOverlay extends ConsumerWidget {
   final Widget child;
 
   const OfflineOverlay({super.key, required this.child});
 
   @override
-  ConsumerState<OfflineOverlay> createState() => _OfflineOverlayState();
-}
-
-class _OfflineOverlayState extends ConsumerState<OfflineOverlay> {
-  bool _wasOffline = false;
-  bool _showOnlineBanner = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final connectionAsync = ref.watch(connectivityProvider);
     final isOnline = connectionAsync.value ?? true;
 
-    if (!isOnline && !_wasOffline) {
-      _wasOffline = true;
-    } else if (isOnline && _wasOffline) {
-      _wasOffline = false;
-      _showOnlineBanner = true;
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _showOnlineBanner = false;
-          });
-        }
-      });
-    }
-
     return Stack(
       children: [
-        widget.child,
+        child,
         if (!isOnline)
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 16,
-            right: 16,
-            child: SafeArea(
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade900.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black38,
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'You are offline. Showing cached information.',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.70),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(24.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.wifi_off_rounded,
+                            color: Colors.red,
+                            size: 40,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          )
-        else if (_showOnlineBanner)
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 16,
-            right: 16,
-            child: SafeArea(
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade800.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black38,
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.wifi_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Connection restored! Back online.',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
+                        const SizedBox(height: 20),
+                        Text(
+                          'No Internet Connection',
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        Text(
+                          'Please check your network settings and try again.',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: AppColors.textSecondaryLight,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        CustomButton(
+                          text: 'Retry',
+                          type: CustomButtonType.accent,
+                          onPressed: () {
+                            ref.invalidate(connectivityProvider);
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

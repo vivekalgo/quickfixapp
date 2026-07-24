@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -94,7 +95,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (file != null) {
         setState(() => _pickedImage = File(file.path));
       }
-    } on PlatformException catch (e) {
+    } on PlatformException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -139,9 +140,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   color: AppColors.primary,
                 ),
               ),
-              title: const Text(
+              title: Text(
                 'Take Photo',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -160,9 +161,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   color: AppColors.info,
                 ),
               ),
-              title: const Text(
+              title: Text(
                 'Choose from Gallery',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -185,9 +186,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ),
                   child: const Icon(Icons.delete_outline, color: Colors.red),
                 ),
-                title: const Text(
+                title: Text(
                   'Remove Photo',
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     color: Colors.red,
                     fontWeight: FontWeight.w600,
                   ),
@@ -291,9 +292,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           if (!_isSaving)
             TextButton(
               onPressed: _saveChanges,
-              child: const Text(
+              child: Text(
                 'Save',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -362,9 +363,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               Center(
                 child: TextButton(
                   onPressed: () => _showImageOptions(isDark),
-                  child: const Text(
+                  child: Text(
                     'Change Photo',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
@@ -404,7 +405,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         phone.isNotEmpty
                             ? (phone.startsWith('+') ? phone : '+91 ${phone.replaceFirst('+91', '').trim()}')
                             : 'Not set',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: isDark ? Colors.white70 : AppColors.secondary,
@@ -423,18 +424,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           color: AppColors.success.withValues(alpha: 0.4),
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.verified,
                             size: 12,
                             color: AppColors.success,
                           ),
-                          SizedBox(width: 4),
+                          const SizedBox(width: 4),
                           Text(
                             'Verified',
-                            style: TextStyle(
+                            style: GoogleFonts.outfit(
                               color: AppColors.success,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -556,7 +557,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           _dob != null
                               ? '${_dob!.day}/${_dob!.month}/${_dob!.year}'
                               : 'Select date of birth',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             fontSize: 15,
                             color: _dob != null
                                 ? (isDark ? Colors.white : AppColors.secondary)
@@ -642,9 +643,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           strokeWidth: 2.5,
                         ),
                       )
-                    : const Text(
+                    : Text(
                         'Save Changes',
-                        style: TextStyle(
+                        style: GoogleFonts.outfit(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -664,9 +665,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Cancel',
-                  style: TextStyle(
+                  style: GoogleFonts.outfit(
                     color: AppColors.primary,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -696,7 +697,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       child: Center(
         child: Text(
           initials,
-          style: const TextStyle(
+          style: GoogleFonts.outfit(
             color: AppColors.primary,
             fontSize: 32,
             fontWeight: FontWeight.bold,
@@ -715,7 +716,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: isDark ? Colors.white70 : AppColors.secondary,
@@ -725,7 +726,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(width: 6),
           Text(
             '(Optional)',
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontSize: 11,
               color: isDark
                   ? AppColors.textSecondaryDark
@@ -753,13 +754,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       validator: validator,
       inputFormatters: inputFormatters,
       maxLength: maxLength,
-      style: TextStyle(
+      style: GoogleFonts.inter(
         fontSize: 15,
         color: isDark ? Colors.white : AppColors.secondary,
       ),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: const TextStyle(
+        hintStyle: GoogleFonts.inter(
           color: AppColors.textSecondaryLight,
           fontSize: 14,
         ),
@@ -821,7 +822,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               const SizedBox(width: 12),
               Text(
                 hint,
-                style: const TextStyle(
+                style: GoogleFonts.inter(
                   color: AppColors.textSecondaryLight,
                   fontSize: 14,
                 ),
@@ -830,7 +831,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
           isExpanded: true,
           dropdownColor: isDark ? AppColors.surfaceDark : Colors.white,
-          style: TextStyle(
+          style: GoogleFonts.inter(
             fontSize: 15,
             color: isDark ? Colors.white : AppColors.secondary,
           ),
@@ -848,7 +849,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       const SizedBox(width: 12),
                       Text(
                         item.toString(),
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 15,
                           color: isDark ? Colors.white : AppColors.secondary,
                         ),

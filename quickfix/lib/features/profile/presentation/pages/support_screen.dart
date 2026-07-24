@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -159,9 +160,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Text(
+                    Text(
                       'Online (Instant Reply)',
-                      style: TextStyle(fontSize: 10, color: AppColors.success),
+                      style: GoogleFonts.inter(fontSize: 10, color: AppColors.success),
                     ),
                   ],
                 ),
@@ -220,7 +221,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                     ),
                     child: Text(
                       msg.text,
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 13.5,
                         color: msg.isUser
                             ? Colors.white
@@ -286,7 +287,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                       ),
                       child: Text(
                         preset,
-                        style: const TextStyle(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           color: AppColors.primary,
                           fontWeight: FontWeight.bold,
@@ -323,16 +324,16 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                     ),
                     child: TextField(
                       controller: _messageController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Type support message here...',
                         border: InputBorder.none,
                         isDense: true,
-                        hintStyle: TextStyle(
+                        hintStyle: GoogleFonts.inter(
                           color: AppColors.textSecondaryLight,
                           fontSize: 13,
                         ),
                       ),
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 13.5,
                         color: isDark ? Colors.white : AppColors.secondary,
                       ),
