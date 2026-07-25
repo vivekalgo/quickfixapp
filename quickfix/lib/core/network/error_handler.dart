@@ -201,6 +201,16 @@ class ErrorHandler {
               errorId,
               ApiExceptionType.notFound,
             );
+          case 429:
+            return ApiException(
+              errorMessage != 'Something went wrong. Please try again.'
+                  ? errorMessage
+                  : 'High traffic. Please wait a moment and try again.',
+              statusCode,
+              error,
+              errorId,
+              ApiExceptionType.timeout,
+            );
           case 500:
           case 502:
           case 503:

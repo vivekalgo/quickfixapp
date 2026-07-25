@@ -600,7 +600,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                 children: [
                   Text('Total Price', style: GoogleFonts.inter(fontSize: 13, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
                   Text(
-                    '₹',
+                    '₹${(finalAmount > 0 ? finalAmount : baseAmount).toStringAsFixed(0)}',
                     style: GoogleFonts.outfit(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,

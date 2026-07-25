@@ -89,7 +89,7 @@ class _CheckoutBillDetailsState extends State<CheckoutBillDetails> {
                       padding: EdgeInsets.symmetric(vertical: 16.0),
                       child: Divider(),
                     ),
-                    _buildTotalRow('₹${widget.finalAmount.toInt()}'),
+                    _buildTotalRow('₹${(widget.finalAmount > 0 ? widget.finalAmount : widget.baseAmount).toInt()}'),
                   ] else ...[
                     ...(widget.calcData!['billDetails'] as List<dynamic>).map((row) {
                       final label = row['label']?.toString() ?? '';
