@@ -786,7 +786,7 @@ const SpecialCardSchema = new mongoose.Schema({
 // 16. CMS Dynamic Layout Section Schema
 const CmsSectionSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
-  title: { type: String, required: true },
+  title: { type: String, default: '' },
   type: { type: String, required: true },
   priority: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
@@ -808,7 +808,7 @@ const CustomSectionServiceItemSchema = new mongoose.Schema({
 // 17. Custom Homepage Section Schema (banner + service card list)
 const CustomSectionSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
-  title: { type: String, required: true },
+  title: { type: String, default: '' },
   subtitle: { type: String, default: '' },
   bannerImageUrl: { type: String, default: '' },
   bannerBadgeText: { type: String, default: '' },

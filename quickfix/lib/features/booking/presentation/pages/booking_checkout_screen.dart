@@ -150,6 +150,46 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
       } catch (e) {
         setState(() => _isProcessing = false);
       }
+    } else if (paymentMethod == 'UPI') {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogCtx) {
+          Future.delayed(const Duration(milliseconds: 1400), () {
+            if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+            _executeBookingRequest(bookingData);
+          });
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.qr_code_2_rounded, color: Colors.deepPurple, size: 28),
+                      const SizedBox(width: 8),
+                      Text(
+                        'UPI Instant Pay',
+                        style: GoogleFonts.outfit(fontSize: 20, color: Colors.deepPurple, fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppColors.primaryAccent)),
+                  const SizedBox(height: 20),
+                  Text('Connecting to UPI App...', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
+                  const SizedBox(height: 4),
+                  Text('Paying ₹${finalAmount.toInt()}', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+          );
+        },
+      );
     } else {
       _executeBookingRequest(bookingData);
     }
@@ -461,12 +501,35 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
             Text('Payment Method', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: isDark ? Colors.white : AppColors.primary)),
             const SizedBox(height: 16),
             Column(
-              children: ['Razorpay', 'Cash after Service'].map((method) {
-                final isSelected = paymentMethod == method;
+              children: [
+                {
+                  'id': 'UPI',
+                  'name': 'UPI / Instant QR',
+                  'subtitle': 'Google Pay, PhonePe, Paytm, BHIM',
+                  'icon': Icons.qr_code_2_rounded,
+                  'color': Colors.deepPurple,
+                },
+                {
+                  'id': 'Razorpay',
+                  'name': 'Razorpay Online',
+                  'subtitle': 'Credit / Debit Card, Net Banking',
+                  'icon': Icons.payment_rounded,
+                  'color': Colors.blue.shade700,
+                },
+                {
+                  'id': 'Cash after Service',
+                  'name': 'Pay Cash After Service',
+                  'subtitle': 'Pay technician after job completion',
+                  'icon': Icons.payments_rounded,
+                  'color': Colors.orange.shade700,
+                },
+              ].map((pm) {
+                final methodId = pm['id'] as String;
+                final isSelected = paymentMethod == methodId || (paymentMethod == 'UPI' && methodId == 'UPI');
                 return GestureDetector(
                   onTap: () {
                     AppHaptics.selectionClick();
-                    ref.read(selectedPaymentMethodProvider.notifier).state = method;
+                    ref.read(selectedPaymentMethodProvider.notifier).state = methodId;
                   },
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -481,19 +544,36 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          method == 'Razorpay' ? Icons.credit_card_rounded : Icons.payments_rounded,
-                          color: isSelected ? AppColors.primaryAccent : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: (pm['color'] as Color).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(pm['icon'] as IconData, color: pm['color'] as Color, size: 22),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: Text(
-                            method,
-                            style: GoogleFonts.outfit(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : AppColors.primary,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                pm['name'] as String,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                pm['subtitle'] as String,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         Icon(

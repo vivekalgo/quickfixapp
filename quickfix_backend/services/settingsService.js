@@ -634,24 +634,25 @@ async function getCustomSectionById(id) {
 
 async function saveCustomSection(id, body) {
   const { title, subtitle, bannerImageUrl, bannerBadgeText, bannerActionType, bannerActionValue, seeAllActionType, seeAllActionValue, serviceItems, priority, isActive } = body;
+  const sectionTitle = title || '';
   let section;
   if (id) {
     section = await CustomSection.findOneAndUpdate(
       { id },
-      { title, subtitle, bannerImageUrl, bannerBadgeText, bannerActionType: bannerActionType || 'No Action', bannerActionValue, seeAllActionType: seeAllActionType || 'No Action', seeAllActionValue, serviceItems: serviceItems || [], priority: parseInt(priority) || 0, isActive: isActive !== false },
+      { title: sectionTitle, subtitle, bannerImageUrl, bannerBadgeText, bannerActionType: bannerActionType || 'No Action', bannerActionValue, seeAllActionType: seeAllActionType || 'No Action', seeAllActionValue, serviceItems: serviceItems || [], priority: parseInt(priority) || 0, isActive: isActive !== false },
       { new: true }
     );
     if (!section) {
       throw new Error('Custom section not found');
     }
-    await CmsSection.findOneAndUpdate({ id }, { title, isActive: isActive !== false, priority: parseInt(priority) || 0 });
+    await CmsSection.findOneAndUpdate({ id }, { title: sectionTitle, isActive: isActive !== false, priority: parseInt(priority) || 0 });
   } else {
     const newId = `custom-section-${Date.now()}`;
     const allSections = await CmsSection.find({});
     const newPriority = allSections.length;
     const layoutSection = new CmsSection({
       id: newId,
-      title: title,
+      title: sectionTitle,
       type: 'custom_section',
       priority: newPriority,
       isActive: isActive !== false
@@ -659,7 +660,7 @@ async function saveCustomSection(id, body) {
     await layoutSection.save();
     section = new CustomSection({
       id: newId,
-      title, subtitle, bannerImageUrl, bannerBadgeText,
+      title: sectionTitle, subtitle, bannerImageUrl, bannerBadgeText,
       bannerActionType: bannerActionType || 'No Action',
       bannerActionValue,
       seeAllActionType: seeAllActionType || 'No Action',

@@ -65,6 +65,11 @@
       </a>
 
       <div class="nav-section">Operations</div>
+      <a href="#" class="nav-item" data-tab="instant-bookings-tab">
+        <i class="fa-solid fa-bolt" style="color: #ff6b00;"></i>
+        <span class="sidebar-label">Instant Bookings</span>
+        <span class="badge" style="background:#ff6b00;color:white;margin-left:auto;font-size:10px;">⚡ INSTANT</span>
+      </a>
       <a href="#" class="nav-item" data-tab="bookings-tab">
         <i class="fa-solid fa-receipt"></i>
         <span class="sidebar-label">Bookings</span>
@@ -440,6 +445,7 @@
             </div>
             <select id="booking-filter-status" class="filter-select" onchange="renderManageBookingsTable()">
               <option value="all">All Statuses</option>
+              <option value="instant">Instant Bookings Only ⚡</option>
               <option value="pending">Pending</option>
               <option value="accepted">Accepted</option>
               <option value="on_the_way">On The Way</option>
@@ -469,6 +475,45 @@
           <div class="pagination" id="bookings-pagination" style="display:none;"></div>
         </div>
       </div><!-- /bookings-tab -->
+
+
+      <!-- ════════════════════════════════════════
+           TAB: INSTANT BOOKINGS
+      ════════════════════════════════════════ -->
+      <div class="tab-pane" id="instant-bookings-tab">
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-bolt" style="color: #ff6b00;"></i> Instant Booking Management (Direct Admin Control)</h2>
+            <span class="badge" style="background:#ff6b00;color:white;font-size:12px;padding:6px 12px;">⚡ Live Direct Customer Requests</span>
+          </div>
+          <div class="table-toolbar">
+            <div class="table-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="instant-bookings-search" placeholder="Search instant bookings…" oninput="renderInstantBookingsTable()">
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Booking ID</th>
+                  <th>Customer & Address</th>
+                  <th>Category / Title</th>
+                  <th>Visiting Charge</th>
+                  <th>Issue & Photo</th>
+                  <th>Date & Slot</th>
+                  <th>Status</th>
+                  <th>Assign Provider</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="instant-bookings-tbody">
+                <tr><td colspan="9" style="padding:40px;text-align:center;color:var(--text-muted);">Loading instant bookings…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /instant-bookings-tab -->
 
 
       <!-- ════════════════════════════════════════
@@ -1705,7 +1750,7 @@
       <!-- ══════════════════════════════════════════════
            HELPDESK AI & CUSTOMER SUPPORT CENTER
       ══════════════════════════════════════════════ -->
-      <div class="tab-content" id="helpdesk-tab">
+      <div class="tab-pane" id="helpdesk-tab">
         <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
           <div>
             <h1><i class="fa-solid fa-headset" style="color:var(--primary-color);"></i> AI Customer Support & Helpdesk</h1>
@@ -2392,7 +2437,7 @@
       <div class="form-section">
         <div class="form-section-title"><i class="fa-solid fa-circle-info"></i> Section Info</div>
         <div class="form-row">
-          <div class="form-group"><label for="custom-section-title">Section Title *</label><input type="text" id="custom-section-title" required placeholder="e.g. Cleaning Essentials"></div>
+          <div class="form-group"><label for="custom-section-title">Section Title <small style="font-weight:400;color:var(--text-muted);">(Optional)</small></label><input type="text" id="custom-section-title" placeholder="e.g. Cleaning Essentials"></div>
           <div class="form-group"><label for="custom-section-subtitle">Subtitle / Description</label><input type="text" id="custom-section-subtitle" placeholder="Top cleaning services this month"></div>
         </div>
         <div class="form-row">

@@ -28,7 +28,7 @@ final selectedAddressIndexProvider = StateProvider<int>((ref) => 0);
 final appliedCouponProvider = StateProvider<String?>((ref) => null);
 final appliedCouponDiscountProvider = StateProvider<double>((ref) => 0.0);
 final selectedPaymentMethodProvider = StateProvider<String>(
-  (ref) => 'Razorpay',
+  (ref) => 'UPI',
 );
 
 final checkoutCalculationProvider = FutureProvider<Map<String, dynamic>?>((

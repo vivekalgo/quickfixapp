@@ -551,6 +551,7 @@ function setupTabs() {
       updateBreadcrumb(name);
 
       // Hook tab-specific fetch sequences
+      if (tabId === 'instant-bookings-tab') renderInstantBookingsTable();
       if (tabId === 'demand-tab')      loadDemands();
       if (tabId === 'customers-tab')   loadCustomers();
       if (tabId === 'payments-tab')    loadPaymentStats();
@@ -1692,6 +1693,80 @@ function renderManageBookingsTable() {
       <td><span class="badge badge-${esc(b.status)}">${esc(b.status.replace('_', ' '))}</span></td>
       <td>
         <input type="text" value="${esc(b.providerName)}" class="form-group" style="margin-bottom:0; padding:4px 8px; font-size:12px; width:130px;" onchange="updateProviderName('${esc(b.id)}', this.value)">
+      </td>
+      <td>
+        <select class="table-action-select" onchange="changeBookingStatus('${esc(b.id)}', this.value)">
+          <option value="pending" ${b.status === 'pending' ? 'selected' : ''}>Pending</option>
+          <option value="accepted" ${b.status === 'accepted' ? 'selected' : ''}>Accept</option>
+          <option value="on_the_way" ${b.status === 'on_the_way' ? 'selected' : ''}>On The Way</option>
+          <option value="completed" ${b.status === 'completed' ? 'selected' : ''}>Complete</option>
+          <option value="cancelled" ${b.status === 'cancelled' ? 'selected' : ''}>Cancel</option>
+        </select>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Render Dedicated Instant Bookings Table
+function renderInstantBookingsTable() {
+  const tbody = document.getElementById('instant-bookings-tbody');
+  if (!tbody) return;
+  
+  const searchInput = document.getElementById('instant-bookings-search');
+  const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+  tbody.innerHTML = '';
+  
+  const instantBookings = bookings.filter(b => {
+    const isInstant = b.isInstant === true || b.shopId === 'ADMIN_INSTANT' || b.slot === 'Immediate' || b.type === 'quick_booking';
+    if (!isInstant) return false;
+    
+    if (!searchVal) return true;
+    const term = searchVal;
+    return (
+      (b.id && b.id.toLowerCase().includes(term)) ||
+      (b.customerName && b.customerName.toLowerCase().includes(term)) ||
+      (b.customerPhone && b.customerPhone.toLowerCase().includes(term)) ||
+      (b.customerAddress && b.customerAddress.toLowerCase().includes(term)) ||
+      (b.title && b.title.toLowerCase().includes(term))
+    );
+  });
+
+  if (instantBookings.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-secondary);padding:30px;">No instant bookings currently found.</td></tr>';
+    return;
+  }
+
+  instantBookings.forEach(b => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight:700;">${esc(b.id)}</div>
+        <span class="badge" style="background:#ff6b00;color:white;font-size:10px;padding:2px 6px;margin-top:2px;display:inline-block;"><i class="fa-solid fa-bolt"></i> INSTANT</span>
+      </td>
+      <td>
+        <div style="font-weight:600;">${esc(b.customerName)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${esc(b.customerPhone)}</div>
+        <div style="font-size:11px;color:var(--text-secondary);">${esc(b.customerAddress)}</div>
+      </td>
+      <td>
+        <div style="font-weight:600;color:var(--primary-solid);">${esc(b.title)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${esc(b.specialInstructions || 'No instructions')}</div>
+      </td>
+      <td style="color:var(--primary-solid);font-weight:600;">
+        &#8377;${esc(b.amount)}
+        <div style="font-size:10px;color:var(--text-muted);font-weight:400;margin-top:2px;">
+          <span class="badge" style="background:var(--bg-card-hover);color:var(--text-primary);border:1px solid var(--border-color);padding:2px 6px;">${esc(b.paymentMethod || 'UPI')}</span>
+        </div>
+      </td>
+      <td>
+        ${b.issuePhoto ? `<button class="btn btn-secondary btn-sm" style="padding:4px 8px;font-size:11px;" onclick="viewIssuePhoto('${esc(b.id)}')"><i class="fa-solid fa-camera" style="color:#0070f3;"></i> View Photo</button>` : '<span style="color:var(--text-muted);font-size:11px;">No Photo</span>'}
+      </td>
+      <td>${esc(new Date(b.date).toLocaleDateString('en-GB'))} &bull; ${esc(b.slot)}</td>
+      <td><span class="badge badge-${esc(b.status)}">${esc(b.status.replace('_', ' '))}</span></td>
+      <td>
+        <input type="text" value="${esc(b.providerName || 'Admin Assigned')}" class="form-group" style="margin-bottom:0; padding:4px 8px; font-size:12px; width:130px;" onchange="updateProviderName('${esc(b.id)}', this.value)">
       </td>
       <td>
         <select class="table-action-select" onchange="changeBookingStatus('${esc(b.id)}', this.value)">
@@ -4343,6 +4418,7 @@ window.deleteService = deleteService;
 window.changeBookingStatus = changeBookingStatus;
 window.updateProviderName = updateProviderName;
 window.renderManageBookingsTable = renderManageBookingsTable;
+window.renderInstantBookingsTable = renderInstantBookingsTable;
 window.loadDemands = loadDemands;
 window.triggerWalletAdjustment = triggerWalletAdjustment;
 window.toggleUserBlock = toggleUserBlock;
@@ -4405,11 +4481,11 @@ function renderCustomSectionsList() {
            <img src="${sec.bannerImageUrl}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">
            <div style="position:absolute; inset:0; background:linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.7)); display:flex; flex-direction:column; justify-content:flex-end; padding:10px;">
              ${sec.bannerBadgeText ? `<span style="background:#1a9e3f; color:white; font-size:9px; padding:2px 8px; border-radius:3px; width:fit-content; margin-bottom:3px;">${sec.bannerBadgeText}</span>` : ''}
-             <span style="color:white; font-size:15px; font-weight:bold;">${sec.title}</span>
+             <span style="color:white; font-size:15px; font-weight:bold;">${displayTitle}</span>
            </div>
          </div>` 
       : `<div style="height:60px; background: linear-gradient(135deg, var(--primary-solid), var(--primary-end)); display:flex; align-items:center; justify-content:center; padding: 10px;">
-           <span style="color:white; font-weight:bold;"><i class="fa-solid fa-puzzle-piece"></i> ${sec.title}</span>
+           <span style="color:white; font-weight:bold;"><i class="fa-solid fa-puzzle-piece"></i> ${displayTitle}</span>
          </div>`;
     
     const serviceItemsPreview = sec.serviceItems && sec.serviceItems.length > 0
@@ -4431,7 +4507,7 @@ function renderCustomSectionsList() {
       <div style="padding: 14px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
           <div>
-            <strong style="font-size:14px; color:var(--text-primary);">${sec.title}</strong>
+            <strong style="font-size:14px; color:var(--text-primary);">${displayTitle}</strong>
             ${sec.subtitle ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${sec.subtitle}</div>` : ''}
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
@@ -5337,6 +5413,7 @@ async function pollRealtimeInstantBookings() {
     updateDashboardStats();
     renderBookingsTable();
     renderManageBookingsTable();
+    renderInstantBookingsTable();
   } catch (_) {}
 }
 

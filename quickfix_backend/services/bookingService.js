@@ -84,20 +84,24 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
     type
   } = reqBody;
 
+  const isInstantBooking = isInstant === true || type === 'quick_booking' || slot === 'Immediate' || shopId === 'ADMIN_INSTANT';
+
   let shop = null;
-  try { shop = await Shop.findById(shopId); } catch (_) {}
-  if (!shop) shop = await Shop.findOne({ id: shopId });
-  if (!shop) shop = await Shop.findOne({ _id: shopId });
-  if (!shop) {
+  if (shopId && shopId !== 'ADMIN_INSTANT') {
+    try { shop = await Shop.findById(shopId); } catch (_) {}
+    if (!shop) shop = await Shop.findOne({ id: shopId });
+    if (!shop) shop = await Shop.findOne({ _id: shopId });
+  }
+  if (!shop && !isInstantBooking) {
     throw new Error('Shop not found');
   }
 
   let user = userObjectFromToken;
   let parsedAmount = parseFloat(amount);
-  let visitingCharges = shop.visitingCharges || 150.0;
+  let visitingCharges = shop ? (shop.visitingCharges || 150.0) : 150.0;
   let bookingPricingType = pricingType || 'fixed';
 
-  if (items && Array.isArray(items) && items.length > 0) {
+  if (shop && items && Array.isArray(items) && items.length > 0) {
     const calc = await calculateCheckoutPriceInternal(shop, items, couponCode);
     parsedAmount = calc.grandTotal;
     visitingCharges = calc.visitingCharge;
@@ -139,8 +143,8 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
   }
 
   const bookingId = `QF-${Math.floor(100000 + Math.random() * 900000)}`;
-  const commissionRate = shop.commissionRate || 15.0;
-  const providerName = shop.ownerName || 'Assigning Expert...';
+  const commissionRate = shop ? (shop.commissionRate || 15.0) : 15.0;
+  const providerName = isInstantBooking ? 'Admin (Pending Assignment)' : (shop ? (shop.ownerName || 'Assigning Expert...') : 'Assigning Expert...');
   const estEarnings = parseFloat((parsedAmount * (1 - commissionRate / 100)).toFixed(2));
   
   let addr = customerAddress;
@@ -169,8 +173,6 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
   custLat = parseFloat(custLat) || 26.4912;
   custLng = parseFloat(custLng) || 80.3156;
 
-  const isInstantBooking = isInstant === true || type === 'quick_booking' || slot === 'Immediate';
-
   const newBooking = new Booking({
     id: bookingId,
     customerId: user ? (user._id ? user._id.toString() : user.id) : (customerId || 'cust-123'),
@@ -180,7 +182,7 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
     approxAddress: approxAddress,
     customerLat: custLat,
     customerLng: custLng,
-    shopId,
+    shopId: isInstantBooking ? 'ADMIN_INSTANT' : (shopId || 'ADMIN_INSTANT'),
     title,
     slot: slot || '09:00 AM - 10:00 AM',
     date: date ? new Date(date) : new Date(),

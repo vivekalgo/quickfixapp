@@ -414,9 +414,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           right: 16,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                data.title.toUpperCase(),
+                              if (data.title.isNotEmpty)
+                                Text(
+                                  data.title.toUpperCase(),
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
@@ -508,10 +508,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      data.title,
-                      style: AppTextStyles.headingMedium(isDark),
-                    ),
+                    if (data.title.isNotEmpty)
+                      Text(
+                        data.title,
+                        style: AppTextStyles.headingMedium(isDark),
+                      ),
                     if (data.subtitle.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(

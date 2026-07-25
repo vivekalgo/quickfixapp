@@ -338,8 +338,8 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
       }
     }
 
-    final targetShopId = matchedShop?.id ?? 'shop-cleaning-expert';
-    final targetShopOwner = matchedShop?.ownerName ?? 'Assigning Expert...';
+    const targetShopId = 'ADMIN_INSTANT';
+    const targetShopOwner = 'Admin (Pending Assignment)';
 
     // Show payment gateway dialog
     Timer? dialogTimer;
@@ -911,6 +911,33 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
                       ),
 
                 const SizedBox(height: 24),
+                // Inspection Note Banner
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, color: Colors.amber.shade800, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Note: This is only an inspection / visiting charge. Final price will be decided after visit.',
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 Text(
                   'Payment Gateway Options',
                   style: GoogleFonts.outfit(
@@ -934,13 +961,6 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
                     'subtitle': 'Credit / Debit Card, Net Banking',
                     'icon': Icons.payment_rounded,
                     'color': Colors.blue.shade700,
-                  },
-                  {
-                    'id': 'Wallet',
-                    'name': 'QuickFix Wallet',
-                    'subtitle': '1-Click Instant Pay',
-                    'icon': Icons.account_balance_wallet_rounded,
-                    'color': Colors.green.shade600,
                   },
                   {
                     'id': 'Cash',
@@ -1043,7 +1063,7 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
                 children: [
                   Text('Estimated Total', style: GoogleFonts.inter(fontSize: 13, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
                   Text(
-                    '₹',
+                    '₹${inspectionFee.toInt()}',
                     style: GoogleFonts.outfit(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,

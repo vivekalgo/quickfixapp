@@ -1,5 +1,5 @@
 const { HelpdeskTicket, TicketMessage, KnowledgeBase, HelpdeskAnalytics, Booking, User, Shop, PaymentLedger, Notification, AuditLog } = require('../models');
-const { sendFcmTopicNotification } = require('../helpers');
+const { sendFcmNotification, sendFcmTopicNotification } = require('../helpers');
 const { logger } = require('../config/logger');
 
 // --- PRE-SEEDED KNOWLEDGE BASE ARTICLES ---
@@ -447,13 +447,19 @@ async function addAdminReply(ticketId, adminName, text, attachments = []) {
     timestamp: new Date(adminMsgObj.timestamp)
   });
 
-  // Push FCM alert to customer if fcmToken available
+  // Push targeted FCM alert to customer
   if (ticket.customerId) {
     try {
-      sendFcmTopicNotification('customers', `Support Update on ${ticket.id}`, text.substring(0, 100), {
-        type: 'helpdesk_reply',
-        ticketId: ticket.id
-      });
+      sendFcmNotification(
+        ticket.customerId,
+        `Support Update on #${ticket.id}`,
+        text.substring(0, 100),
+        {
+          type: 'helpdesk_reply',
+          ticketId: ticket.id
+        },
+        'user'
+      );
     } catch (_) {}
   }
 

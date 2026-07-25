@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,6 +40,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   bool _isTyping = false;
   String? _activeTicketId;
   String _activeTicketStatus = 'open';
+  Timer? _pollTimer;
 
   final List<String> _presets = [
     'I want a refund',
@@ -52,6 +54,16 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   void initState() {
     super.initState();
     _loadInitialGreetingAndTickets();
+    _startMessagePolling();
+  }
+
+  void _startMessagePolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (_activeTicketId != null && mounted) {
+        _syncTicketMessages(_activeTicketId!, silent: true);
+      }
+    });
   }
 
   Future<void> _loadInitialGreetingAndTickets() async {
@@ -61,32 +73,92 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             ? (user['name'] as String).split(' ')[0]
             : 'Valued Customer';
 
-    setState(() {
-      _messages.add(
-        ChatMessage(
-          text: 'Hello $displayName! Welcome to QuickFix 24/7 AI Customer Support. How can I assist you with your bookings, payments, or services today?',
-          isUser: false,
-          senderName: 'QuickFix AI Support',
-          time: DateTime.now(),
-        ),
-      );
-    });
-
-    // Fetch existing tickets if any
     try {
       final tickets = await _helpdeskService.fetchUserTickets();
       if (tickets.isNotEmpty) {
         final latest = tickets.first as Map<String, dynamic>;
+        final ticketId = latest['id'] ?? latest['ticketId'];
+        if (ticketId != null && ticketId.toString().isNotEmpty) {
+          await _syncTicketMessages(ticketId.toString());
+        }
+      }
+    } catch (_) {}
+
+    if (_messages.isEmpty) {
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            text: 'Hello $displayName! Welcome to QuickFix 24/7 AI Customer Support. How can I assist you with your bookings, payments, or services today?',
+            isUser: false,
+            senderName: 'QuickFix AI Support',
+            time: DateTime.now(),
+          ),
+        );
+      });
+    }
+  }
+
+  Future<void> _syncTicketMessages(String ticketId, {bool silent = false}) async {
+    try {
+      final ticket = await _helpdeskService.fetchTicketDetail(ticketId);
+      if (ticket != null && mounted) {
+        final conversation = ticket['fullConversation'] as List<dynamic>?;
+        final status = ticket['status']?.toString() ?? 'open';
+
         setState(() {
-          _activeTicketId = latest['id'] ?? latest['ticketId'];
-          _activeTicketStatus = latest['status'] ?? 'open';
+          _activeTicketId = ticket['id'] ?? ticket['ticketId'] ?? ticketId;
+          _activeTicketStatus = status;
         });
+
+        if (conversation != null && conversation.isNotEmpty) {
+          final loadedMessages = <ChatMessage>[];
+          for (var m in conversation) {
+            if (m is Map<String, dynamic>) {
+              final sender = m['sender']?.toString() ?? 'user';
+              final isUserMsg = (sender == 'user' || sender == 'customer');
+              final text = m['text']?.toString() ?? '';
+              final senderName = m['senderName']?.toString() ??
+                  (isUserMsg
+                      ? 'You'
+                      : (sender == 'admin'
+                          ? 'Support Admin'
+                          : 'QuickFix AI Support'));
+              final timeStr = m['timestamp']?.toString();
+              final timeVal = timeStr != null
+                  ? (DateTime.tryParse(timeStr) ?? DateTime.now())
+                  : DateTime.now();
+
+              if (text.isNotEmpty) {
+                loadedMessages.add(
+                  ChatMessage(
+                    text: text,
+                    isUser: isUserMsg,
+                    senderName: senderName,
+                    time: timeVal,
+                  ),
+                );
+              }
+            }
+          }
+
+          if (loadedMessages.isNotEmpty) {
+            final prevCount = _messages.length;
+            setState(() {
+              _messages.clear();
+              _messages.addAll(loadedMessages);
+            });
+            if (!silent || _messages.length > prevCount) {
+              _scrollToBottom();
+            }
+          }
+        }
       }
     } catch (_) {}
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -151,6 +223,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             _activeTicketStatus = t['status'] ?? 'open';
           }
         });
+        if (_activeTicketId != null) {
+          await _syncTicketMessages(_activeTicketId!, silent: true);
+        }
         AppHaptics.successNotification();
         _scrollToBottom();
       }
