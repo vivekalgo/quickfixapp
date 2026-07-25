@@ -414,6 +414,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           right: 16,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               if (data.title.isNotEmpty)
                                 Text(
                                   data.title.toUpperCase(),
