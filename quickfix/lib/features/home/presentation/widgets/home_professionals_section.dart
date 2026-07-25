@@ -22,7 +22,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Top Professionals',
+          title: 'Top Professionals ⭐',
           isDark: isDark,
           onSeeAll: () {
             AppHaptics.lightTap();
@@ -31,7 +31,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
         ),
 
         SizedBox(
-          height: 210,
+          height: 228,
           child: professionalsAsync.when(
             data: (professionals) {
               if (professionals.isEmpty) {
@@ -84,68 +84,84 @@ class HomeProfessionalsSection extends ConsumerWidget {
                       }
                     },
                     child: Container(
-                      width: 240,
-                      margin: const EdgeInsets.only(right: 14, bottom: 8),
-                      padding: const EdgeInsets.all(16),
+                      width: 248,
+                      margin: const EdgeInsets.only(right: 14, bottom: 8, top: 4),
+                      padding: const EdgeInsets.all(15),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.surfaceDark : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 16,
+                            color: isDark
+                                ? Colors.black.withValues(alpha: 0.3)
+                                : const Color(0xFF0F172A).withValues(alpha: 0.06),
+                            blurRadius: 18,
                             spreadRadius: 0,
-                            offset: const Offset(0, 4),
+                            offset: const Offset(0, 6),
                           ),
                         ],
-                        border: isDark
-                            ? Border.all(color: AppColors.borderDark)
-                            : Border.all(
-                                color: const Color(0xFFF0F4F8),
-                              ),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : const Color(0xFFE2E8F0),
+                          width: 1,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Avatar + Info Row ────────────────────────────
+                          // ── Top Header Row: Avatar + Info ─────────────────────
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Avatar with ring
+                              // Avatar with Gradient Ring & Online Dot
                               Stack(
                                 children: [
                                   Container(
-                                    decoration: BoxDecoration(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
                                       shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: AppColors.primaryAccent,
-                                        width: 2,
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Color(0xFF3B82F6),
+                                          Color(0xFF8B5CF6),
+                                          Color(0xFFEC4899),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
                                     ),
-                                    padding: const EdgeInsets.all(2),
-                                    child: CircleAvatar(
-                                      radius: 26,
-                                      backgroundImage: ResizeImage(
-                                        NetworkImage(
-                                          prof.avatarUrl.isNotEmpty
-                                              ? prof.avatarUrl
-                                              : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isDark
+                                            ? AppColors.surfaceDark
+                                            : Colors.white,
+                                      ),
+                                      padding: const EdgeInsets.all(2),
+                                      child: CircleAvatar(
+                                        radius: 26,
+                                        backgroundImage: ResizeImage(
+                                          NetworkImage(
+                                            prof.avatarUrl.isNotEmpty
+                                                ? prof.avatarUrl
+                                                : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                                          ),
+                                          width: 150,
                                         ),
-                                        width: 150,
                                       ),
                                     ),
                                   ),
-                                  // Availability dot
                                   Positioned(
-                                    right: 1,
-                                    bottom: 1,
+                                    right: 2,
+                                    bottom: 2,
                                     child: Container(
-                                      width: 12,
-                                      height: 12,
+                                      width: 13,
+                                      height: 13,
                                       decoration: BoxDecoration(
                                         color: prof.availability
-                                            ? AppColors.success
-                                            : AppColors.error,
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFEF4444),
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                           color: isDark
@@ -171,9 +187,9 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: GoogleFonts.outfit(
-                                              fontSize: 14.5,
+                                              fontSize: 15,
                                               fontWeight: FontWeight.w800,
-                                              letterSpacing: -0.3,
+                                              letterSpacing: -0.2,
                                               color: isDark
                                                   ? Colors.white
                                                   : AppColors.textPrimaryLight,
@@ -182,16 +198,23 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                         ),
                                         if (prof.verifiedBadge) ...[
                                           const SizedBox(width: 4),
-                                          const Icon(
-                                            Icons.verified_rounded,
-                                            color: Color(0xFF3B82F6),
-                                            size: 14,
+                                          Container(
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFF2563EB),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.check_rounded,
+                                              color: Colors.white,
+                                              size: 10,
+                                            ),
                                           ),
                                         ],
                                       ],
                                     ),
                                     const SizedBox(height: 4),
-                                    // Specialty pill
+                                    // Specialty Pill Tag
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
@@ -199,31 +222,40 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                       ),
                                       decoration: BoxDecoration(
                                         color: isDark
-                                            ? AppColors.primaryAccent.withValues(
-                                                alpha: 0.12,
+                                            ? const Color(0xFF3B82F6).withValues(
+                                                alpha: 0.16,
                                               )
-                                            : AppColors.primaryAccent.withValues(
-                                                alpha: 0.08,
-                                              ),
+                                            : const Color(0xFFEFF6FF),
                                         borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: isDark
+                                              ? const Color(0xFF3B82F6).withValues(
+                                                  alpha: 0.3,
+                                                )
+                                              : const Color(0xFFBFDBFE),
+                                          width: 1,
+                                        ),
                                       ),
                                       child: Text(
                                         prof.specialty,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inter(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.primaryAccent,
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark
+                                              ? const Color(0xFF60A5FA)
+                                              : const Color(0xFF1D4ED8),
                                         ),
                                       ),
                                     ),
                                     if (prof.experience.isNotEmpty) ...[
-                                      const SizedBox(height: 3),
+                                      const SizedBox(height: 4),
                                       Text(
                                         prof.experience,
                                         style: GoogleFonts.inter(
                                           fontSize: 10.5,
+                                          fontWeight: FontWeight.w500,
                                           color: isDark
                                               ? AppColors.textSecondaryDark
                                               : AppColors.textSecondaryLight,
@@ -238,37 +270,50 @@ class HomeProfessionalsSection extends ConsumerWidget {
 
                           const SizedBox(height: 12),
 
-                          // ── Stats Row ────────────────────────────────────
+                          // ── Ratings & Online Status Bar ───────────────────────
                           Row(
                             children: [
-                              const Icon(
-                                Icons.star_rounded,
-                                color: Color(0xFFFFB800),
-                                size: 14,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                prof.rating.toString(),
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark
-                                      ? Colors.white
-                                      : AppColors.textPrimaryLight,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
                                 ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '(${prof.reviewsCount})',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: isDark
-                                      ? AppColors.textSecondaryDark
-                                      : AppColors.textSecondaryLight,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.star_rounded,
+                                      color: Color(0xFFD97706),
+                                      size: 14,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      prof.rating.toStringAsFixed(1),
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w900,
+                                        color: const Color(0xFF92400E),
+                                      ),
+                                    ),
+                                    if (prof.reviewsCount > 0) ...[
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '(${prof.reviewsCount})',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFFB45309),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                               const Spacer(),
-                              // Availability badge
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -276,18 +321,18 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                 ),
                                 decoration: BoxDecoration(
                                   color: prof.availability
-                                      ? AppColors.success.withValues(alpha: 0.10)
-                                      : AppColors.error.withValues(alpha: 0.10),
+                                      ? const Color(0xFFD1FAE5)
+                                      : const Color(0xFFFEE2E2),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  prof.availability ? 'Online' : 'Offline',
+                                  prof.availability ? '● Available' : '○ Offline',
                                   style: GoogleFonts.inter(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                     color: prof.availability
-                                        ? AppColors.success
-                                        : AppColors.error,
+                                        ? const Color(0xFF047857)
+                                        : const Color(0xFFB91C1C),
                                   ),
                                 ),
                               ),
@@ -296,10 +341,9 @@ class HomeProfessionalsSection extends ConsumerWidget {
 
                           const Spacer(),
 
-                          // ── Action Row ───────────────────────────────────
+                          // ── Action Row: Wishlist + Book Now CTA ───────────────
                           Row(
                             children: [
-                              // Favorite icon button
                               GestureDetector(
                                 onTap: () {
                                   AppHaptics.mediumTap();
@@ -322,13 +366,18 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                   );
                                 },
                                 child: Container(
-                                  width: 34,
-                                  height: 34,
+                                  width: 36,
+                                  height: 36,
                                   decoration: BoxDecoration(
                                     color: isDark
                                         ? AppColors.borderDark
                                         : const Color(0xFFF1F5F9),
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? AppColors.borderDark
+                                          : const Color(0xFFE2E8F0),
+                                    ),
                                   ),
                                   child: Icon(
                                     isFav
@@ -336,8 +385,8 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                         : Icons.favorite_border_rounded,
                                     color: isFav
                                         ? const Color(0xFFEF4444)
-                                        : const Color(0xFF94A3B8),
-                                    size: 16,
+                                        : const Color(0xFF64748B),
+                                    size: 17,
                                   ),
                                 ),
                               ),
@@ -370,20 +419,48 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                     }
                                   },
                                   child: Container(
-                                    height: 34,
+                                    height: 36,
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary,
-                                      borderRadius: BorderRadius.circular(10),
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          AppColors.primary,
+                                          AppColors.primaryAccent,
+                                        ],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.primary.withValues(
+                                            alpha: 0.35,
+                                          ),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
                                     ),
                                     child: Center(
-                                      child: Text(
-                                        'Book Now',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                          letterSpacing: -0.1,
-                                        ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Book Expert',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                              letterSpacing: -0.1,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            color: Colors.white,
+                                            size: 14,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -405,9 +482,9 @@ class HomeProfessionalsSection extends ConsumerWidget {
               itemBuilder: (context, index) => const Padding(
                 padding: EdgeInsets.only(right: 14),
                 child: ShimmerLoading(
-                  width: 240,
-                  height: 200,
-                  borderRadius: 20,
+                  width: 248,
+                  height: 220,
+                  borderRadius: 22,
                 ),
               ),
             ),

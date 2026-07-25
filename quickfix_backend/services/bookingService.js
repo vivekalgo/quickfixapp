@@ -78,7 +78,10 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
     latitude,
     longitude,
     durationText,
-    specialInstructions
+    specialInstructions,
+    issuePhoto,
+    isInstant,
+    type
   } = reqBody;
 
   let shop = null;
@@ -166,6 +169,8 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
   custLat = parseFloat(custLat) || 26.4912;
   custLng = parseFloat(custLng) || 80.3156;
 
+  const isInstantBooking = isInstant === true || type === 'quick_booking' || slot === 'Immediate';
+
   const newBooking = new Booking({
     id: bookingId,
     customerId: user ? (user._id ? user._id.toString() : user.id) : (customerId || 'cust-123'),
@@ -184,6 +189,9 @@ async function placeBookingOrder(reqBody, userObjectFromToken) {
     estEarnings,
     estDuration: durationText || '1.5 hrs',
     specialInstructions: specialInstructions || '',
+    paymentMethod: paymentMethod || 'UPI',
+    issuePhoto: issuePhoto || '',
+    isInstant: isInstantBooking,
     status: 'pending',
     providerName: providerName,
     pricingType: bookingPricingType

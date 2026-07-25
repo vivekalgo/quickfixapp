@@ -16,6 +16,7 @@ class DioClient {
   final StreamController<void> _unauthorizedController = StreamController<void>.broadcast();
 
   Stream<void> get onUnauthorized => _unauthorizedController.stream;
+  Dio get dio => _dio;
 
   DioClient() {
     _dio = Dio(

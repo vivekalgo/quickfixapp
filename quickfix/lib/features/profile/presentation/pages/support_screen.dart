@@ -8,15 +8,18 @@ import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/features/home/presentation/controllers/home_providers.dart';
 import 'package:quickfix/features/auth/presentation/controllers/auth_providers.dart';
+import 'package:quickfix/features/profile/data/helpdesk_service.dart';
 
 class ChatMessage {
   final String text;
   final bool isUser;
+  final String senderName;
   final DateTime time;
 
   const ChatMessage({
     required this.text,
     required this.isUser,
+    this.senderName = '',
     required this.time,
   });
 }
@@ -29,36 +32,57 @@ class SupportScreen extends ConsumerStatefulWidget {
 }
 
 class _SupportScreenState extends ConsumerState<SupportScreen> {
+  final HelpdeskService _helpdeskService = HelpdeskService();
   final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isTyping = false;
+  String? _activeTicketId;
+  String _activeTicketStatus = 'open';
 
   final List<String> _presets = [
     'I want a refund',
     'My provider is delayed',
     'Cancel appointment',
+    'Talk to Human Agent',
+    'Emergency Issue',
   ];
 
   @override
   void initState() {
     super.initState();
-    // Default welcoming bot message
+    _loadInitialGreetingAndTickets();
+  }
+
+  Future<void> _loadInitialGreetingAndTickets() async {
     final user = ref.read(authProvider).user;
     final displayName =
-        user != null &&
-            user['name'] != null &&
-            (user['name'] as String).isNotEmpty
-        ? (user['name'] as String).split(' ')[0]
-        : 'User';
-    _messages.add(
-      ChatMessage(
-        text:
-            'Hello $displayName! Welcome to QuickFix Support desk. How can I help you today?',
-        isUser: false,
-        time: DateTime.now(),
-      ),
-    );
+        user != null && user['name'] != null && (user['name'] as String).isNotEmpty
+            ? (user['name'] as String).split(' ')[0]
+            : 'Valued Customer';
+
+    setState(() {
+      _messages.add(
+        ChatMessage(
+          text: 'Hello $displayName! Welcome to QuickFix 24/7 AI Customer Support. How can I assist you with your bookings, payments, or services today?',
+          isUser: false,
+          senderName: 'QuickFix AI Support',
+          time: DateTime.now(),
+        ),
+      );
+    });
+
+    // Fetch existing tickets if any
+    try {
+      final tickets = await _helpdeskService.fetchUserTickets();
+      if (tickets.isNotEmpty) {
+        final latest = tickets.first as Map<String, dynamic>;
+        setState(() {
+          _activeTicketId = latest['id'] ?? latest['ticketId'];
+          _activeTicketStatus = latest['status'] ?? 'open';
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -80,48 +104,72 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     });
   }
 
-  void _sendMessage(String text) {
+  Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
     AppHaptics.lightTap();
 
+    final userText = text.trim();
     setState(() {
       _messages.add(
-        ChatMessage(text: text, isUser: true, time: DateTime.now()),
+        ChatMessage(
+          text: userText,
+          isUser: true,
+          senderName: 'You',
+          time: DateTime.now(),
+        ),
       );
       _messageController.clear();
       _isTyping = true;
     });
     _scrollToBottom();
 
-    // Trigger simulated reply
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    // Call Backend Helpdesk AI Agent
+    try {
+      final res = await _helpdeskService.sendChatMessage(
+        message: userText,
+        ticketId: _activeTicketId,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isTyping = false;
+          final replyObj = res['reply'] as Map<String, dynamic>?;
+          final aiText = replyObj?['text'] ?? res['aiResult']?['answerText'] ?? 'Thank you. A support manager has been notified.';
+          
+          _messages.add(
+            ChatMessage(
+              text: aiText,
+              isUser: false,
+              senderName: replyObj?['senderName'] ?? 'QuickFix AI Support',
+              time: DateTime.now(),
+            ),
+          );
+
+          if (res['ticket'] != null) {
+            final t = res['ticket'] as Map<String, dynamic>;
+            _activeTicketId = t['id'] ?? t['ticketId'];
+            _activeTicketStatus = t['status'] ?? 'open';
+          }
+        });
+        AppHaptics.successNotification();
+        _scrollToBottom();
+      }
+    } catch (e) {
       if (mounted) {
         setState(() {
           _isTyping = false;
           _messages.add(
             ChatMessage(
-              text: _getBotResponse(text),
+              text: 'I have logged your request. A QuickFix support representative will update your ticket shortly.',
               isUser: false,
+              senderName: 'QuickFix AI Support',
               time: DateTime.now(),
             ),
           );
         });
-        AppHaptics.successNotification();
         _scrollToBottom();
       }
-    });
-  }
-
-  String _getBotResponse(String userText) {
-    final query = userText.toLowerCase();
-    if (query.contains('refund')) {
-      return 'I have initiated a query for booking #QF-8947265. The refund of ₹548 will be credited to your QuickFix Wallet within 24 hours of confirmation.';
-    } else if (query.contains('delay')) {
-      return 'Apologies for the delay! I have reached out to Rohan Sharma. He is currently on the bike, 0.6 km away, and will reach your location in 6 minutes.';
-    } else if (query.contains('cancel')) {
-      return 'To cancel your active booking, please visit the Booking History page, select your current booking and click "Cancel Booking". Let me know if you need help.';
     }
-    return 'Thank you for reaching out. A customer support manager has been assigned to your ticket and will join this chat in a few moments.';
   }
 
   @override
@@ -133,10 +181,16 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         titleSpacing: 0,
         title: Row(
           children: [
-            const CircleAvatar(
-              radius: 18,
-              backgroundImage: NetworkImage(
-                'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+              ),
+              child: const CircleAvatar(
+                radius: 17,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.support_agent_rounded, size: 22, color: AppColors.primary),
               ),
             ),
             const SizedBox(width: 10),
@@ -144,10 +198,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Support Helpdesk',
-                  style: AppTextStyles.headingSmall(
-                    isDark,
-                  ).copyWith(fontSize: 15),
+                  'QuickFix AI Support Desk',
+                  style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 14.5),
                 ),
                 Row(
                   children: [
@@ -161,8 +213,14 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Online (Instant Reply)',
-                      style: GoogleFonts.inter(fontSize: 10, color: AppColors.success),
+                      _activeTicketId != null
+                          ? 'Ticket #$_activeTicketId (${_activeTicketStatus.toUpperCase()})'
+                          : 'AI Assistant Active • 24×7',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -185,6 +243,30 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       ),
       body: Column(
         children: [
+          // Active Ticket Status Banner
+          if (_activeTicketId != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: AppColors.primary.withValues(alpha: 0.1),
+              child: Row(
+                children: [
+                  const Icon(Icons.confirmation_number_outlined, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Support Ticket #$_activeTicketId is currently ${_activeTicketStatus.toUpperCase().replaceAll('_', ' ')}.',
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // 1. Message Bubble list
           Expanded(
             child: ListView.builder(
@@ -194,21 +276,14 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 return Align(
-                  alignment: msg.isUser
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
+                  alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: msg.isUser
                           ? AppColors.primary
-                          : (isDark
-                                ? AppColors.surfaceDark
-                                : Colors.grey.shade100),
+                          : (isDark ? AppColors.surfaceDark : Colors.grey.shade100),
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
@@ -217,19 +292,37 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                       ),
                     ),
                     constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
+                      maxWidth: MediaQuery.of(context).size.width * 0.8,
                     ),
-                    child: Text(
-                      msg.text,
-                      style: GoogleFonts.inter(
-                        fontSize: 13.5,
-                        color: msg.isUser
-                            ? Colors.white
-                            : (isDark ? Colors.white : AppColors.secondary),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (!msg.isUser && msg.senderName.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              msg.senderName,
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        Text(
+                          msg.text,
+                          style: GoogleFonts.inter(
+                            fontSize: 13.5,
+                            height: 1.35,
+                            color: msg.isUser
+                                ? Colors.white
+                                : (isDark ? Colors.white : AppColors.secondary),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ).animate().slideY(begin: 0.1, end: 0, duration: 250.ms);
+                ).animate().slideY(begin: 0.1, end: 0, duration: 200.ms);
               },
             ),
           ),
@@ -240,65 +333,58 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
               padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child:
-                    Row(
-                          children: [
-                            Text(
-                              'Assistant is typing',
-                              style: AppTextStyles.bodySmall(isDark),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.more_horiz,
-                              size: 16,
-                              color: AppColors.textSecondaryLight,
-                            ),
-                          ],
-                        )
-                        .animate(onPlay: (controller) => controller.repeat())
-                        .shimmer(),
+                child: Row(
+                  children: [
+                    Text(
+                      'AI Assistant is thinking',
+                      style: AppTextStyles.bodySmall(isDark),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.more_horiz,
+                      size: 16,
+                      color: AppColors.textSecondaryLight,
+                    ),
+                  ],
+                ).animate(onPlay: (controller) => controller.repeat()).shimmer(),
               ),
             ),
 
           // 2. Preset Quick selection pills
-          if (_messages.length == 1)
-            SizedBox(
-              height: 38,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _presets.length,
-                itemBuilder: (context, index) {
-                  final preset = _presets[index];
-                  return GestureDetector(
-                    onTap: () => _sendMessage(preset),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Text(
-                        preset,
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+          SizedBox(
+            height: 38,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _presets.length,
+              itemBuilder: (context, index) {
+                final preset = _presets[index];
+                return GestureDetector(
+                  onTap: () => _sendMessage(preset),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceDark : Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3),
                       ),
                     ),
-                  );
-                },
-              ),
+                    child: Text(
+                      preset,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 10),
 
           // 3. Bottom text input panel
           Container(
@@ -317,15 +403,14 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.backgroundDark
-                          : Colors.grey.shade100,
+                      color: isDark ? AppColors.backgroundDark : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: TextField(
                       controller: _messageController,
+                      onSubmitted: (val) => _sendMessage(val),
                       decoration: InputDecoration(
-                        hintText: 'Type support message here...',
+                        hintText: 'Ask QuickFix AI or describe issue...',
                         border: InputBorder.none,
                         isDense: true,
                         hintStyle: GoogleFonts.inter(

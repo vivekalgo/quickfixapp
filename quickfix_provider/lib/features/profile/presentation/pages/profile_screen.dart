@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:quickfix_provider/core/theme/app_colors.dart';
 import 'package:quickfix_provider/core/theme/app_text_styles.dart';
 import 'package:quickfix_provider/features/auth/presentation/controllers/auth_provider.dart';
+import 'package:quickfix_provider/features/profile/presentation/pages/partner_support_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -475,10 +476,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         'Partner Support & Helpdesk',
                         style: TextStyle(fontSize: 13.5),
                       ),
-                      onTap: () => _showInfoDialog(
-                        'Partner Support',
-                        'Email: partnersupport@quickfix.app\nTel: +91 1800-456-789\nWe are here 24/7 to support your shop operational queries.',
-                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PartnerSupportScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const Divider(height: 1, color: Colors.white10),
 

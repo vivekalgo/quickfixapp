@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
 import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/core/widgets/section_header.dart';
@@ -347,6 +348,13 @@ class HomeNeedHelpCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(isDarkModeProvider);
 
+    final settingsAsync = ref.watch(appSettingsProvider);
+    final String supportNumber = settingsAsync.when(
+      data: (s) => s['supportNumber']?.toString() ?? '9453626549',
+      loading: () => '9453626549',
+      error: (_, __) => '9453626549',
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
       child: Container(
@@ -463,8 +471,26 @@ class HomeNeedHelpCard extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       GestureDetector(
-                        onTap: () {
+                        onTap: () async {
                           AppHaptics.mediumTap();
+                          final Uri phoneUri = Uri(
+                            scheme: 'tel',
+                            path: supportNumber,
+                          );
+                          try {
+                            await launchUrl(phoneUri);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Calling $supportNumber',
+                                  ),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(

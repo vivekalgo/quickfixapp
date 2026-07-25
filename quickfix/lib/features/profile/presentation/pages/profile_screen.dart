@@ -36,7 +36,6 @@ class ProfileScreen extends ConsumerWidget {
     final String phone = user?['phone']?.toString() ?? '';
     final String email = user?['email']?.toString() ?? '';
     final String avatarUrl = user?['avatarUrl']?.toString() ?? '';
-    final String membership = user?['membership']?.toString() ?? 'basic';
     final bool isPhoneVerified = user?['isPhoneVerified'] as bool? ?? true;
     final int referralCount = (user?['referralCount'] as num?)?.toInt() ?? 0;
     final savedAddresses = user?['savedAddresses'] as List<dynamic>? ?? [];
@@ -262,46 +261,38 @@ class ProfileScreen extends ConsumerWidget {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        // Membership badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient:
-                                membership == 'plus' || membership == 'premium'
-                                ? AppColors.goldGradient
-                                : const LinearGradient(
-                                    colors: [
-                                      Color(0xFF64748B),
-                                      Color(0xFF94A3B8),
-                                    ],
-                                  ),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                membership == 'plus' || membership == 'premium'
-                                    ? Icons.stars
-                                    : Icons.person_outline,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                              const SizedBox(width: 6),
+                        if (memberSince.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today_rounded,
+                                  color: Colors.white70,
+                                  size: 12,
+                                ),
+                                const SizedBox(width: 6),
                                 Text(
-                                  'QuickFix ${membership.toUpperCase()} Member${memberSince.isNotEmpty ? " • Since $memberSince" : ""}',
+                                  'Member Since $memberSince',
                                   style: GoogleFonts.outfit(
                                     color: Colors.white,
                                     fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -450,14 +441,6 @@ class ProfileScreen extends ConsumerWidget {
                         label: 'Refer & Earn',
                         subtitle: 'Earn ₹100 per friend invited',
                         color: Colors.purple,
-                        route: '/refer-earn',
-                      ),
-                      _ProfileTile(
-                        icon: Icons.stars_outlined,
-                        label: 'Membership',
-                        subtitle:
-                            '${membership.toUpperCase()} plan • Manage & upgrade',
-                        color: AppColors.accent,
                         route: '/refer-earn',
                       ),
                     ],

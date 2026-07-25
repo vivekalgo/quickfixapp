@@ -25,7 +25,7 @@ class HomeSpecialForYou extends ConsumerWidget {
           children: [
             SectionHeader(title: 'Special For You 🔥', isDark: isDark),
             SizedBox(
-              height: 128,
+              height: 138,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -34,12 +34,13 @@ class HomeSpecialForYou extends ConsumerWidget {
                 itemBuilder: (context, index) {
                   final item = cards[index];
 
-                  Color bgColor = isDark
+                  Color cardBgColor = isDark
                       ? AppColors.surfaceDark
                       : Colors.white;
+                  Color accentColor = AppColors.primaryAccent;
                   try {
                     if (item.backgroundColor.isNotEmpty && !isDark) {
-                      bgColor = Color(
+                      cardBgColor = Color(
                         int.parse(item.backgroundColor.replaceAll('#', '0xFF')),
                       );
                     }
@@ -47,19 +48,25 @@ class HomeSpecialForYou extends ConsumerWidget {
                     // Fallback
                   }
 
-                  IconData iconData = Icons.star_outline_rounded;
+                  IconData iconData = Icons.star_rounded;
                   if (item.icon == 'water_drop_outlined') {
-                    iconData = Icons.water_drop_outlined;
+                    iconData = Icons.water_drop_rounded;
+                    accentColor = const Color(0xFF0284C7);
                   } else if (item.icon == 'flash_on_outlined') {
-                    iconData = Icons.flash_on_outlined;
+                    iconData = Icons.bolt_rounded;
+                    accentColor = const Color(0xFFD97706);
                   } else if (item.icon == 'discount_outlined') {
-                    iconData = Icons.discount_outlined;
+                    iconData = Icons.discount_rounded;
+                    accentColor = const Color(0xFFDC2626);
                   } else if (item.icon == 'cleaning_services_outlined') {
-                    iconData = Icons.cleaning_services_outlined;
+                    iconData = Icons.cleaning_services_rounded;
+                    accentColor = const Color(0xFF059669);
                   } else if (item.icon == 'plumbing_outlined') {
-                    iconData = Icons.plumbing_outlined;
+                    iconData = Icons.plumbing_rounded;
+                    accentColor = const Color(0xFF2563EB);
                   } else if (item.icon == 'bolt_outlined') {
-                    iconData = Icons.bolt_outlined;
+                    iconData = Icons.bolt_rounded;
+                    accentColor = const Color(0xFF7C3AED);
                   }
 
                   return GestureDetector(
@@ -72,45 +79,27 @@ class HomeSpecialForYou extends ConsumerWidget {
                       );
                     },
                     child: Container(
-                      width: 210,
-                      margin: const EdgeInsets.only(right: 12, bottom: 4),
-                      padding: const EdgeInsets.all(14),
+                      width: 220,
+                      margin: const EdgeInsets.only(right: 14, bottom: 6, top: 2),
+                      padding: const EdgeInsets.all(15),
                       decoration: BoxDecoration(
-                        color: bgColor,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border(
-                          left: const BorderSide(
-                            color: AppColors.primaryAccent,
-                            width: 3,
-                          ),
-                          top: BorderSide(
+                        color: cardBgColor,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
                             color: isDark
-                                ? AppColors.borderDark
-                                : const Color(0xFFE8ECF4),
-                            width: 1,
+                                ? Colors.black.withValues(alpha: 0.25)
+                                : const Color(0xFF0F172A).withValues(alpha: 0.05),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
                           ),
-                          right: BorderSide(
-                            color: isDark
-                                ? AppColors.borderDark
-                                : const Color(0xFFE8ECF4),
-                            width: 1,
-                          ),
-                          bottom: BorderSide(
-                            color: isDark
-                                ? AppColors.borderDark
-                                : const Color(0xFFE8ECF4),
-                            width: 1,
-                          ),
+                        ],
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : accentColor.withValues(alpha: 0.18),
+                          width: 1.2,
                         ),
-                        boxShadow: isDark
-                            ? []
-                            : [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,26 +108,53 @@ class HomeSpecialForYou extends ConsumerWidget {
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(7),
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primaryAccent.withValues(
-                                    alpha: 0.08,
-                                  ),
-                                  borderRadius: BorderRadius.circular(9),
+                                  color: accentColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
                                   iconData,
-                                  color: AppColors.primaryAccent,
-                                  size: 18,
+                                  color: accentColor,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: accentColor.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'LIMITED',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                    color: accentColor,
+                                  ),
                                 ),
                               ),
                               const Spacer(),
-                              Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                size: 12,
-                                color: isDark
-                                    ? AppColors.textSecondaryDark
-                                    : AppColors.textSecondaryLight,
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppColors.borderDark
+                                      : const Color(0xFFF1F5F9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 13,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : AppColors.primary,
+                                ),
                               ),
                             ],
                           ),
@@ -150,8 +166,8 @@ class HomeSpecialForYou extends ConsumerWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
                                   letterSpacing: -0.2,
                                   color: isDark
                                       ? Colors.white
@@ -167,6 +183,7 @@ class HomeSpecialForYou extends ConsumerWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
+                                  fontWeight: FontWeight.w500,
                                   color: isDark
                                       ? AppColors.textSecondaryDark
                                       : AppColors.textSecondaryLight,

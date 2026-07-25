@@ -26,7 +26,6 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
   late Razorpay _razorpay;
   Map<String, dynamic>? _pendingBookingData;
   bool _isProcessing = false;
-  int _currentStep = 0;
 
   @override
   void initState() {
@@ -194,57 +193,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
     );
   }
 
-  Widget _buildStepIndicator(bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Row(
-        children: [
-          _buildStepNode(0, 'Date/Time', isDark),
-          _buildStepLine(isDark),
-          _buildStepNode(1, 'Address', isDark),
-          _buildStepLine(isDark),
-          _buildStepNode(2, 'Payment', isDark),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildStepNode(int index, String title, bool isDark) {
-    final isActive = _currentStep >= index;
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isActive ? AppColors.primaryAccent : (isDark ? AppColors.surfaceDark : Colors.grey.shade200),
-              border: Border.all(
-                color: isActive ? AppColors.primaryAccent : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                width: 2,
-              ),
-            ),
-            child: Center(
-              child: isActive && _currentStep > index
-                  ? const Icon(Icons.check, color: Colors.white, size: 16)
-                  : Text('', style: GoogleFonts.outfit(color: isActive ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight), fontWeight: FontWeight.w700)),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(title, style: GoogleFonts.inter(fontSize: 12, fontWeight: isActive ? FontWeight.w600 : FontWeight.w400, color: isActive ? (isDark ? Colors.white : AppColors.primary) : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStepLine(bool isDark) {
-    return Container(
-      width: 40,
-      height: 2,
-      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -333,8 +282,6 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStepIndicator(isDark),
-            
             Text('Date & Time', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: isDark ? Colors.white : AppColors.primary)),
             const SizedBox(height: 16),
             SizedBox(
@@ -401,7 +348,6 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                   onTap: () {
                     AppHaptics.selectionClick();
                     ref.read(selectedSlotProvider.notifier).state = slot;
-                    setState(() => _currentStep = 1);
                   },
                   child: Container(
                     decoration: BoxDecoration(
@@ -450,7 +396,6 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                 onTap: () {
                   AppHaptics.selectionClick();
                   ref.read(selectedAddressIndexProvider.notifier).state = index;
-                  setState(() => _currentStep = 2);
                 },
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),

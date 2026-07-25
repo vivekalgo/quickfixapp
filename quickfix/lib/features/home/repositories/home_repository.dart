@@ -15,4 +15,5 @@ abstract class HomeRepository {
   Future<List<SpecialCard>> getSpecialCards();
   Future<List<CmsSection>> getHomepageLayout();
   Future<List<CustomSection>> getCustomSections();
+  Future<Map<String, dynamic>> getAppSettings();
 }

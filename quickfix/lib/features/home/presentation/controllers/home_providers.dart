@@ -89,6 +89,12 @@ final customSectionsProvider = FutureProvider<List<CustomSection>>((ref) async {
   return repository.getCustomSections();
 });
 
+// App Settings Provider (Support number, tax rate, etc.)
+final appSettingsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final repository = ref.watch(homeRepositoryProvider);
+  return repository.getAppSettings();
+});
+
 // Cart Shop ID Tracker Provider
 final cartShopIdProvider = StateProvider<String?>((ref) => null);
 

@@ -562,6 +562,7 @@ function setupTabs() {
       if (tabId === 'providers-tab')   renderProvidersTable();
       if (tabId === 'reviews-tab')     loadReviews();
       if (tabId === 'wallet-tab')      loadWalletTab();
+      if (tabId === 'helpdesk-tab')    loadHelpdeskData();
     });
   });
 }
@@ -1653,6 +1654,7 @@ function renderManageBookingsTable() {
   
   const filteredBookings = bookings.filter(b => {
     if (filterVal === 'all') return true;
+    if (filterVal === 'instant') return b.isInstant === true || b.slot === 'Immediate' || b.type === 'quick_booking';
     return b.status === filterVal;
   });
   
@@ -1662,9 +1664,13 @@ function renderManageBookingsTable() {
   }
   
   filteredBookings.forEach(b => {
+    const isInstant = b.isInstant === true || b.slot === 'Immediate' || b.type === 'quick_booking';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${esc(b.id)}</td>
+      <td>
+        <div style="font-weight:700;">${esc(b.id)}</div>
+        ${isInstant ? '<span class="badge" style="background:#ff6b00;color:white;font-size:10px;padding:2px 6px;margin-top:2px;display:inline-block;"><i class="fa-solid fa-bolt"></i> INSTANT</span>' : ''}
+      </td>
       <td>
         <div style="font-weight:600;">${esc(b.customerName)}</div>
         <div style="font-size:11px;color:var(--text-muted);">${esc(b.customerPhone)} &bull; ${esc(b.customerAddress)}</div>
@@ -1673,7 +1679,15 @@ function renderManageBookingsTable() {
         <div style="font-weight:600;">${esc(b.providerName)}</div>
         <div style="font-size:11px;color:var(--text-muted);">Shop ID: ${esc(b.shopId)}</div>
       </td>
-      <td style="color:var(--primary-solid);font-weight:600;">&#8377;${esc(b.amount)}</td>
+      <td style="color:var(--primary-solid);font-weight:600;">
+        &#8377;${esc(b.amount)}
+        <div style="font-size:10px;color:var(--text-muted);font-weight:400;margin-top:2px;">
+          <span class="badge" style="background:var(--bg-card-hover);color:var(--text-primary);border:1px solid var(--border-color);padding:2px 6px;">${esc(b.paymentMethod || 'UPI')}</span>
+        </div>
+      </td>
+      <td>
+        ${b.issuePhoto ? `<button class="btn btn-secondary btn-sm" style="padding:4px 8px;font-size:11px;" onclick="viewIssuePhoto('${esc(b.id)}')"><i class="fa-solid fa-camera" style="color:#0070f3;"></i> View Photo</button>` : '<span style="color:var(--text-muted);font-size:11px;">No Photo</span>'}
+      </td>
       <td>${esc(new Date(b.date).toLocaleDateString('en-GB'))} &bull; ${esc(b.slot)}</td>
       <td><span class="badge badge-${esc(b.status)}">${esc(b.status.replace('_', ' '))}</span></td>
       <td>
@@ -4437,6 +4451,8 @@ function renderCustomSectionsList() {
 }
 
 function setupCustomSectionBannerPreview() {
+  const fileInput = document.getElementById('custom-section-banner-file');
+  const fileNameSpan = document.getElementById('custom-section-banner-file-name');
   const imgInput = document.getElementById('custom-section-banner-image');
   const badgeInput = document.getElementById('custom-section-banner-badge');
   const titleInput = document.getElementById('custom-section-title');
@@ -4444,18 +4460,50 @@ function setupCustomSectionBannerPreview() {
   const previewImg = document.getElementById('custom-section-banner-img');
   const previewBadge = document.getElementById('custom-section-banner-badge-preview');
   const previewTitle = document.getElementById('custom-section-banner-title-preview');
+  const removeBtn = document.getElementById('btn-remove-custom-section-banner-image');
 
   function updatePreview() {
-    const url = imgInput.value.trim();
-    if (url) {
+    let src = '';
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      src = URL.createObjectURL(fileInput.files[0]);
+    } else if (imgInput && imgInput.value.trim()) {
+      src = imgInput.value.trim();
+    }
+
+    if (src) {
       previewDiv.style.display = 'block';
-      previewImg.src = url;
-      previewBadge.textContent = badgeInput.value || '';
-      previewBadge.style.display = badgeInput.value ? 'inline-block' : 'none';
-      previewTitle.textContent = titleInput.value || 'Banner Title';
+      previewImg.src = src;
+      previewBadge.textContent = badgeInput ? badgeInput.value || '' : '';
+      previewBadge.style.display = (badgeInput && badgeInput.value) ? 'inline-block' : 'none';
+      previewTitle.textContent = (titleInput && titleInput.value) || 'Banner Title';
     } else {
       previewDiv.style.display = 'none';
     }
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        if (fileNameSpan) fileNameSpan.textContent = file.name;
+        updatePreview();
+      } else {
+        if (!imgInput.value) {
+          if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+          previewDiv.style.display = 'none';
+        }
+      }
+    });
+  }
+
+  if (removeBtn) {
+    removeBtn.addEventListener('click', () => {
+      if (fileInput) fileInput.value = '';
+      if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+      if (imgInput) imgInput.value = '';
+      previewDiv.style.display = 'none';
+      previewImg.src = '';
+    });
   }
 
   if (imgInput) imgInput.addEventListener('input', updatePreview);
@@ -4545,6 +4593,11 @@ function editCustomSection(id) {
   const sec = cmsCustomSections.find(s => s.id === id);
   if (!sec) return;
 
+  const fileInput = document.getElementById('custom-section-banner-file');
+  if (fileInput) fileInput.value = '';
+  const fileNameSpan = document.getElementById('custom-section-banner-file-name');
+  if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+
   document.getElementById('custom-section-modal-title').textContent = 'Edit Custom Section';
   document.getElementById('edit-custom-section-id').value = sec.id;
   document.getElementById('custom-section-title').value = sec.title;
@@ -4612,6 +4665,10 @@ function setupCustomSectionEvents() {
       document.getElementById('custom-section-modal-title').textContent = 'Create Custom Section';
       document.getElementById('edit-custom-section-id').value = '';
       document.getElementById('custom-section-form').reset();
+      const fileInput = document.getElementById('custom-section-banner-file');
+      if (fileInput) fileInput.value = '';
+      const fileNameSpan = document.getElementById('custom-section-banner-file-name');
+      if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
       document.getElementById('service-items-container').innerHTML = '';
       document.getElementById('custom-section-banner-preview').style.display = 'none';
       document.getElementById('custom-section-modal').classList.add('active');
@@ -4625,7 +4682,42 @@ function setupCustomSectionEvents() {
       const id = document.getElementById('edit-custom-section-id').value;
       const title = document.getElementById('custom-section-title').value;
       const subtitle = document.getElementById('custom-section-subtitle').value;
-      const bannerImageUrl = document.getElementById('custom-section-banner-image').value;
+      
+      const fileInput = document.getElementById('custom-section-banner-file');
+      let bannerImageUrl = document.getElementById('custom-section-banner-image').value.trim();
+      const hasFile = fileInput && fileInput.files && fileInput.files[0];
+      if (hasFile) {
+        const file = fileInput.files[0];
+        if (file.size > 10 * 1024 * 1024) {
+          showToast('Image file size exceeds 10MB limit.', 'error');
+          return;
+        }
+        showToast('Uploading banner image...', 'warning');
+        try {
+          const base64Data = await convertFileToBase64(file);
+          const uploadRes = await fetch(`${API_URL}/banners/upload-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              base64Image: base64Data.base64,
+              mimeType: file.type
+            })
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadData.success) {
+            bannerImageUrl = uploadData.imageUrl;
+            document.getElementById('custom-section-banner-image').value = bannerImageUrl;
+          } else {
+            showToast('Failed to upload banner image: ' + (uploadData.error || 'Unknown error'), 'error');
+            return;
+          }
+        } catch (uploadErr) {
+          logError('Banner image upload failed:', uploadErr);
+          showToast('Image upload failed', 'error');
+          return;
+        }
+      }
+
       const bannerBadgeText = document.getElementById('custom-section-banner-badge').value;
       const bannerActionType = document.getElementById('custom-section-banner-action').value;
       const bannerActionValue = document.getElementById('custom-section-banner-value').value;
@@ -4671,6 +4763,586 @@ window.deleteCustomSection = deleteCustomSection;
 window.fetchCmsCustomSections = fetchCmsCustomSections;
 window.renderCustomSectionsList = renderCustomSectionsList;
 window.setupCustomSectionEvents = setupCustomSectionEvents;
+
+// ============================================================
+// HELPDESK AI & CUSTOMER SUPPORT SYSTEM CONSOLE
+// ============================================================
+let helpdeskTickets = [];
+let activeHelpdeskTicket = null;
+let helpdeskKbArticles = [];
+let helpdeskSoundEnabled = true;
+let helpdeskPollInterval = null;
+
+async function loadHelpdeskData() {
+  await fetchHelpdeskTickets();
+  await loadHelpdeskKb();
+  await loadHelpdeskAnalytics();
+  startHelpdeskPolling();
+}
+
+function startHelpdeskPolling() {
+  if (!helpdeskPollInterval) {
+    helpdeskPollInterval = setInterval(fetchHelpdeskTickets, 8000);
+  }
+}
+
+async function fetchHelpdeskTickets() {
+  try {
+    const token = localStorage.getItem('quickfix_admin_token') || sessionStorage.getItem('quickfix_admin_token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    const res = await fetch(`${API_URL}/helpdesk/tickets/admin`, { headers });
+    const data = await res.json();
+    if (data.success) {
+      const prevCount = helpdeskTickets.length;
+      helpdeskTickets = data.tickets || [];
+
+      const openUrgent = helpdeskTickets.filter(t => t.status === 'open' || t.status === 'pending_admin');
+      const badgeEl = document.getElementById('sidebar-helpdesk-badge');
+      if (badgeEl) {
+        if (openUrgent.length > 0) {
+          badgeEl.textContent = openUrgent.length;
+          badgeEl.style.display = 'inline-block';
+        } else {
+          badgeEl.style.display = 'none';
+        }
+      }
+
+      if (helpdeskTickets.length > prevCount && helpdeskSoundEnabled) {
+        playHelpdeskAlertSound();
+      }
+
+      filterHelpdeskTickets();
+
+      if (activeHelpdeskTicket) {
+        const fresh = helpdeskTickets.find(t => t.id === activeHelpdeskTicket.id);
+        if (fresh) {
+          activeHelpdeskTicket = fresh;
+          renderActiveTicketWorkspace();
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Helpdesk tickets fetch error:', e);
+  }
+}
+
+function filterHelpdeskTickets() {
+  const search = (document.getElementById('hd-search')?.value || '').toLowerCase();
+  const status = document.getElementById('hd-filter-status')?.value || 'all';
+  const category = document.getElementById('hd-filter-category')?.value || 'all';
+  const priority = document.getElementById('hd-filter-priority')?.value || 'all';
+
+  let filtered = helpdeskTickets.filter(t => {
+    if (status !== 'all' && t.status !== status) return false;
+    if (category !== 'all' && t.category !== category) return false;
+    if (priority !== 'all' && t.priority !== priority) return false;
+    if (search) {
+      const str = `${t.id} ${t.customerName} ${t.customerPhone} ${t.bookingId} ${t.issueSummary} ${t.category}`.toLowerCase();
+      if (!str.includes(search)) return false;
+    }
+    return true;
+  });
+
+  const countEl = document.getElementById('hd-ticket-count');
+  if (countEl) countEl.textContent = filtered.length;
+  renderHelpdeskTicketList(filtered);
+}
+
+function renderHelpdeskTicketList(tickets) {
+  const container = document.getElementById('hd-ticket-cards-list');
+  if (!container) return;
+
+  if (tickets.length === 0) {
+    container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);">No matching tickets found.</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  tickets.forEach(t => {
+    const card = document.createElement('div');
+    const isSelected = activeHelpdeskTicket && activeHelpdeskTicket.id === t.id;
+    card.className = `ticket-card-item ${isSelected ? 'selected' : ''}`;
+    card.style.cssText = `padding: 12px; border-radius: 8px; border: 1px solid ${isSelected ? 'var(--primary-color)' : 'var(--border-color)'}; margin-bottom: 8px; cursor: pointer; background: ${isSelected ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg)'}; transition: all 0.2s;`;
+
+    const statusBadge = getStatusBadgeHtml(t.status);
+    const priorityBadge = getPriorityBadgeHtml(t.priority);
+
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <span style="font-weight:700; font-size:13px;">${t.id}</span>
+        ${priorityBadge}
+      </div>
+      <div style="font-size:13px; font-weight:600; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; margin-bottom:4px;">
+        ${t.customerName || 'Customer'} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">(${t.customerPhone || 'N/A'})</span>
+      </div>
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px; height:32px; overflow:hidden;">
+        ${t.issueSummary || 'No summary'}
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:10.5px;">
+        ${statusBadge}
+        <span style="color:var(--text-muted);">${t.updatedAt ? new Date(t.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}</span>
+      </div>
+    `;
+
+    card.onclick = () => selectHelpdeskTicket(t.id);
+    container.appendChild(card);
+  });
+}
+
+function selectHelpdeskTicket(ticketId) {
+  activeHelpdeskTicket = helpdeskTickets.find(t => t.id === ticketId);
+  renderHelpdeskTicketList(helpdeskTickets);
+  renderActiveTicketWorkspace();
+}
+
+async function renderActiveTicketWorkspace() {
+  const emptyEl = document.getElementById('hd-workspace-empty');
+  const activeEl = document.getElementById('hd-workspace-active');
+  if (!activeHelpdeskTicket) {
+    if (emptyEl) emptyEl.style.display = 'block';
+    if (activeEl) activeEl.style.display = 'none';
+    return;
+  }
+
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (activeEl) activeEl.style.display = 'flex';
+
+  const t = activeHelpdeskTicket;
+
+  document.getElementById('hd-active-ticket-id').textContent = t.id;
+  document.getElementById('hd-active-priority-badge').outerHTML = getPriorityBadgeHtml(t.priority);
+  document.getElementById('hd-active-status-badge').outerHTML = getStatusBadgeHtml(t.status);
+  
+  const sentimentBadge = document.getElementById('hd-active-sentiment-badge');
+  if (sentimentBadge) {
+    sentimentBadge.textContent = (t.userSentiment || 'neutral').toUpperCase();
+    sentimentBadge.style.background = (t.userSentiment === 'furious' || t.userSentiment === 'emergency') ? '#ef4444' : t.userSentiment === 'angry' ? '#f97316' : '#6366f1';
+  }
+
+  document.getElementById('hd-active-customer-info').textContent = 
+    `Customer: ${t.customerName || 'User'} (${t.customerPhone || 'N/A'}) • Category: ${t.category} ${t.bookingId ? '• Booking #' + t.bookingId : ''}`;
+
+  document.getElementById('hd-change-status').value = t.status;
+
+  const approveBtn = document.getElementById('btn-approve-refund');
+  const rejectBtn = document.getElementById('btn-reject-refund');
+  if (t.category === 'Refund' || t.refundStatus === 'pending') {
+    if (approveBtn) approveBtn.style.display = 'inline-block';
+    if (rejectBtn) rejectBtn.style.display = 'inline-block';
+  } else {
+    if (approveBtn) approveBtn.style.display = 'none';
+    if (rejectBtn) rejectBtn.style.display = 'none';
+  }
+
+  try {
+    const token = localStorage.getItem('quickfix_admin_token') || sessionStorage.getItem('quickfix_admin_token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(`${API_URL}/helpdesk/tickets/admin/ai-tools/${t.id}`, { headers });
+    const data = await res.json();
+    if (data.success && data.data) {
+      document.getElementById('hd-ai-summary').textContent = `AI Summary: ${data.data.conversationSummary}`;
+      document.getElementById('hd-ai-suggested-reply').textContent = `"${data.data.suggestedReply}"`;
+    }
+  } catch (e) {
+    document.getElementById('hd-ai-summary').textContent = `AI Summary: ${t.aiSummary || 'Issue registered.'}`;
+    document.getElementById('hd-ai-suggested-reply').textContent = `"${t.aiSuggestedResolution || 'Review customer query.'}"`;
+  }
+
+  const messagesContainer = document.getElementById('hd-chat-messages');
+  messagesContainer.innerHTML = '';
+
+  const conversation = t.fullConversation || [];
+  conversation.forEach(m => {
+    const bubble = document.createElement('div');
+    const sender = m.sender || 'user';
+    const isUser = sender === 'user';
+    const isAdmin = sender === 'admin';
+    const isAi = sender === 'ai';
+
+    bubble.style.cssText = `max-width:78%; padding:10px 14px; border-radius:12px; margin-bottom:8px; align-self:${isUser ? 'flex-start' : 'flex-end'}; background:${isUser ? 'var(--card-bg)' : isAdmin ? 'rgba(16, 185, 129, 0.15)' : isAi ? 'rgba(99, 102, 241, 0.15)' : 'rgba(245, 158, 11, 0.15)'}; border: 1px solid ${isUser ? 'var(--border-color)' : isAdmin ? '#10b981' : isAi ? '#6366f1' : '#f59e0b'};`;
+
+    const senderTitle = isUser ? (m.senderName || t.customerName || 'Customer') : isAdmin ? (m.senderName || 'Support Admin') : isAi ? 'QuickFix AI Support' : 'System';
+
+    bubble.innerHTML = `
+      <div style="font-size:10px; font-weight:700; color:${isUser ? 'var(--text-muted)' : isAdmin ? '#10b981' : isAi ? '#6366f1' : '#f59e0b'}; margin-bottom:4px;">
+        ${senderTitle}
+      </div>
+      <div style="font-size:13px; color:var(--text-color); line-height:1.4;">${m.text}</div>
+      <div style="font-size:9.5px; color:var(--text-muted); text-align:right; margin-top:4px;">${m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}</div>
+    `;
+    messagesContainer.appendChild(bubble);
+  });
+
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function useAiSuggestedReply() {
+  const replyBox = document.getElementById('hd-ai-suggested-reply');
+  const input = document.getElementById('hd-reply-input');
+  if (replyBox && input) {
+    let text = replyBox.textContent.trim();
+    if (text.startsWith('"') && text.endsWith('"')) {
+      text = text.substring(1, text.length - 1);
+    }
+    input.value = text;
+    input.focus();
+  }
+}
+
+async function sendAdminReply() {
+  if (!activeHelpdeskTicket) return;
+  const text = document.getElementById('hd-reply-input').value.trim();
+  if (!text) {
+    showToast('Please type a reply message', 'warning');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('quickfix_admin_token') || sessionStorage.getItem('quickfix_admin_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}/helpdesk/tickets/admin/reply/${activeHelpdeskTicket.id}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('hd-reply-input').value = '';
+      showToast('Admin reply sent to customer!', 'success');
+      fetchHelpdeskTickets();
+    } else {
+      showToast(data.error || 'Failed to send reply', 'error');
+    }
+  } catch (e) {
+    showToast('Failed to send reply', 'error');
+  }
+}
+
+async function updateActiveTicketStatus() {
+  if (!activeHelpdeskTicket) return;
+  const status = document.getElementById('hd-change-status').value;
+
+  try {
+    const token = localStorage.getItem('quickfix_admin_token') || sessionStorage.getItem('quickfix_admin_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}/helpdesk/tickets/admin/status/${activeHelpdeskTicket.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Ticket status updated to ${status}`, 'success');
+      fetchHelpdeskTickets();
+    }
+  } catch (e) {
+    showToast('Failed to update status', 'error');
+  }
+}
+
+async function triggerRefundAction(action) {
+  if (!activeHelpdeskTicket) return;
+  const refundNote = prompt(`Enter ${action} note for refund on Ticket ${activeHelpdeskTicket.id}:`) || '';
+
+  try {
+    const token = localStorage.getItem('quickfix_admin_token') || sessionStorage.getItem('quickfix_admin_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}/helpdesk/tickets/admin/refund/${activeHelpdeskTicket.id}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action, refundNote })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Refund request ${action === 'approve' ? 'APPROVED' : 'REJECTED'} successfully!`, 'success');
+      fetchHelpdeskTickets();
+    } else {
+      showToast(data.error || 'Failed to process refund action', 'error');
+    }
+  } catch (e) {
+    showToast('Failed to process refund action', 'error');
+  }
+}
+
+function switchHelpdeskSubtab(subtabId) {
+  document.querySelectorAll('.helpdesk-subtab-btn').forEach(btn => {
+    if (btn.getAttribute('data-subtab') === subtabId) {
+      btn.classList.remove('btn-outline');
+      btn.classList.add('btn-primary');
+    } else {
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-outline');
+    }
+  });
+
+  document.querySelectorAll('.helpdesk-subtab').forEach(tab => tab.style.display = 'none');
+  const target = document.getElementById(subtabId);
+  if (target) target.style.display = 'block';
+}
+
+async function loadHelpdeskKb() {
+  try {
+    const res = await fetch(`${API_URL}/helpdesk/kb`);
+    const data = await res.json();
+    if (data.success) {
+      helpdeskKbArticles = data.articles || [];
+      renderHelpdeskKbTable();
+    }
+  } catch (e) {
+    console.error('KB fetch error:', e);
+  }
+}
+
+function renderHelpdeskKbTable() {
+  const tbody = document.getElementById('hd-kb-tbody');
+  if (!tbody) return;
+
+  if (helpdeskKbArticles.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px;">No Knowledge Base articles found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '';
+  helpdeskKbArticles.forEach(a => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="badge badge-primary">${a.category}</span></td>
+      <td><strong>${a.title}</strong></td>
+      <td style="font-size:11px; color:var(--text-muted);">${(a.keywords || []).join(', ')}</td>
+      <td style="font-size:12px; max-width:300px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${a.content}</td>
+      <td>${a.priority || 0}</td>
+      <td>
+        <button class="btn btn-icon btn-delete" onclick="deleteKbArticle('${a.id}')"><i class="fa-solid fa-trash-can"></i></button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function openNewKbModal() {
+  const title = prompt('Enter Article Title:');
+  if (!title) return;
+  const category = prompt('Enter Category (e.g., Booking Issue, Refund, Cancellation, Emergency):', 'General Question');
+  if (!category) return;
+  const content = prompt('Enter Article Answer / Content:');
+  if (!content) return;
+  const keywords = prompt('Enter comma-separated keywords (e.g., book, schedule, hire):', '');
+
+  try {
+    const token = localStorage.getItem('quickfix_admin_token') || sessionStorage.getItem('quickfix_admin_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}/helpdesk/kb`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ title, category, content, keywords })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Knowledge Base article created!', 'success');
+      loadHelpdeskKb();
+    } else {
+      showToast(data.error || 'Failed to create article', 'error');
+    }
+  } catch (e) {
+    showToast('Failed to create article', 'error');
+  }
+}
+
+async function deleteKbArticle(id) {
+  if (!confirm('Are you sure you want to delete this Knowledge Base article?')) return;
+  try {
+    const token = localStorage.getItem('quickfix_admin_token') || sessionStorage.getItem('quickfix_admin_token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    const res = await fetch(`${API_URL}/helpdesk/kb/${id}`, { method: 'DELETE', headers });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Knowledge Base article deleted', 'success');
+      loadHelpdeskKb();
+    }
+  } catch (e) {
+    showToast('Failed to delete KB article', 'error');
+  }
+}
+
+async function loadHelpdeskAnalytics() {
+  const container = document.getElementById('hd-analytics-content');
+  if (!container) return;
+
+  try {
+    const token = localStorage.getItem('quickfix_admin_token') || sessionStorage.getItem('quickfix_admin_token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    const res = await fetch(`${API_URL}/helpdesk/analytics`, { headers });
+    const data = await res.json();
+    if (data.success && data.analytics) {
+      const a = data.analytics;
+      const s = a.summary;
+
+      const openEl = document.getElementById('hd-stat-open');
+      if (openEl) openEl.textContent = s.openTickets || 0;
+      const pendEl = document.getElementById('hd-stat-pending');
+      if (pendEl) pendEl.textContent = s.openTickets || 0;
+      const resEl = document.getElementById('hd-stat-resolved');
+      if (resEl) resEl.textContent = s.resolvedTickets || 0;
+      const refEl = document.getElementById('hd-stat-refunds');
+      if (refEl) refEl.textContent = s.refundTickets || 0;
+      const aiEl = document.getElementById('hd-stat-ai-rate');
+      if (aiEl) aiEl.textContent = s.aiResolutionRate || '88%';
+      const respEl = document.getElementById('hd-stat-response-time');
+      if (respEl) respEl.textContent = `${s.avgResponseTimeMins}m`;
+
+      let catsHtml = (a.topCategories || []).map(c => `
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-color);">
+          <span>${c.category}</span>
+          <strong style="color:var(--primary-color);">${c.count} tickets</strong>
+        </div>
+      `).join('');
+
+      container.innerHTML = `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+          <div>
+            <h3>Top Ticket Categories</h3>
+            ${catsHtml || '<p>No data</p>'}
+          </div>
+          <div>
+            <h3>Customer Sentiments Breakdown</h3>
+            <div style="padding:12px; background:var(--body-bg); border-radius:8px;">
+              <p>🟢 Neutral / Calm: ${a.sentimentBreakdown?.neutral || 0}</p>
+              <p>🟡 Confused / Seeking Help: ${a.sentimentBreakdown?.confused || 0}</p>
+              <p>🟠 Angry Customers: ${a.sentimentBreakdown?.angry || 0}</p>
+              <p>🔴 Urgent / Emergency: ${a.sentimentBreakdown?.furious || 0}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  } catch (e) {
+    container.innerHTML = '<p style="color:var(--danger);">Failed to load analytics.</p>';
+  }
+}
+
+function getStatusBadgeHtml(status) {
+  if (status === 'open' || status === 'pending_admin') return '<span class="badge badge-danger">Needs Admin</span>';
+  if (status === 'admin_reply') return '<span class="badge badge-warning">Admin Replied</span>';
+  if (status === 'resolved') return '<span class="badge badge-success">Resolved</span>';
+  return '<span class="badge badge-secondary">Closed</span>';
+}
+
+function getPriorityBadgeHtml(priority) {
+  if (priority === 'urgent') return '<span class="badge" style="background:#ef4444; color:#fff;">🔴 Urgent</span>';
+  if (priority === 'high') return '<span class="badge" style="background:#f97316; color:#fff;">🟠 High</span>';
+  if (priority === 'medium') return '<span class="badge" style="background:#f59e0b; color:#fff;">🟡 Medium</span>';
+  return '<span class="badge" style="background:#10b981; color:#fff;">🟢 Low</span>';
+}
+
+function playHelpdeskAlertSound() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.3);
+  } catch (_) {}
+}
+
+function toggleHelpdeskSound() {
+  helpdeskSoundEnabled = !helpdeskSoundEnabled;
+  const btn = document.getElementById('btn-toggle-sound');
+  if (btn) {
+    btn.innerHTML = `<i class="fa-solid fa-bell"></i> Sound Alerts: ${helpdeskSoundEnabled ? 'ON' : 'OFF'}`;
+    btn.className = `btn btn-sm ${helpdeskSoundEnabled ? 'btn-outline' : 'btn-secondary'}`;
+  }
+}
+
+window.loadHelpdeskData = loadHelpdeskData;
+window.filterHelpdeskTickets = filterHelpdeskTickets;
+window.selectHelpdeskTicket = selectHelpdeskTicket;
+window.useAiSuggestedReply = useAiSuggestedReply;
+window.sendAdminReply = sendAdminReply;
+window.updateActiveTicketStatus = updateActiveTicketStatus;
+window.triggerRefundAction = triggerRefundAction;
+window.switchHelpdeskSubtab = switchHelpdeskSubtab;
+window.openNewKbModal = openNewKbModal;
+window.deleteKbArticle = deleteKbArticle;
+window.toggleHelpdeskSound = toggleHelpdeskSound;
+
+// ⚡ Instant Booking Photo Modal & Real-Time Stream Handlers
+function viewIssuePhoto(bookingId) {
+  const booking = bookings.find(b => b.id === bookingId);
+  if (!booking || !booking.issuePhoto) {
+    showToast('No issue photo attached for this booking', 'info');
+    return;
+  }
+  const modal = document.getElementById('issue-photo-modal');
+  const img = document.getElementById('issue-photo-img');
+  const caption = document.getElementById('issue-photo-caption');
+  if (modal && img) {
+    img.src = booking.issuePhoto;
+    if (caption) caption.textContent = `Booking ${booking.id} - ${booking.customerName} (${booking.title}) • Payment: ${booking.paymentMethod || 'UPI'}`;
+    modal.style.display = 'flex';
+  }
+}
+
+function closeIssuePhotoModal() {
+  const modal = document.getElementById('issue-photo-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+window.viewIssuePhoto = viewIssuePhoto;
+window.closeIssuePhotoModal = closeIssuePhotoModal;
+
+// ⚡ Real-Time Instant Bookings Auto-Poller (Every 4 Seconds)
+let knownInstantBookingIds = new Set();
+
+async function pollRealtimeInstantBookings() {
+  try {
+    const res = await fetch(`${API_URL}/bookings`);
+    if (!res.ok) return;
+    const latestBookings = await res.json();
+    if (!Array.isArray(latestBookings)) return;
+    
+    const instantBookings = latestBookings.filter(b => b.isInstant === true || b.slot === 'Immediate' || b.type === 'quick_booking');
+    
+    let newInstantCount = 0;
+    instantBookings.forEach(b => {
+      if (!knownInstantBookingIds.has(b.id)) {
+        knownInstantBookingIds.add(b.id);
+        newInstantCount++;
+      }
+    });
+
+    if (newInstantCount > 0 && knownInstantBookingIds.size > newInstantCount) {
+      showToast(`⚡ ${newInstantCount} New Instant Booking(s) Received!`, 'success');
+      playNotificationSound();
+    }
+
+    bookings = latestBookings;
+    updateDashboardStats();
+    renderBookingsTable();
+    renderManageBookingsTable();
+  } catch (_) {}
+}
+
+// Start live 4-second poller for Instant Bookings
+setInterval(pollRealtimeInstantBookings, 4000);
+
 
 
 

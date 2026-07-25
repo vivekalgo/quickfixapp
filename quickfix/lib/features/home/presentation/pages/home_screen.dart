@@ -172,7 +172,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       const SliverToBoxAdapter(child: HomeCategoriesGrid()),
                       const SliverToBoxAdapter(child: HomeFestiveOfferBanner()),
                       const SliverToBoxAdapter(child: HomeNearbyShops()),
-                      const SliverToBoxAdapter(child: HomeQuickFixPlusBanner()),
                       const SliverToBoxAdapter(child: HomeTrustBadges()),
                       const SliverToBoxAdapter(child: HomeOfferPromoSection()),
                       const SliverToBoxAdapter(child: HomeHowItWorksSection()),
@@ -234,7 +233,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           child: RepaintBoundary(child: HomeNearbyShops()),
         );
       case 'quickfix_plus':
-        return const SliverToBoxAdapter(child: HomeQuickFixPlusBanner());
+        return const SliverToBoxAdapter(child: SizedBox.shrink());
       case 'trust_badges':
         return const SliverToBoxAdapter(child: HomeTrustBadges());
       case 'referral_offers':

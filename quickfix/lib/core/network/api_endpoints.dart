@@ -22,6 +22,7 @@ class ApiEndpoints {
   static const String specialCards = '/special-cards';
   static const String homepageLayout = '/homepage/layout';
   static const String customSections = '/custom-sections';
+  static const String settings = '/settings';
 
   // Bookings
   static const String packages = '/packages';
@@ -36,9 +37,13 @@ class ApiEndpoints {
   static const String walletTransactions = '/wallet/transactions';
   static const String addMoney = '/wallet/add-money';
 
-  // Support
+  // Support & Helpdesk AI
   static const String supportTickets = '/support/tickets';
   static const String ticketMessages = '/support/messages';
+  static const String helpdeskChat = '/helpdesk/chat';
+  static const String helpdeskUserTickets = '/helpdesk/tickets/user';
+  static const String helpdeskTicketDetail = '/helpdesk/tickets/detail';
+  static const String helpdeskKb = '/helpdesk/kb';
 
   // Payment Receipts
   static String bookingLedger(String bookingId) =>

@@ -128,6 +128,7 @@ app.use('/api/shops', require('./routes/shops'));
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/helpdesk', require('./routes/helpdesk'));
 app.use('/api', require('./routes/settings'));
 
 // 404 Route Handler

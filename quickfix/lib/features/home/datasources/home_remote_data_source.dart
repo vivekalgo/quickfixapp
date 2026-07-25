@@ -130,6 +130,11 @@ class HomeRemoteDataSource {
         .toList();
   }
 
+  Future<Map<String, dynamic>> getAppSettings() async {
+    final response = await _client.get(ApiEndpoints.settings);
+    return response.data as Map<String, dynamic>;
+  }
+
   // Helper icons and color utilities
   IconData _parseIcon(String id) {
     switch (id) {

@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
 import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/utils/haptics.dart';
@@ -37,6 +40,14 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
   String? _matchedShopName;
   double _calculatedFee = 199.0;
 
+  // Optional Image Upload State
+  XFile? _selectedImage;
+  String? _imageBase64;
+  final ImagePicker _picker = ImagePicker();
+
+  // Payment Options State
+  String _selectedPaymentMethod = 'UPI'; // Options: 'UPI', 'Razorpay', 'Wallet', 'Cash'
+
   final List<String> _urgencies = [
     'Emergency (< 2 hrs)',
     'Today',
@@ -57,6 +68,76 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
   void dispose() {
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImage = image;
+          _imageBase64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not attach image: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  void _showImagePickerModal() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Upload Issue Photo (Optional)',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primaryAccent),
+                title: Text('Take Photo with Camera', style: GoogleFonts.inter(fontSize: 15, color: isDark ? Colors.white : AppColors.primary)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: AppColors.primaryAccent),
+                title: Text('Choose from Gallery', style: GoogleFonts.inter(fontSize: 15, color: isDark ? Colors.white : AppColors.primary)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _updateEstimatedFee() async {
@@ -301,7 +382,9 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
                     : _selectedDate,
               ),
               'amount': finalFee,
-              'paymentMethod': 'Razorpay',
+              'paymentMethod': _selectedPaymentMethod,
+              'issuePhoto': _imageBase64 ?? '',
+              'isInstant': true,
               'pricingType': 'inspection',
               'specialInstructions': _descriptionController.text.trim(),
               'type': 'quick_booking',
@@ -352,6 +435,93 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
           }
         });
 
+        // Dynamic Payment Header Branding
+        Widget paymentHeader;
+        String processingText = 'Processing Payment...';
+        if (_selectedPaymentMethod == 'UPI') {
+          processingText = 'Connecting to UPI App...';
+          paymentHeader = Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.qr_code_2_rounded, color: Colors.deepPurple, size: 28),
+              const SizedBox(width: 8),
+              Text(
+                'UPI Instant Pay',
+                style: AppTextStyles.headingSmall(isDark).copyWith(
+                  fontSize: 20,
+                  color: Colors.deepPurple,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          );
+        } else if (_selectedPaymentMethod == 'Wallet') {
+          processingText = 'Debiting QuickFix Wallet...';
+          paymentHeader = Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.account_balance_wallet_rounded, color: Colors.green, size: 28),
+              const SizedBox(width: 8),
+              Text(
+                'QuickFix Wallet',
+                style: AppTextStyles.headingSmall(isDark).copyWith(
+                  fontSize: 20,
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          );
+        } else if (_selectedPaymentMethod == 'Cash') {
+          processingText = 'Confirming Cash Order...';
+          paymentHeader = Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.payments_rounded, color: Colors.orange, size: 28),
+              const SizedBox(width: 8),
+              Text(
+                'Pay After Service',
+                style: AppTextStyles.headingSmall(isDark).copyWith(
+                  fontSize: 20,
+                  color: Colors.orange.shade800,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          );
+        } else {
+          processingText = 'Processing Secure Payment...';
+          paymentHeader = Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade900,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'R',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'razorpay',
+                style: AppTextStyles.headingSmall(isDark).copyWith(
+                  fontSize: 20,
+                  color: Colors.blue.shade800,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          );
+        }
+
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -362,42 +532,14 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade900,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'R',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'razorpay',
-                      style: AppTextStyles.headingSmall(isDark).copyWith(
-                        fontSize: 20,
-                        color: Colors.blue.shade800,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
+                paymentHeader,
                 const SizedBox(height: 24),
                 const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(Colors.blue),
+                  valueColor: AlwaysStoppedAnimation(AppColors.primaryAccent),
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Processing Secure Payment...',
+                  processingText,
                   style: AppTextStyles.bodyMedium(
                     isDark,
                   ).copyWith(fontWeight: FontWeight.bold),
@@ -682,6 +824,196 @@ class _QuickBookingScreenState extends ConsumerState<QuickBookingScreen> {
                     );
                   }).toList(),
                 ),
+                const SizedBox(height: 24),
+                
+                // Issue Photo Upload Section (Optional)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Issue Photo (Optional)',
+                      style: GoogleFonts.outfit(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : AppColors.primary,
+                      ),
+                    ),
+                    if (_selectedImage != null)
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _selectedImage = null;
+                            _imageBase64 = null;
+                          });
+                        },
+                        icon: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
+                        label: Text('Remove', style: GoogleFonts.inter(fontSize: 12, color: Colors.redAccent)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _selectedImage != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          children: [
+                            Image.file(
+                              File(_selectedImage!.path),
+                              height: 160,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Attached',
+                                  style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : GestureDetector(
+                        onTap: _showImagePickerModal,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.add_a_photo_rounded, color: AppColors.primaryAccent, size: 22),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Upload Photo of Issue (Optional)',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primaryAccent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                const SizedBox(height: 24),
+                Text(
+                  'Payment Gateway Options',
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...[
+                  {
+                    'id': 'UPI',
+                    'name': 'UPI / Instant QR',
+                    'subtitle': 'Google Pay, PhonePe, Paytm, BHIM',
+                    'icon': Icons.qr_code_2_rounded,
+                    'color': Colors.deepPurple,
+                  },
+                  {
+                    'id': 'Razorpay',
+                    'name': 'Razorpay Online',
+                    'subtitle': 'Credit / Debit Card, Net Banking',
+                    'icon': Icons.payment_rounded,
+                    'color': Colors.blue.shade700,
+                  },
+                  {
+                    'id': 'Wallet',
+                    'name': 'QuickFix Wallet',
+                    'subtitle': '1-Click Instant Pay',
+                    'icon': Icons.account_balance_wallet_rounded,
+                    'color': Colors.green.shade600,
+                  },
+                  {
+                    'id': 'Cash',
+                    'name': 'Pay Cash After Service',
+                    'subtitle': 'Pay technician after job completion',
+                    'icon': Icons.payments_rounded,
+                    'color': Colors.orange.shade700,
+                  },
+                ].map((pm) {
+                  final isSelected = _selectedPaymentMethod == pm['id'];
+                  return GestureDetector(
+                    onTap: () {
+                      AppHaptics.selectionClick();
+                      setState(() => _selectedPaymentMethod = pm['id'] as String);
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primaryAccent
+                              : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: (pm['color'] as Color).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(pm['icon'] as IconData, color: pm['color'] as Color, size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  pm['name'] as String,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? Colors.white : AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  pm['subtitle'] as String,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                            color: isSelected
+                                ? AppColors.primaryAccent
+                                : (isDark ? Colors.white38 : Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
               ],
             ),
           ),

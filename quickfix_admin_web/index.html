@@ -111,6 +111,11 @@
         <i class="fa-solid fa-paper-plane"></i>
         <span class="sidebar-label">Notifications</span>
       </a>
+      <a href="#" class="nav-item" data-tab="helpdesk-tab">
+        <i class="fa-solid fa-headset"></i>
+        <span class="sidebar-label">Helpdesk AI</span>
+        <span class="badge badge-danger" id="sidebar-helpdesk-badge" style="margin-left: auto; display: none;">0</span>
+      </a>
 
       <div class="nav-section">Analytics</div>
       <a href="#" class="nav-item" data-tab="reports-tab">
@@ -1536,7 +1541,7 @@
                 </div>
                 <div class="form-group">
                   <label for="set-support">Support Hotline Number</label>
-                  <input type="text" id="set-support" value="9876543210">
+                  <input type="text" id="set-support" value="9453626549">
                 </div>
               </div>
             </div>
@@ -1696,6 +1701,264 @@
           </div>
         </div>
       </div><!-- /demand-tab -->
+
+      <!-- ══════════════════════════════════════════════
+           HELPDESK AI & CUSTOMER SUPPORT CENTER
+      ══════════════════════════════════════════════ -->
+      <div class="tab-content" id="helpdesk-tab">
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+          <div>
+            <h1><i class="fa-solid fa-headset" style="color:var(--primary-color);"></i> AI Customer Support & Helpdesk</h1>
+            <p class="subtitle">Real-time Ticket Escalation, Live Admin Chat, Refund Management, AI Knowledge Base & Analytics</p>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button class="btn btn-secondary btn-sm" onclick="loadHelpdeskData()">
+              <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+            <button class="btn btn-outline btn-sm" id="btn-toggle-sound" onclick="toggleHelpdeskSound()">
+              <i class="fa-solid fa-bell"></i> Sound Alerts: ON
+            </button>
+          </div>
+        </div>
+
+        <!-- Sub-Tab Navigation Bar -->
+        <div class="nav-tabs" style="margin-bottom: 20px; display:flex; gap:8px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+          <button class="btn btn-sm btn-primary helpdesk-subtab-btn" data-subtab="subtab-tickets" onclick="switchHelpdeskSubtab('subtab-tickets')">
+            <i class="fa-solid fa-ticket"></i> Tickets & Live Chat
+          </button>
+          <button class="btn btn-sm btn-outline helpdesk-subtab-btn" data-subtab="subtab-dashboard" onclick="switchHelpdeskSubtab('subtab-dashboard')">
+            <i class="fa-solid fa-chart-line"></i> Dashboard Metrics
+          </button>
+          <button class="btn btn-sm btn-outline helpdesk-subtab-btn" data-subtab="subtab-kb" onclick="switchHelpdeskSubtab('subtab-kb')">
+            <i class="fa-solid fa-book-bookmark"></i> Knowledge Base Manager
+          </button>
+          <button class="btn btn-sm btn-outline helpdesk-subtab-btn" data-subtab="subtab-analytics" onclick="switchHelpdeskSubtab('subtab-analytics')">
+            <i class="fa-solid fa-brain"></i> AI Analytics
+          </button>
+        </div>
+
+        <!-- 1. TICKETS & LIVE CHAT SUBTAB -->
+        <div class="helpdesk-subtab" id="subtab-tickets">
+          <!-- Filter Controls -->
+          <div class="card" style="margin-bottom:16px; padding:12px 16px;">
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <div style="flex:1; min-width:200px;">
+                <input type="text" id="hd-search" class="form-control" placeholder="Search by Ticket ID, Customer, Phone, or Booking ID..." oninput="filterHelpdeskTickets()">
+              </div>
+              <div>
+                <select id="hd-filter-status" class="form-control" onchange="filterHelpdeskTickets()">
+                  <option value="all">All Statuses</option>
+                  <option value="open">Open (Needs Attention)</option>
+                  <option value="pending_admin">Pending Admin Action</option>
+                  <option value="admin_reply">Admin Replied</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+              <div>
+                <select id="hd-filter-category" class="form-control" onchange="filterHelpdeskTickets()">
+                  <option value="all">All Categories</option>
+                  <option value="Refund">Refund Request</option>
+                  <option value="Booking Issue">Booking Issue</option>
+                  <option value="Late Arrival">Late Arrival</option>
+                  <option value="Payment Failed">Payment Failed</option>
+                  <option value="Provider Misbehaviour">Provider Misbehaviour</option>
+                  <option value="Emergency">Emergency</option>
+                  <option value="General Question">General Question</option>
+                </select>
+              </div>
+              <div>
+                <select id="hd-filter-priority" class="form-control" onchange="filterHelpdeskTickets()">
+                  <option value="all">All Priorities</option>
+                  <option value="urgent">🔴 Urgent</option>
+                  <option value="high">🟠 High</option>
+                  <option value="medium">🟡 Medium</option>
+                  <option value="low">🟢 Low</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Split Workspace Layout -->
+          <div style="display:grid; grid-template-columns: 340px 1fr; gap:16px; align-items:start;">
+            
+            <!-- Left: Ticket Cards List -->
+            <div class="card" style="padding:12px; max-height:750px; overflow-y:auto;" id="hd-ticket-list-container">
+              <div style="font-weight:600; margin-bottom:10px; color:var(--text-muted); font-size:12px; text-transform:uppercase;">
+                Tickets (<span id="hd-ticket-count">0</span>)
+              </div>
+              <div id="hd-ticket-cards-list">
+                <div style="text-align:center; padding:30px; color:var(--text-muted);">Loading tickets...</div>
+              </div>
+            </div>
+
+            <!-- Right: Active Ticket Conversation Workspace -->
+            <div class="card" style="padding:16px; min-height:750px; display:flex; flex-direction:column;" id="hd-workspace">
+              <div id="hd-workspace-empty" style="margin:auto; text-align:center; padding:60px 20px; color:var(--text-muted);">
+                <i class="fa-solid fa-headset" style="font-size:48px; opacity:0.3; margin-bottom:12px;"></i>
+                <h3>Select a ticket from the left panel</h3>
+                <p>View conversation history, AI analysis, suggested responses, and reply live to customers.</p>
+              </div>
+
+              <div id="hd-workspace-active" style="display:none; flex-direction:column; height:100%;">
+                <!-- Ticket Top Header -->
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:12px; border-bottom:1px solid var(--border-color); margin-bottom:12px;">
+                  <div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <h2 style="margin:0; font-size:18px;" id="hd-active-ticket-id">TK-000000</h2>
+                      <span class="badge" id="hd-active-priority-badge">Medium</span>
+                      <span class="badge" id="hd-active-status-badge">Open</span>
+                      <span class="badge" id="hd-active-sentiment-badge" style="background:#f59e0b; color:#fff;">Neutral</span>
+                    </div>
+                    <div style="font-size:13px; color:var(--text-muted); margin-top:4px;" id="hd-active-customer-info">
+                      Customer: John Doe (9876543210) • Category: General Question
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    <select id="hd-change-status" class="form-control form-control-sm" onchange="updateActiveTicketStatus()">
+                      <option value="open">Status: Open</option>
+                      <option value="pending_admin">Status: Pending Admin</option>
+                      <option value="admin_reply">Status: Admin Replied</option>
+                      <option value="resolved">Status: Resolved</option>
+                      <option value="closed">Status: Closed</option>
+                    </select>
+                    <button class="btn btn-danger btn-sm" id="btn-approve-refund" onclick="triggerRefundAction('approve')" style="display:none;">
+                      <i class="fa-solid fa-check"></i> Approve Refund
+                    </button>
+                    <button class="btn btn-outline btn-sm" id="btn-reject-refund" onclick="triggerRefundAction('reject')" style="display:none;">
+                      <i class="fa-solid fa-xmark"></i> Reject Refund
+                    </button>
+                  </div>
+                </div>
+
+                <!-- AI Analysis Sidecar Box -->
+                <div style="background:rgba(99, 102, 241, 0.08); border:1px solid rgba(99, 102, 241, 0.2); border-radius:8px; padding:12px; margin-bottom:12px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-weight:600; font-size:12px; color:#6366f1; text-transform:uppercase;">
+                      <i class="fa-solid fa-wand-magic-sparkles"></i> AI Summary & Recommended Reply
+                    </span>
+                    <button class="btn btn-sm btn-primary" onclick="useAiSuggestedReply()" style="padding:2px 8px; font-size:11px;">
+                      <i class="fa-solid fa-copy"></i> Use AI Reply
+                    </button>
+                  </div>
+                  <div style="font-size:12px; color:var(--text-color); margin-bottom:6px;" id="hd-ai-summary">
+                    AI Summary: Analyzing customer intent...
+                  </div>
+                  <div style="font-size:12px; font-style:italic; background:var(--card-bg); padding:8px; border-radius:6px; border-left:3px solid #6366f1;" id="hd-ai-suggested-reply">
+                    "AI suggested reply will appear here..."
+                  </div>
+                </div>
+
+                <!-- Conversation Messages Body -->
+                <div style="flex:1; overflow-y:auto; padding:12px; background:var(--body-bg); border-radius:8px; margin-bottom:12px; display:flex; flex-direction:column; gap:10px; min-height:280px; max-height:400px;" id="hd-chat-messages">
+                  <!-- Chat messages inserted here -->
+                </div>
+
+                <!-- Admin Reply Input Area -->
+                <div style="display:flex; gap:10px; align-items:flex-end;">
+                  <div style="flex:1;">
+                    <textarea id="hd-reply-input" class="form-control" rows="2" placeholder="Type your response to the customer or click 'Use AI Reply' above..." style="resize:none;"></textarea>
+                  </div>
+                  <button class="btn btn-primary" style="height:54px; padding:0 24px;" onclick="sendAdminReply()">
+                    <i class="fa-solid fa-paper-plane"></i> Send Reply
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 2. DASHBOARD METRICS SUBTAB -->
+        <div class="helpdesk-subtab" id="subtab-dashboard" style="display:none;">
+          <div class="metrics-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(239, 68, 68, 0.1); color:#ef4444;"><i class="fa-solid fa-folder-open"></i></div>
+              <div class="stat-content">
+                <h3 id="hd-stat-open">0</h3>
+                <p>Open Tickets</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(245, 158, 11, 0.1); color:#f59e0b;"><i class="fa-solid fa-clock"></i></div>
+              <div class="stat-content">
+                <h3 id="hd-stat-pending">0</h3>
+                <p>Pending Admin</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(16, 185, 129, 0.1); color:#10b981;"><i class="fa-solid fa-circle-check"></i></div>
+              <div class="stat-content">
+                <h3 id="hd-stat-resolved">0</h3>
+                <p>Resolved</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(99, 102, 241, 0.1); color:#6366f1;"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+              <div class="stat-content">
+                <h3 id="hd-stat-refunds">0</h3>
+                <p>Refund Requests</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(236, 72, 153, 0.1); color:#ec4899;"><i class="fa-solid fa-robot"></i></div>
+              <div class="stat-content">
+                <h3 id="hd-stat-ai-rate">88%</h3>
+                <p>AI Auto-Resolution %</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(14, 165, 233, 0.1); color:#0ea5e9;"><i class="fa-solid fa-bolt"></i></div>
+              <div class="stat-content">
+                <h3 id="hd-stat-response-time">4.2m</h3>
+                <p>Avg Response Time</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. KNOWLEDGE BASE MANAGER SUBTAB -->
+        <div class="helpdesk-subtab" id="subtab-kb" style="display:none;">
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <h2><i class="fa-solid fa-book-bookmark"></i> QuickFix Knowledge Base & AI Training Articles</h2>
+              <button class="btn btn-primary btn-sm" onclick="openNewKbModal()">
+                <i class="fa-solid fa-plus"></i> Add Article
+              </button>
+            </div>
+            <div class="table-wrapper" style="margin-top:16px;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Article Title</th>
+                    <th>Keywords</th>
+                    <th>Content Snippet</th>
+                    <th>Priority</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="hd-kb-tbody">
+                  <tr><td colspan="6" style="text-align:center; padding:30px;">Loading Knowledge Base...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. AI ANALYTICS SUBTAB -->
+        <div class="helpdesk-subtab" id="subtab-analytics" style="display:none;">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-brain"></i> AI Support Analytics & Sentiment Metrics</h2>
+            </div>
+            <div style="padding:16px;" id="hd-analytics-content">
+              Loading AI Analytics...
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /helpdesk-tab -->
 
     </div><!-- /page-body -->
   </main><!-- /main-content -->
@@ -2144,10 +2407,21 @@
 
       <div class="form-section">
         <div class="form-section-title"><i class="fa-solid fa-image"></i> Banner Configuration <small style="font-weight:400;color:var(--text-muted);">(Urban Company Style)</small></div>
-        <div class="form-group"><label for="custom-section-banner-image">Banner Image URL</label><input type="url" id="custom-section-banner-image" placeholder="https://images.unsplash.com/…"></div>
+        <div class="form-group">
+          <label>Banner Image <small style="font-weight:400;color:var(--text-muted);">(Upload Image or Paste URL - optional)</small></label>
+          <div class="image-upload-wrapper">
+            <div class="upload-btn-row">
+              <label for="custom-section-banner-file" class="btn btn-secondary btn-sm" style="cursor:pointer;"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Image</label>
+              <input type="file" id="custom-section-banner-file" accept="image/*" style="display:none;">
+              <span id="custom-section-banner-file-name" class="fs-12 text-muted">No file chosen</span>
+            </div>
+            <input type="url" id="custom-section-banner-image" placeholder="Or paste image URL…" style="margin-top:8px;">
+          </div>
+        </div>
         <div id="custom-section-banner-preview" style="display:none;margin-bottom:12px;border-radius:14px;overflow:hidden;height:160px;position:relative;">
           <img id="custom-section-banner-img" style="width:100%;height:100%;object-fit:cover;" src="" onerror="this.style.display='none'" alt="Banner preview">
-          <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.2),rgba(0,0,0,0.65));display:flex;flex-direction:column;justify-content:flex-end;padding:14px;">
+          <button type="button" id="btn-remove-custom-section-banner-image" class="btn btn-danger btn-xs btn-icon" style="position:absolute;top:8px;right:8px;z-index:10;" title="Remove Banner Image"><i class="fa-solid fa-xmark"></i></button>
+          <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.2),rgba(0,0,0,0.65));display:flex;flex-direction:column;justify-content:flex-end;padding:14px;pointer-events:none;">
             <span id="custom-section-banner-badge-preview" style="background:#1a9e3f;color:white;font-size:10px;padding:2px 8px;border-radius:5px;width:fit-content;margin-bottom:5px;"></span>
             <span id="custom-section-banner-title-preview" style="color:white;font-size:18px;font-weight:bold;line-height:1.2;"></span>
             <div style="margin-top:8px;background:white;border-radius:6px;padding:4px 12px;width:fit-content;font-size:11px;font-weight:bold;color:#222;">Explore now</div>
@@ -2198,6 +2472,20 @@
   </div>
 </div>
 
+
+<!-- Issue Photo Modal -->
+<div class="modal" id="issue-photo-modal" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;">
+  <div class="modal-content" style="max-width:520px;width:90%;text-align:center;padding:24px;background:var(--bg-card);border-radius:20px;border:1px solid var(--border-color);box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:18px;"><i class="fa-solid fa-camera text-gradient" style="margin-right:8px;"></i> Customer Issue Photo</h3>
+      <button class="modal-close" style="background:none;border:none;font-size:24px;color:var(--text-secondary);cursor:pointer;" onclick="closeIssuePhotoModal()">&times;</button>
+    </div>
+    <div style="max-height:400px;overflow:hidden;border-radius:12px;border:1px solid var(--border-color);background:#000;">
+      <img id="issue-photo-img" src="" style="width:100%;height:auto;max-height:400px;object-fit:contain;" alt="Issue Photo">
+    </div>
+    <p id="issue-photo-caption" class="fs-12 text-muted" style="margin-top:12px;"></p>
+  </div>
+</div>
 
 <script src="security.js"></script>
 <script src="app.js?v=3.1.0"></script>

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
 import 'package:quickfix/core/utils/haptics.dart';
@@ -227,98 +226,6 @@ class HomeQuickFixPlusBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.30),
-              blurRadius: 18,
-              spreadRadius: 0,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(11),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFB800).withValues(alpha: 0.14),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFFFFB800).withValues(alpha: 0.30),
-                  width: 1.5,
-                ),
-              ),
-              child: const Icon(
-                Icons.stars_rounded,
-                color: Color(0xFFFFB800),
-                size: 30,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'QuickFix Plus',
-                    style: GoogleFonts.outfit(
-                      color: const Color(0xFFFFB800),
-                      fontWeight: FontWeight.w900,
-                      fontSize: 17,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Free Delivery · Priority Booking · Exclusive Offers',
-                    style: GoogleFonts.inter(
-                      color: Colors.white.withValues(alpha: 0.65),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: () {
-                AppHaptics.heavyTap();
-                context.push('/refer-earn');
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.20),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  'Join Now',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }

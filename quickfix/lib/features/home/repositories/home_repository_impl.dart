@@ -76,4 +76,9 @@ class HomeRepositoryImpl implements HomeRepository {
   Future<List<CustomSection>> getCustomSections() async {
     return await _remoteDataSource.getCustomSections();
   }
+
+  @override
+  Future<Map<String, dynamic>> getAppSettings() async {
+    return await _remoteDataSource.getAppSettings();
+  }
 }

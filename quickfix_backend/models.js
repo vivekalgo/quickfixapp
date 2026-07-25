@@ -16,7 +16,7 @@ function readDb() {
       fs.writeFileSync(dbPath, JSON.stringify({}));
     }
     const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands', 'promotions', 'specialcards', 'cmssections', 'customsections', 'paymentledgers', 'settlements', 'paymentauditlogs', 'adminusers'];
+    const collections = ['users', 'shops', 'bookings', 'categories', 'reviews', 'professionals', 'banners', 'offers', 'notifications', 'demands', 'promotions', 'specialcards', 'cmssections', 'customsections', 'paymentledgers', 'settlements', 'paymentauditlogs', 'adminusers', 'helpdesktickets', 'ticketmessages', 'knowledgebases', 'helpdeskanalytics'];
     let changed = false;
     for (const col of collections) {
       if (!data[col]) {
@@ -605,6 +605,9 @@ const BookingSchema = new mongoose.Schema({
   specialInstructions: { type: String, default: '' },
   customerRating: { type: Number, default: 4.8 },
   pricingType: { type: String, enum: ['fixed', 'starting', 'inspection', 'range'], default: 'fixed' },
+  paymentMethod: { type: String, default: 'UPI' },
+  issuePhoto: { type: String, default: '' },
+  isInstant: { type: Boolean, default: false, index: true },
   status: { 
     type: String, 
     enum: ['pending', 'accepted', 'navigating', 'arrived', 'quote_sent', 'work_started', 'work_completed', 'payment_completed', 'cancelled', 'closed'], 
@@ -913,6 +916,77 @@ const AdminUserSchema = new mongoose.Schema({
   lockUntil: { type: Date, default: null }
 }, { timestamps: true });
 
+// 22. Helpdesk Ticket Schema
+const HelpdeskTicketSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true, index: true }, // TK-XXXXXX format
+  ticketId: { type: String, default: '', index: true },
+  customerId: { type: String, required: true, index: true },
+  customerName: { type: String, default: '' },
+  customerPhone: { type: String, default: '' },
+  customerEmail: { type: String, default: '' },
+  providerId: { type: String, default: '' },
+  providerName: { type: String, default: '' },
+  bookingId: { type: String, default: '', index: true },
+  category: { type: String, default: 'General Question', index: true },
+  priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium', index: true },
+  issueSummary: { type: String, default: '' },
+  fullConversation: { type: Array, default: [] },
+  aiSummary: { type: String, default: '' },
+  aiSuggestedResolution: { type: String, default: '' },
+  deviceInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
+  platform: { type: String, default: 'mobile' },
+  appVersion: { type: String, default: '1.0.0' },
+  attachments: { type: Array, default: [] },
+  status: { 
+    type: String, 
+    enum: ['open', 'pending_admin', 'admin_reply', 'in_progress', 'resolved', 'closed'], 
+    default: 'open',
+    index: true
+  },
+  assignedAdmin: { type: String, default: 'Unassigned' },
+  userSentiment: { type: String, enum: ['neutral', 'calm', 'confused', 'angry', 'furious', 'emergency'], default: 'neutral' },
+  refundAmountRequested: { type: Number, default: 0 },
+  refundStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+  complaintSeverity: { type: String, default: 'normal' },
+  resolvedAt: { type: Date }
+}, { timestamps: true });
+
+// 23. Ticket Message Schema
+const TicketMessageSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  ticketId: { type: String, required: true, index: true },
+  sender: { type: String, enum: ['user', 'admin', 'ai', 'system'], default: 'user' },
+  senderName: { type: String, default: '' },
+  text: { type: String, required: true },
+  attachments: { type: Array, default: [] },
+  timestamp: { type: Date, default: Date.now },
+  isRead: { type: Boolean, default: false }
+}, { timestamps: true });
+
+// 24. Knowledge Base Article Schema
+const KnowledgeBaseSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  category: { type: String, required: true, index: true },
+  title: { type: String, required: true },
+  keywords: { type: [String], default: [] },
+  content: { type: String, required: true },
+  actionType: { type: String, default: '' },
+  priority: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true }
+}, { timestamps: true });
+
+// 25. Helpdesk Analytics Daily Metric Schema
+const HelpdeskAnalyticsSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  date: { type: String, required: true, index: true },
+  totalTickets: { type: Number, default: 0 },
+  aiResolvedCount: { type: Number, default: 0 },
+  humanResolvedCount: { type: Number, default: 0 },
+  openTickets: { type: Number, default: 0 },
+  refundCount: { type: Number, default: 0 },
+  avgResponseTimeMins: { type: Number, default: 0 }
+}, { timestamps: true });
+
 const MongooseModels = {
   User: mongoose.model('User', UserSchema),
   Shop: mongoose.model('Shop', ShopSchema),
@@ -933,7 +1007,11 @@ const MongooseModels = {
   PaymentLedger: mongoose.model('PaymentLedger', PaymentLedgerSchema),
   Settlement: mongoose.model('Settlement', SettlementSchema),
   PaymentAuditLog: mongoose.model('PaymentAuditLog', PaymentAuditLogSchema),
-  AdminUser: mongoose.model('AdminUser', AdminUserSchema)
+  AdminUser: mongoose.model('AdminUser', AdminUserSchema),
+  HelpdeskTicket: mongoose.model('HelpdeskTicket', HelpdeskTicketSchema),
+  TicketMessage: mongoose.model('TicketMessage', TicketMessageSchema),
+  KnowledgeBase: mongoose.model('KnowledgeBase', KnowledgeBaseSchema),
+  HelpdeskAnalytics: mongoose.model('HelpdeskAnalytics', HelpdeskAnalyticsSchema)
 };
 
 const LocalModels = {
@@ -956,7 +1034,11 @@ const LocalModels = {
   PaymentLedger: createMockModel('PaymentLedger', 'paymentledgers'),
   Settlement: createMockModel('Settlement', 'settlements'),
   PaymentAuditLog: createMockModel('PaymentAuditLog', 'paymentauditlogs'),
-  AdminUser: createMockModel('AdminUser', 'adminusers')
+  AdminUser: createMockModel('AdminUser', 'adminusers'),
+  HelpdeskTicket: createMockModel('HelpdeskTicket', 'helpdesktickets'),
+  TicketMessage: createMockModel('TicketMessage', 'ticketmessages'),
+  KnowledgeBase: createMockModel('KnowledgeBase', 'knowledgebases'),
+  HelpdeskAnalytics: createMockModel('HelpdeskAnalytics', 'helpdeskanalytics')
 };
 
 function makeModelProxy(modelName) {
@@ -1008,5 +1090,9 @@ module.exports = {
   PaymentLedger: makeModelProxy('PaymentLedger'),
   Settlement: makeModelProxy('Settlement'),
   PaymentAuditLog: makeModelProxy('PaymentAuditLog'),
-  AdminUser: makeModelProxy('AdminUser')
+  AdminUser: makeModelProxy('AdminUser'),
+  HelpdeskTicket: makeModelProxy('HelpdeskTicket'),
+  TicketMessage: makeModelProxy('TicketMessage'),
+  KnowledgeBase: makeModelProxy('KnowledgeBase'),
+  HelpdeskAnalytics: makeModelProxy('HelpdeskAnalytics')
 };
