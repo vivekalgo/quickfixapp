@@ -4473,6 +4473,7 @@ function renderCustomSectionsList() {
   }
 
   cmsCustomSections.forEach(sec => {
+    const displayTitle = sec.title || 'Untitled Custom Section';
     const card = document.createElement('div');
     card.style.cssText = 'background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 12px;';
     
@@ -4517,7 +4518,7 @@ function renderCustomSectionsList() {
           </div>
         </div>
         <div style="margin-bottom:6px;">
-          <span style="font-size:11px; color:var(--text-muted);"><i class="fa-solid fa-layer-group"></i> Priority: ${sec.priority} | Click action: ${sec.bannerActionType || 'No Action'} (${sec.bannerActionValue || 'none'})</span>
+          <span style="font-size:11px; color:var(--text-muted);"><i class="fa-solid fa-layer-group"></i> Priority: ${sec.priority} | Click action: ${sec.bannerActionType || 'No Action'} (${sec.bannerActionValue || 'none'}) | Button: <strong>${sec.bannerButtonText !== undefined ? (sec.bannerButtonText || 'Hidden') : 'Explore now'}</strong></span>
         </div>
         ${serviceItemsPreview}
       </div>
@@ -4531,10 +4532,12 @@ function setupCustomSectionBannerPreview() {
   const fileNameSpan = document.getElementById('custom-section-banner-file-name');
   const imgInput = document.getElementById('custom-section-banner-image');
   const badgeInput = document.getElementById('custom-section-banner-badge');
+  const buttonTextInput = document.getElementById('custom-section-banner-button-text');
   const titleInput = document.getElementById('custom-section-title');
   const previewDiv = document.getElementById('custom-section-banner-preview');
   const previewImg = document.getElementById('custom-section-banner-img');
   const previewBadge = document.getElementById('custom-section-banner-badge-preview');
+  const previewButton = document.getElementById('custom-section-banner-button-preview');
   const previewTitle = document.getElementById('custom-section-banner-title-preview');
   const removeBtn = document.getElementById('btn-remove-custom-section-banner-image');
 
@@ -4552,6 +4555,16 @@ function setupCustomSectionBannerPreview() {
       previewBadge.textContent = badgeInput ? badgeInput.value || '' : '';
       previewBadge.style.display = (badgeInput && badgeInput.value) ? 'inline-block' : 'none';
       previewTitle.textContent = (titleInput && titleInput.value) || 'Banner Title';
+      
+      const btnText = buttonTextInput ? buttonTextInput.value.trim() : '';
+      if (previewButton) {
+        if (btnText) {
+          previewButton.textContent = btnText;
+          previewButton.style.display = 'inline-block';
+        } else {
+          previewButton.style.display = 'none';
+        }
+      }
     } else {
       previewDiv.style.display = 'none';
     }
@@ -4584,6 +4597,7 @@ function setupCustomSectionBannerPreview() {
 
   if (imgInput) imgInput.addEventListener('input', updatePreview);
   if (badgeInput) badgeInput.addEventListener('input', updatePreview);
+  if (buttonTextInput) buttonTextInput.addEventListener('input', updatePreview);
   if (titleInput) titleInput.addEventListener('input', updatePreview);
 }
 
@@ -4680,6 +4694,8 @@ function editCustomSection(id) {
   document.getElementById('custom-section-subtitle').value = sec.subtitle || '';
   document.getElementById('custom-section-banner-image').value = sec.bannerImageUrl || '';
   document.getElementById('custom-section-banner-badge').value = sec.bannerBadgeText || '';
+  const btnTextInput = document.getElementById('custom-section-banner-button-text');
+  if (btnTextInput) btnTextInput.value = sec.bannerButtonText !== undefined ? sec.bannerButtonText : 'Explore now';
   document.getElementById('custom-section-banner-action').value = sec.bannerActionType || 'Open Category';
   document.getElementById('custom-section-banner-value').value = sec.bannerActionValue || '';
   document.getElementById('custom-section-see-all-action').value = sec.seeAllActionType || 'Open Category';
@@ -4696,6 +4712,7 @@ function editCustomSection(id) {
   const previewDiv = document.getElementById('custom-section-banner-preview');
   const previewImg = document.getElementById('custom-section-banner-img');
   const previewBadge = document.getElementById('custom-section-banner-badge-preview');
+  const previewButton = document.getElementById('custom-section-banner-button-preview');
   const previewTitle = document.getElementById('custom-section-banner-title-preview');
   if (sec.bannerImageUrl) {
     previewDiv.style.display = 'block';
@@ -4703,6 +4720,15 @@ function editCustomSection(id) {
     previewBadge.textContent = sec.bannerBadgeText || '';
     previewBadge.style.display = sec.bannerBadgeText ? 'inline-block' : 'none';
     previewTitle.textContent = sec.title;
+    const btnText = btnTextInput ? btnTextInput.value.trim() : '';
+    if (previewButton) {
+      if (btnText) {
+        previewButton.textContent = btnText;
+        previewButton.style.display = 'inline-block';
+      } else {
+        previewButton.style.display = 'none';
+      }
+    }
   } else {
     previewDiv.style.display = 'none';
   }
@@ -4745,6 +4771,8 @@ function setupCustomSectionEvents() {
       if (fileInput) fileInput.value = '';
       const fileNameSpan = document.getElementById('custom-section-banner-file-name');
       if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+      const btnInput = document.getElementById('custom-section-banner-button-text');
+      if (btnInput) btnInput.value = 'Explore now';
       document.getElementById('service-items-container').innerHTML = '';
       document.getElementById('custom-section-banner-preview').style.display = 'none';
       document.getElementById('custom-section-modal').classList.add('active');
@@ -4795,6 +4823,7 @@ function setupCustomSectionEvents() {
       }
 
       const bannerBadgeText = document.getElementById('custom-section-banner-badge').value;
+      const bannerButtonText = document.getElementById('custom-section-banner-button-text') ? document.getElementById('custom-section-banner-button-text').value.trim() : 'Explore now';
       const bannerActionType = document.getElementById('custom-section-banner-action').value;
       const bannerActionValue = document.getElementById('custom-section-banner-value').value;
       const seeAllActionType = document.getElementById('custom-section-see-all-action').value;
@@ -4803,7 +4832,7 @@ function setupCustomSectionEvents() {
       const isActive = document.getElementById('custom-section-active').value === 'true';
       const serviceItems = collectServiceItems();
 
-      const body = { id, title, subtitle, bannerImageUrl, bannerBadgeText, bannerActionType, bannerActionValue, seeAllActionType, seeAllActionValue, serviceItems, priority, isActive };
+      const body = { id, title, subtitle, bannerImageUrl, bannerBadgeText, bannerButtonText, bannerActionType, bannerActionValue, seeAllActionType, seeAllActionValue, serviceItems, priority, isActive };
 
       try {
         const res = await fetch(`${API_URL}/custom-sections`, {

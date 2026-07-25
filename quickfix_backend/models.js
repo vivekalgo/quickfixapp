@@ -812,6 +812,7 @@ const CustomSectionSchema = new mongoose.Schema({
   subtitle: { type: String, default: '' },
   bannerImageUrl: { type: String, default: '' },
   bannerBadgeText: { type: String, default: '' },
+  bannerButtonText: { type: String, default: 'Explore now' },
   bannerActionType: { type: String, default: 'Open Category' },
   bannerActionValue: { type: String, default: '' },
   seeAllActionType: { type: String, default: 'Open Category' },

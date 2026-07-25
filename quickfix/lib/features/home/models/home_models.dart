@@ -556,6 +556,7 @@ class CustomSection {
   final String subtitle;
   final String bannerImageUrl;
   final String bannerBadgeText;
+  final String bannerButtonText;
   final String bannerActionType;
   final String bannerActionValue;
   final String seeAllActionType;
@@ -570,6 +571,7 @@ class CustomSection {
     required this.subtitle,
     required this.bannerImageUrl,
     required this.bannerBadgeText,
+    this.bannerButtonText = 'Explore now',
     required this.bannerActionType,
     required this.bannerActionValue,
     required this.seeAllActionType,
@@ -586,6 +588,9 @@ class CustomSection {
       subtitle: json['subtitle']?.toString() ?? '',
       bannerImageUrl: json['bannerImageUrl']?.toString() ?? '',
       bannerBadgeText: json['bannerBadgeText']?.toString() ?? '',
+      bannerButtonText: json['bannerButtonText'] != null
+          ? json['bannerButtonText'].toString()
+          : 'Explore now',
       bannerActionType: json['bannerActionType']?.toString() ?? 'No Action',
       bannerActionValue: json['bannerActionValue']?.toString() ?? '',
       seeAllActionType: json['seeAllActionType']?.toString() ?? 'No Action',

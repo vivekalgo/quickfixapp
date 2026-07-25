@@ -602,11 +602,21 @@ async function updateHomepageLayout(id, title, isActive, priority, settings) {
   if (!section) {
     throw new Error('Layout section not found');
   }
+  if (id && id.startsWith('custom-section-')) {
+    const customUpdate = {};
+    if (title !== undefined) customUpdate.title = title;
+    if (isActive !== undefined) customUpdate.isActive = isActive;
+    if (priority !== undefined) customUpdate.priority = parseInt(priority);
+    await CustomSection.findOneAndUpdate({ id }, customUpdate);
+  }
   return section;
 }
 
 async function reorderHomepageLayout(orderList) {
   const promises = orderList.map(item => {
+    if (item.id && item.id.startsWith('custom-section-')) {
+      CustomSection.findOneAndUpdate({ id: item.id }, { priority: item.priority }).catch(() => {});
+    }
     return CmsSection.findOneAndUpdate({ id: item.id }, { priority: item.priority });
   });
   await Promise.all(promises);
@@ -633,26 +643,27 @@ async function getCustomSectionById(id) {
 }
 
 async function saveCustomSection(id, body) {
-  const { title, subtitle, bannerImageUrl, bannerBadgeText, bannerActionType, bannerActionValue, seeAllActionType, seeAllActionValue, serviceItems, priority, isActive } = body;
+  const { title, subtitle, bannerImageUrl, bannerBadgeText, bannerButtonText, bannerActionType, bannerActionValue, seeAllActionType, seeAllActionValue, serviceItems, priority, isActive } = body;
   const sectionTitle = title || '';
+  const btnText = bannerButtonText !== undefined ? bannerButtonText : 'Explore now';
   let section;
   if (id) {
     section = await CustomSection.findOneAndUpdate(
       { id },
-      { title: sectionTitle, subtitle, bannerImageUrl, bannerBadgeText, bannerActionType: bannerActionType || 'No Action', bannerActionValue, seeAllActionType: seeAllActionType || 'No Action', seeAllActionValue, serviceItems: serviceItems || [], priority: parseInt(priority) || 0, isActive: isActive !== false },
+      { title: sectionTitle, subtitle, bannerImageUrl, bannerBadgeText, bannerButtonText: btnText, bannerActionType: bannerActionType || 'No Action', bannerActionValue, seeAllActionType: seeAllActionType || 'No Action', seeAllActionValue, serviceItems: serviceItems || [], priority: parseInt(priority) || 0, isActive: isActive !== false },
       { new: true }
     );
     if (!section) {
       throw new Error('Custom section not found');
     }
-    await CmsSection.findOneAndUpdate({ id }, { title: sectionTitle, isActive: isActive !== false, priority: parseInt(priority) || 0 });
+    await CmsSection.findOneAndUpdate({ id }, { title: sectionTitle || 'Custom Section', isActive: isActive !== false, priority: parseInt(priority) || 0 });
   } else {
     const newId = `custom-section-${Date.now()}`;
     const allSections = await CmsSection.find({});
-    const newPriority = allSections.length;
+    const newPriority = parseInt(priority) || allSections.length;
     const layoutSection = new CmsSection({
       id: newId,
-      title: sectionTitle,
+      title: sectionTitle || 'Custom Section',
       type: 'custom_section',
       priority: newPriority,
       isActive: isActive !== false
@@ -660,13 +671,13 @@ async function saveCustomSection(id, body) {
     await layoutSection.save();
     section = new CustomSection({
       id: newId,
-      title: sectionTitle, subtitle, bannerImageUrl, bannerBadgeText,
+      title: sectionTitle, subtitle, bannerImageUrl, bannerBadgeText, bannerButtonText: btnText,
       bannerActionType: bannerActionType || 'No Action',
       bannerActionValue,
       seeAllActionType: seeAllActionType || 'No Action',
       seeAllActionValue,
       serviceItems: serviceItems || [],
-      priority: parseInt(priority) || newPriority,
+      priority: newPriority,
       isActive: isActive !== false
     });
     await section.save();

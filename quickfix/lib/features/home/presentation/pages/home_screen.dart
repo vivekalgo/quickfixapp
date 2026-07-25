@@ -457,36 +457,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             ],
                           ),
                         ),
-                        Positioned(
-                          bottom: 18,
-                          left: 18,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 22,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
+                        if (data.bannerButtonText.isNotEmpty)
+                          Positioned(
+                            bottom: 18,
+                            left: 18,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                data.bannerButtonText,
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.1,
                                 ),
-                              ],
-                            ),
-                            child: const Text(
-                              'Explore now',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.1,
                               ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                   ),

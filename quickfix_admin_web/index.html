@@ -2469,10 +2469,13 @@
           <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.2),rgba(0,0,0,0.65));display:flex;flex-direction:column;justify-content:flex-end;padding:14px;pointer-events:none;">
             <span id="custom-section-banner-badge-preview" style="background:#1a9e3f;color:white;font-size:10px;padding:2px 8px;border-radius:5px;width:fit-content;margin-bottom:5px;"></span>
             <span id="custom-section-banner-title-preview" style="color:white;font-size:18px;font-weight:bold;line-height:1.2;"></span>
-            <div style="margin-top:8px;background:white;border-radius:6px;padding:4px 12px;width:fit-content;font-size:11px;font-weight:bold;color:#222;">Explore now</div>
+            <div id="custom-section-banner-button-preview" style="margin-top:8px;background:white;border-radius:6px;padding:4px 12px;width:fit-content;font-size:11px;font-weight:bold;color:#222;">Explore now</div>
           </div>
         </div>
-        <div class="form-group"><label for="custom-section-banner-badge">Badge / Offer Text</label><input type="text" id="custom-section-banner-badge" placeholder="e.g. Up to ₹1,700 off"></div>
+        <div class="form-row">
+          <div class="form-group"><label for="custom-section-banner-badge">Badge / Offer Text</label><input type="text" id="custom-section-banner-badge" placeholder="e.g. Up to ₹1,700 off"></div>
+          <div class="form-group"><label for="custom-section-banner-button-text">Banner Button Text <small style="font-weight:400;color:var(--text-muted);">(Optional - e.g. "Explore now", leave empty to hide)</small></label><input type="text" id="custom-section-banner-button-text" placeholder="e.g. Explore now (or leave blank to hide button)"></div>
+        </div>
         <div class="form-row">
           <div class="form-group"><label for="custom-section-banner-action">Banner Click Opens</label><select id="custom-section-banner-action"><option value="Open Category">Open Category</option><option value="Open Shop">Open Shop</option><option value="Open Internal Screen">Open Internal Screen</option><option value="Open External URL">Open External URL</option><option value="No Action">No Action</option></select></div>
           <div class="form-group"><label for="custom-section-banner-value">Banner Action Value</label><input type="text" id="custom-section-banner-value" placeholder="e.g. cleaning or shop-id"></div>
