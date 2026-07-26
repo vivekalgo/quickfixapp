@@ -630,16 +630,23 @@ async function updateHomepageLayout(id, title, isActive, priority, settings) {
   if (priority !== undefined) updateFields.priority = parseInt(priority);
   if (settings !== undefined) updateFields.settings = settings;
 
-  const section = await CmsSection.findOneAndUpdate({ id }, updateFields, { new: true });
-  if (!section) {
-    throw new Error('Layout section not found');
+  let section = await CmsSection.findOneAndUpdate({ $or: [{ id }, { _id: id }] }, updateFields, { new: true });
+  if (!section && id) {
+    section = new CmsSection({
+      id,
+      title: title || id,
+      type: id.startsWith('custom-section-') ? 'custom_section' : id,
+      priority: priority !== undefined ? parseInt(priority) : 0,
+      isActive: isActive !== false
+    });
+    await section.save();
   }
   if (id && id.startsWith('custom-section-')) {
     const customUpdate = {};
     if (title !== undefined) customUpdate.title = title;
     if (isActive !== undefined) customUpdate.isActive = isActive;
     if (priority !== undefined) customUpdate.priority = parseInt(priority);
-    await CustomSection.findOneAndUpdate({ id }, customUpdate);
+    await CustomSection.findOneAndUpdate({ $or: [{ id }, { _id: id }] }, customUpdate);
   }
   return section;
 }
@@ -647,9 +654,9 @@ async function updateHomepageLayout(id, title, isActive, priority, settings) {
 async function reorderHomepageLayout(orderList) {
   const promises = orderList.map(item => {
     if (item.id && item.id.startsWith('custom-section-')) {
-      CustomSection.findOneAndUpdate({ id: item.id }, { priority: item.priority }).catch(() => {});
+      CustomSection.findOneAndUpdate({ $or: [{ id: item.id }, { _id: item.id }] }, { priority: item.priority }).catch(() => {});
     }
-    return CmsSection.findOneAndUpdate({ id: item.id }, { priority: item.priority });
+    return CmsSection.findOneAndUpdate({ $or: [{ id: item.id }, { _id: item.id }] }, { priority: item.priority });
   });
   await Promise.all(promises);
 }
@@ -667,7 +674,7 @@ async function getAdminCustomSections() {
 }
 
 async function getCustomSectionById(id) {
-  const section = await CustomSection.findOne({ id });
+  const section = await CustomSection.findOne({ $or: [{ id }, { _id: id }] });
   if (!section) {
     throw new Error('Custom section not found');
   }
@@ -681,14 +688,25 @@ async function saveCustomSection(id, body) {
   let section;
   if (id) {
     section = await CustomSection.findOneAndUpdate(
-      { id },
+      { $or: [{ id }, { _id: id }] },
       { title: sectionTitle, subtitle, bannerImageUrl, bannerBadgeText, bannerButtonText: btnText, bannerActionType: bannerActionType || 'No Action', bannerActionValue, seeAllActionType: seeAllActionType || 'No Action', seeAllActionValue, serviceItems: serviceItems || [], priority: parseInt(priority) || 0, isActive: isActive !== false },
       { new: true }
     );
     if (!section) {
-      throw new Error('Custom section not found');
+      section = new CustomSection({
+        id,
+        title: sectionTitle, subtitle, bannerImageUrl, bannerBadgeText, bannerButtonText: btnText,
+        bannerActionType: bannerActionType || 'No Action',
+        bannerActionValue,
+        seeAllActionType: seeAllActionType || 'No Action',
+        seeAllActionValue,
+        serviceItems: serviceItems || [],
+        priority: parseInt(priority) || 0,
+        isActive: isActive !== false
+      });
+      await section.save();
     }
-    await CmsSection.findOneAndUpdate({ id }, { title: sectionTitle || 'Custom Section', isActive: isActive !== false, priority: parseInt(priority) || 0 });
+    await CmsSection.findOneAndUpdate({ $or: [{ id }, { _id: id }] }, { title: sectionTitle || 'Custom Section', isActive: isActive !== false, priority: parseInt(priority) || 0 });
   } else {
     const newId = `custom-section-${Date.now()}`;
     const allSections = await CmsSection.find({});
@@ -718,12 +736,9 @@ async function saveCustomSection(id, body) {
 }
 
 async function deleteCustomSection(id) {
-  const deleted = await CustomSection.findOneAndDelete({ id });
-  if (deleted) {
-    await CmsSection.findOneAndDelete({ id });
-  } else {
-    throw new Error('Custom section not found');
-  }
+  const deleted = await CustomSection.findOneAndDelete({ $or: [{ id }, { _id: id }] });
+  await CmsSection.findOneAndDelete({ $or: [{ id }, { _id: id }] });
+  return deleted;
 }
 
 async function adminLogin(password) {

@@ -1,26 +1,32 @@
-// --- JIO ISP DNS BLOCK AUTO-BYPASS FOR ADMIN PANEL ---
 let PRIMARY_API_URL = 'https://quickfixapp-production.up.railway.app/api';
 let PROXY_API_URL = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) 
   ? window.location.origin + '/api' 
   : 'http://localhost:8080/api';
 
 let CANDIDATE_API_URLS = [
-  PRIMARY_API_URL,
   PROXY_API_URL,
   'http://localhost:8080/api',
   'http://localhost:5000/api',
   'http://localhost:3000/api',
   'http://127.0.0.1:8080/api',
-  'http://127.0.0.1:5000/api'
+  'http://127.0.0.1:5000/api',
+  PRIMARY_API_URL
 ];
 
 // Deduplicate candidate URLs
 CANDIDATE_API_URLS = Array.from(new Set(CANDIDATE_API_URLS));
 
-let activeApiBase = PRIMARY_API_URL;
+let activeApiBase = (typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  ? PROXY_API_URL
+  : PRIMARY_API_URL;
 let isJioBypassActive = false;
 
-const API_URL = PRIMARY_API_URL;
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'API_URL', {
+    get() { return activeApiBase; },
+    configurable: true
+  });
+}
 
 // Global fetch interceptor for Admin Auth Token & Jio ISP Bypass
 // TokenStore is defined in security.js (loaded before this file)
@@ -625,7 +631,9 @@ async function refreshAllData() {
     fetchBanners(),
     fetchOffers(),
     fetchAlerts(),
-    fetchCategories()
+    fetchCategories(),
+    typeof loadCmsData === 'function' ? loadCmsData() : Promise.resolve(),
+    typeof loadSettings === 'function' ? loadSettings() : Promise.resolve()
   ]);
   
   updateDashboardStats();
@@ -3695,8 +3703,11 @@ function setupSubtabs() {
       
       btn.classList.add('active');
       const targetPane = document.getElementById(subtabId);
-      targetPane.classList.add('active');
-      targetPane.style.display = 'block';
+      if (targetPane) {
+        targetPane.classList.add('active');
+        targetPane.style.display = 'block';
+      }
+      loadCmsData();
     });
   });
 }
