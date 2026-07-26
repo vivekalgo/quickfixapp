@@ -31,7 +31,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
         ),
 
         SizedBox(
-          height: 228,
+          height: 184,
           child: professionalsAsync.when(
             data: (professionals) {
               if (professionals.isEmpty) {
@@ -84,20 +84,20 @@ class HomeProfessionalsSection extends ConsumerWidget {
                       }
                     },
                     child: Container(
-                      width: 248,
-                      margin: const EdgeInsets.only(right: 14, bottom: 8, top: 4),
-                      padding: const EdgeInsets.all(15),
+                      width: 236,
+                      margin: const EdgeInsets.only(right: 12, bottom: 6, top: 2),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.surfaceDark : Colors.white,
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
                             color: isDark
                                 ? Colors.black.withValues(alpha: 0.3)
-                                : const Color(0xFF0F172A).withValues(alpha: 0.06),
-                            blurRadius: 18,
+                                : const Color(0xFF0F172A).withValues(alpha: 0.05),
+                            blurRadius: 14,
                             spreadRadius: 0,
-                            offset: const Offset(0, 6),
+                            offset: const Offset(0, 4),
                           ),
                         ],
                         border: Border.all(
@@ -125,7 +125,6 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                         colors: [
                                           Color(0xFF3B82F6),
                                           Color(0xFF8B5CF6),
-                                          Color(0xFFEC4899),
                                         ],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
@@ -138,9 +137,9 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                             ? AppColors.surfaceDark
                                             : Colors.white,
                                       ),
-                                      padding: const EdgeInsets.all(2),
+                                      padding: const EdgeInsets.all(1.5),
                                       child: CircleAvatar(
-                                        radius: 26,
+                                        radius: 22,
                                         backgroundImage: ResizeImage(
                                           NetworkImage(
                                             prof.avatarUrl.isNotEmpty
@@ -153,11 +152,11 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                     ),
                                   ),
                                   Positioned(
-                                    right: 2,
-                                    bottom: 2,
+                                    right: 0,
+                                    bottom: 0,
                                     child: Container(
-                                      width: 13,
-                                      height: 13,
+                                      width: 11,
+                                      height: 11,
                                       decoration: BoxDecoration(
                                         color: prof.availability
                                             ? const Color(0xFF10B981)
@@ -167,14 +166,14 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                           color: isDark
                                               ? AppColors.surfaceDark
                                               : Colors.white,
-                                          width: 2,
+                                          width: 1.5,
                                         ),
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,7 +186,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: GoogleFonts.outfit(
-                                              fontSize: 15,
+                                              fontSize: 14.5,
                                               fontWeight: FontWeight.w800,
                                               letterSpacing: -0.2,
                                               color: isDark
@@ -199,7 +198,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                         if (prof.verifiedBadge) ...[
                                           const SizedBox(width: 4),
                                           Container(
-                                            padding: const EdgeInsets.all(2),
+                                            padding: const EdgeInsets.all(1.5),
                                             decoration: const BoxDecoration(
                                               color: Color(0xFF2563EB),
                                               shape: BoxShape.circle,
@@ -207,80 +206,86 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                             child: const Icon(
                                               Icons.check_rounded,
                                               color: Colors.white,
-                                              size: 10,
+                                              size: 9,
                                             ),
                                           ),
                                         ],
                                       ],
                                     ),
-                                    const SizedBox(height: 4),
-                                    // Specialty Pill Tag
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isDark
-                                            ? const Color(0xFF3B82F6).withValues(
-                                                alpha: 0.16,
-                                              )
-                                            : const Color(0xFFEFF6FF),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(
-                                          color: isDark
-                                              ? const Color(0xFF3B82F6).withValues(
-                                                  alpha: 0.3,
-                                                )
-                                              : const Color(0xFFBFDBFE),
-                                          width: 1,
+                                    const SizedBox(height: 3),
+                                    // Specialty Pill Tag & Experience
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isDark
+                                                  ? const Color(0xFF3B82F6).withValues(
+                                                      alpha: 0.16,
+                                                    )
+                                                  : const Color(0xFFEFF6FF),
+                                              borderRadius: BorderRadius.circular(5),
+                                              border: Border.all(
+                                                color: isDark
+                                                    ? const Color(0xFF3B82F6).withValues(
+                                                        alpha: 0.3,
+                                                      )
+                                                    : const Color(0xFFBFDBFE),
+                                                width: 0.8,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              prof.specialty,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                color: isDark
+                                                    ? const Color(0xFF60A5FA)
+                                                    : const Color(0xFF1D4ED8),
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      child: Text(
-                                        prof.specialty,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark
-                                              ? const Color(0xFF60A5FA)
-                                              : const Color(0xFF1D4ED8),
-                                        ),
-                                      ),
+                                        if (prof.experience.isNotEmpty) ...[
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            '• ${prof.experience}',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                              color: isDark
+                                                  ? AppColors.textSecondaryDark
+                                                  : AppColors.textSecondaryLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
-                                    if (prof.experience.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        prof.experience,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w500,
-                                          color: isDark
-                                              ? AppColors.textSecondaryDark
-                                              : AppColors.textSecondaryLight,
-                                        ),
-                                      ),
-                                    ],
                                   ],
                                 ),
                               ),
                             ],
                           ),
 
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
 
-                          // ── Ratings & Online Status Bar ───────────────────────
+                          // ── Ratings & Quick Badges Bar ───────────────────────
                           Row(
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                                  horizontal: 7,
+                                  vertical: 3,
                                 ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFEF3C7),
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -288,23 +293,23 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                     const Icon(
                                       Icons.star_rounded,
                                       color: Color(0xFFD97706),
-                                      size: 14,
+                                      size: 13,
                                     ),
-                                    const SizedBox(width: 3),
+                                    const SizedBox(width: 2),
                                     Text(
                                       prof.rating.toStringAsFixed(1),
                                       style: GoogleFonts.outfit(
-                                        fontSize: 12,
+                                        fontSize: 11.5,
                                         fontWeight: FontWeight.w900,
                                         color: const Color(0xFF92400E),
                                       ),
                                     ),
                                     if (prof.reviewsCount > 0) ...[
-                                      const SizedBox(width: 3),
+                                      const SizedBox(width: 2),
                                       Text(
                                         '(${prof.reviewsCount})',
                                         style: GoogleFonts.inter(
-                                          fontSize: 10,
+                                          fontSize: 9.5,
                                           fontWeight: FontWeight.w600,
                                           color: const Color(0xFFB45309),
                                         ),
@@ -313,10 +318,50 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                   ],
                                 ),
                               ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.06)
+                                      : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? AppColors.borderDark
+                                        : const Color(0xFFE2E8F0),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.bolt_rounded,
+                                      color: Color(0xFF10B981),
+                                      size: 12,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '30 min',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textSecondaryDark
+                                            : const Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                               const Spacer(),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
+                                  horizontal: 6,
                                   vertical: 3,
                                 ),
                                 decoration: BoxDecoration(
@@ -326,9 +371,9 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  prof.availability ? '● Available' : '○ Offline',
+                                  prof.availability ? 'Available' : 'Offline',
                                   style: GoogleFonts.inter(
-                                    fontSize: 10,
+                                    fontSize: 9.5,
                                     fontWeight: FontWeight.w700,
                                     color: prof.availability
                                         ? const Color(0xFF047857)
@@ -339,7 +384,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
                             ],
                           ),
 
-                          const Spacer(),
+                          const SizedBox(height: 10),
 
                           // ── Action Row: Wishlist + Book Now CTA ───────────────
                           Row(
@@ -366,13 +411,13 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                   );
                                 },
                                 child: Container(
-                                  width: 36,
-                                  height: 36,
+                                  width: 34,
+                                  height: 34,
                                   decoration: BoxDecoration(
                                     color: isDark
                                         ? AppColors.borderDark
                                         : const Color(0xFFF1F5F9),
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: isDark
                                           ? AppColors.borderDark
@@ -386,7 +431,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                     color: isFav
                                         ? const Color(0xFFEF4444)
                                         : const Color(0xFF64748B),
-                                    size: 17,
+                                    size: 16,
                                   ),
                                 ),
                               ),
@@ -419,7 +464,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                     }
                                   },
                                   child: Container(
-                                    height: 36,
+                                    height: 34,
                                     decoration: BoxDecoration(
                                       gradient: const LinearGradient(
                                         colors: [
@@ -429,14 +474,14 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                         begin: Alignment.centerLeft,
                                         end: Alignment.centerRight,
                                       ),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(10),
                                       boxShadow: [
                                         BoxShadow(
                                           color: AppColors.primary.withValues(
-                                            alpha: 0.35,
+                                            alpha: 0.3,
                                           ),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
                                         ),
                                       ],
                                     ),
@@ -448,7 +493,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                           Text(
                                             'Book Expert',
                                             style: GoogleFonts.outfit(
-                                              fontSize: 13,
+                                              fontSize: 12.5,
                                               fontWeight: FontWeight.w800,
                                               color: Colors.white,
                                               letterSpacing: -0.1,
@@ -458,7 +503,7 @@ class HomeProfessionalsSection extends ConsumerWidget {
                                           const Icon(
                                             Icons.arrow_forward_rounded,
                                             color: Colors.white,
-                                            size: 14,
+                                            size: 13,
                                           ),
                                         ],
                                       ),
@@ -480,11 +525,11 @@ class HomeProfessionalsSection extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: 2,
               itemBuilder: (context, index) => const Padding(
-                padding: EdgeInsets.only(right: 14),
+                padding: EdgeInsets.only(right: 12),
                 child: ShimmerLoading(
-                  width: 248,
-                  height: 220,
-                  borderRadius: 22,
+                  width: 236,
+                  height: 184,
+                  borderRadius: 18,
                 ),
               ),
             ),

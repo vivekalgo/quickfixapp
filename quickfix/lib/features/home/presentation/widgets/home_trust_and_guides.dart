@@ -358,7 +358,8 @@ class HomeNeedHelpCard extends ConsumerWidget {
     // Completely replace any dummy number with 9453626549
     final String supportNumber = (rawSupportNumber.isEmpty ||
             rawSupportNumber.contains('1800') ||
-            rawSupportNumber == '0000000000')
+            rawSupportNumber == '0000000000' ||
+            rawSupportNumber == '9876543210')
         ? '9453626549'
         : rawSupportNumber;
 

@@ -94,10 +94,11 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                           // ── Icon Container ──────────────────────────────
                           Container(
                             width: double.infinity,
-                            height: 62,
+                            height: 64,
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: isDark
-                                  ? cat.iconColor.withValues(alpha: 0.12)
+                                  ? cat.iconColor.withValues(alpha: 0.14)
                                   : cat.backgroundColor,
                               borderRadius: BorderRadius.circular(18),
                               border: isActive
@@ -111,9 +112,17 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
                                       width: 1,
                                     )
                                   : Border.all(
-                                      color: const Color(0xFFEEF2F7),
+                                      color: cat.iconColor.withValues(alpha: 0.15),
                                       width: 1,
                                     ),
+                              boxShadow: [
+                                if (!isDark)
+                                  BoxShadow(
+                                    color: cat.iconColor.withValues(alpha: 0.08),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                              ],
                             ),
                             child: Center(
                               child: _buildIcon(cat, isDark),
@@ -178,7 +187,7 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
 
   Widget _buildIcon(ServiceCategory cat, bool isDark) {
     if (cat.iconUrl == null || cat.iconUrl!.trim().isEmpty) {
-      return Icon(cat.icon, color: cat.iconColor, size: 26);
+      return Icon(cat.icon, color: cat.iconColor, size: 30);
     }
 
     final url = cat.iconUrl!.trim().startsWith('http://')
@@ -189,7 +198,7 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
         url.toLowerCase().contains('.svg') ||
         url.toLowerCase().contains('format=svg');
 
-    const double imageSize = 40.0;
+    const double imageSize = 44.0;
 
     if (isSvg) {
       return SvgPicture.network(
@@ -198,20 +207,20 @@ class _HomeCategoriesGridState extends ConsumerState<HomeCategoriesGrid> {
         height: imageSize,
         fit: BoxFit.contain,
         placeholderBuilder: (_) =>
-            Icon(cat.icon, color: cat.iconColor, size: 26),
+            Icon(cat.icon, color: cat.iconColor, size: 30),
       );
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: Image.network(
         url,
         width: imageSize,
         height: imageSize,
         fit: BoxFit.contain,
-        cacheWidth: 120,
+        cacheWidth: 140,
         errorBuilder: (_, __, ___) =>
-            Icon(cat.icon, color: cat.iconColor, size: 26),
+            Icon(cat.icon, color: cat.iconColor, size: 30),
       ),
     );
   }

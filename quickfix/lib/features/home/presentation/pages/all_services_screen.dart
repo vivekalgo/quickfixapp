@@ -113,83 +113,82 @@ class AllServicesScreen extends ConsumerWidget {
                               ? AppColors.surfaceDark
                               : cat.backgroundColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: isDark
-                              ? Border.all(color: AppColors.borderDark)
-                              : null,
+                          border: Border.all(
+                            color: isDark
+                                ? AppColors.borderDark
+                                : cat.iconColor.withValues(alpha: 0.12),
+                            width: 1,
+                          ),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              padding:
-                                  cat.iconUrl == null ||
-                                      cat.iconUrl!.trim().isEmpty
-                                  ? const EdgeInsets.all(10)
-                                  : const EdgeInsets.all(4),
+                              width: 48,
+                              height: 48,
+                              padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 color: isDark
-                                    ? cat.iconColor.withValues(alpha: 0.15)
-                                    : (cat.iconUrl == null ||
-                                              cat.iconUrl!.trim().isEmpty
-                                          ? Colors.white
-                                          : Colors.transparent),
-                                shape: BoxShape.circle,
+                                    ? cat.iconColor.withValues(alpha: 0.18)
+                                    : cat.iconColor.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              child:
-                                  cat.iconUrl == null ||
-                                      cat.iconUrl!.trim().isEmpty
-                                  ? Icon(
-                                      cat.icon,
-                                      color: cat.iconColor,
-                                      size: 26,
-                                    )
-                                  : (cat.iconUrl!.trim().toLowerCase().contains(
-                                          '.svg',
-                                        ) ||
-                                        cat.iconUrl!
-                                            .trim()
-                                            .toLowerCase()
-                                            .contains('format=svg'))
-                                  ? SvgPicture.network(
-                                      cat.iconUrl!.trim().startsWith('http://')
-                                          ? cat.iconUrl!.trim().replaceFirst(
-                                              'http://',
-                                              'https://',
-                                            )
-                                          : cat.iconUrl!.trim(),
-                                      width: 38,
-                                      height: 38,
-                                      fit: BoxFit.contain,
-                                      placeholderBuilder: (context) => Icon(
+                              child: Center(
+                                child: cat.iconUrl == null ||
+                                        cat.iconUrl!.trim().isEmpty
+                                    ? Icon(
                                         cat.icon,
                                         color: cat.iconColor,
-                                        size: 26,
-                                      ),
-                                    )
-                                  : ClipRRect(
-                                      borderRadius: BorderRadius.circular(19),
-                                      child: Image.network(
-                                        cat.iconUrl!.trim().startsWith(
-                                              'http://',
-                                            )
+                                        size: 28,
+                                      )
+                                    : (cat.iconUrl!.trim().toLowerCase().contains(
+                                            '.svg',
+                                          ) ||
+                                          cat.iconUrl!
+                                              .trim()
+                                              .toLowerCase()
+                                              .contains('format=svg'))
+                                    ? SvgPicture.network(
+                                        cat.iconUrl!.trim().startsWith('http://')
                                             ? cat.iconUrl!.trim().replaceFirst(
                                                 'http://',
                                                 'https://',
                                               )
                                             : cat.iconUrl!.trim(),
-                                        width: 38,
-                                        height: 38,
+                                        width: 34,
+                                        height: 34,
                                         fit: BoxFit.contain,
-                                        cacheWidth: 100,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Icon(
-                                                  cat.icon,
-                                                  color: cat.iconColor,
-                                                  size: 26,
-                                                ),
+                                        placeholderBuilder: (context) => Icon(
+                                          cat.icon,
+                                          color: cat.iconColor,
+                                          size: 28,
+                                        ),
+                                      )
+                                    : ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Image.network(
+                                          cat.iconUrl!.trim().startsWith(
+                                                'http://',
+                                              )
+                                              ? cat.iconUrl!.trim().replaceFirst(
+                                                  'http://',
+                                                  'https://',
+                                                )
+                                              : cat.iconUrl!.trim(),
+                                          width: 34,
+                                          height: 34,
+                                          fit: BoxFit.contain,
+                                          cacheWidth: 120,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Icon(
+                                                    cat.icon,
+                                                    color: cat.iconColor,
+                                                    size: 28,
+                                                  ),
+                                        ),
                                       ),
-                                    ),
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Padding(

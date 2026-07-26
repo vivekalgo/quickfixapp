@@ -394,7 +394,7 @@ async function getSettings() {
     taxRate: settingsObj.taxRate !== undefined ? settingsObj.taxRate : 5.0,
     commission: settingsObj.commission !== undefined ? settingsObj.commission : 10.0,
     visitingCharges: settingsObj.visitingCharges !== undefined ? settingsObj.visitingCharges : 150.0,
-    supportNumber: settingsObj.supportNumber !== undefined ? settingsObj.supportNumber : '9453626549',
+    supportNumber: (settingsObj.supportNumber !== undefined && settingsObj.supportNumber !== '9876543210') ? settingsObj.supportNumber : '9453626549',
     terms: settingsObj.terms !== undefined ? settingsObj.terms : 'Standard Terms & Conditions apply.',
     privacy: settingsObj.privacy !== undefined ? settingsObj.privacy : 'Standard Privacy Policy applies.',
     emergencyContact: settingsObj.emergencyContact !== undefined ? settingsObj.emergencyContact : '100',
