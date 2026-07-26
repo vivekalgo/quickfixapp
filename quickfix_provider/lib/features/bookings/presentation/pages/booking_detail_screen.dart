@@ -160,8 +160,37 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (booking.isInstant) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade900.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade700),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.bolt, color: Colors.orangeAccent, size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '⚡ INSTANT BOOKING REQUEST\nAssigned directly by Admin Panel.',
+                        style: TextStyle(
+                          color: Colors.orangeAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Status Summary Box
             BookingStatusCard(status: booking.status, isDark: isDark),
+
             const SizedBox(height: 20),
 
             // Stepper timeline indicator

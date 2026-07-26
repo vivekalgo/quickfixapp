@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
+import 'package:quickfix/core/utils/haptics.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
 
 class ShopDetailsHeader extends StatelessWidget {
@@ -16,10 +18,11 @@ class ShopDetailsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. VERIFIED PARTNER BADGE & RATING ROW
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,11 +31,54 @@ class ShopDetailsHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Verified partner badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.verified_user_rounded,
+                            color: Color(0xFF10B981),
+                            size: 13,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'QUICKFIX VERIFIED PARTNER',
+                            style: GoogleFonts.outfit(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: const Color(0xFF10B981),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Shop Name
                     Text(
                       shop.name,
-                      style: AppTextStyles.headingLarge(isDark),
+                      style: GoogleFonts.outfit(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: isDark ? Colors.white : AppColors.primary,
+                      ),
                     ),
                     const SizedBox(height: 6),
+                    // Categories wrap
                     Wrap(
                       spacing: 6,
                       runSpacing: 4,
@@ -40,23 +86,23 @@ class ShopDetailsHeader extends StatelessWidget {
                           .map(
                             (c) => Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
+                                horizontal: 9,
+                                vertical: 4,
                               ),
                               decoration: BoxDecoration(
                                 color: isDark
                                     ? Colors.white.withValues(alpha: 0.08)
-                                    : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(6),
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 c,
-                                style: TextStyle(
-                                  fontSize: 10,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
                                   color: isDark
                                       ? Colors.white70
-                                      : AppColors.textSecondaryLight,
-                                  fontWeight: FontWeight.bold,
+                                      : const Color(0xFF475569),
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -66,49 +112,72 @@ class ShopDetailsHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
+              // Rating distribution card
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
+                  horizontal: 12,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.success.withValues(alpha: 0.3),
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [
+                            const Color(0xFF1E293B),
+                            const Color(0xFF0F172A),
+                          ]
+                        : [
+                            const Color(0xFFFFFBEB),
+                            const Color(0xFFFEF3C7),
+                          ],
                   ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Column(
                   children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: Color(0xFFFFB300),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      shop.rating.toStringAsFixed(1),
-                      style: TextStyle(
-                        color: isDark ? Colors.white : AppColors.secondary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (shop.reviewsCount > 0) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        '(${shop.reviewsCount})',
-                        style: TextStyle(
-                          color: isDark
-                              ? Colors.white70
-                              : AppColors.textSecondaryLight,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          color: Color(0xFFF59E0B),
+                          size: 18,
                         ),
+                        const SizedBox(width: 3),
+                        Text(
+                          shop.rating.toStringAsFixed(1),
+                          style: GoogleFonts.outfit(
+                            color: isDark ? Colors.white : const Color(0xFF78350F),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      shop.reviewsCount > 0
+                          ? '${shop.reviewsCount}+ ratings'
+                          : '4.8★ Recommended',
+                      style: GoogleFonts.inter(
+                        color: isDark
+                            ? Colors.white70
+                            : const Color(0xFF92400E),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -116,144 +185,399 @@ class ShopDetailsHeader extends StatelessWidget {
           ),
 
           const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 12),
 
-          // Metadata Grid (Timings, Radius, Visiting Fees)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildMetaColumn(
-                Icons.access_time_outlined,
-                'Timings',
-                shop.timings,
-                isDark,
+          // 2. METADATA HIGHLIGHTS GRID (Urban Company Style)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? AppColors.surfaceDark
+                  : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark
+                    ? AppColors.borderDark
+                    : const Color(0xFFE2E8F0),
+                width: 1,
               ),
-              _buildMetaColumn(
-                Icons.location_on_outlined,
-                'Distance',
-                '${shop.distanceKm.toStringAsFixed(1)} km',
-                isDark,
-              ),
-              _buildMetaColumn(
-                Icons.payments_outlined,
-                'Visiting Charge',
-                '₹${shop.visitingCharges.toInt()}',
-                isDark,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 16),
-
-          // About Shop / Address
-          Text(
-            'About Shop & Location',
-            style: AppTextStyles.headingSmall(isDark),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            shop.address.isNotEmpty ? shop.address : 'No address specified.',
-            style: AppTextStyles.bodyMedium(isDark),
-          ),
-          if (shop.phone.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Row(
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                const Icon(
-                  Icons.phone_outlined,
-                  size: 16,
-                  color: AppColors.primary,
+                _buildUrbanMetaItem(
+                  Icons.access_time_filled_rounded,
+                  'Operating Hours',
+                  shop.timings,
+                  const Color(0xFF3B82F6),
+                  isDark,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  shop.phone,
-                  style: AppTextStyles.bodySmall(isDark).copyWith(
-                    fontWeight: FontWeight.bold,
+                Container(
+                  height: 32,
+                  width: 1,
+                  color: isDark ? AppColors.borderDark : const Color(0xFFCBD5E1),
+                ),
+                _buildUrbanMetaItem(
+                  Icons.near_me_rounded,
+                  'Distance',
+                  '${shop.distanceKm.toStringAsFixed(1)} km away',
+                  const Color(0xFF10B981),
+                  isDark,
+                ),
+                Container(
+                  height: 32,
+                  width: 1,
+                  color: isDark ? AppColors.borderDark : const Color(0xFFCBD5E1),
+                ),
+                _buildUrbanMetaItem(
+                  Icons.payments_rounded,
+                  'Visiting Charge',
+                  '₹${shop.visitingCharges.toInt()}',
+                  const Color(0xFF8B5CF6),
+                  isDark,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // 3. URBAN COMPANY OFFER / PROMO BANNER
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.local_offer_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        shop.offerBannerText.isNotEmpty
+                            ? shop.offerBannerText
+                            : 'Flat ₹100 OFF on First Booking',
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        shop.offerBannerSubtext.isNotEmpty
+                            ? shop.offerBannerSubtext
+                            : 'Use code ${shop.offerBannerCode.isNotEmpty ? shop.offerBannerCode : 'QUICK100'} at checkout • Free inspection included',
+                        style: GoogleFonts.inter(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ],
-          if (shop.technicians.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Technicians available: ${shop.technicians.join(', ')}',
-              style: AppTextStyles.bodySmall(isDark).copyWith(
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
+          ),
 
-          // Portfolio / Gallery
+          const SizedBox(height: 14),
+
+          // 4. QUICKFIX SAFETY & TRUST ASSURANCE CHIPS
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildTrustBadgeChip(
+                  Icons.shield_outlined,
+                  '30-Day Warranty',
+                  const Color(0xFF0284C7),
+                  isDark,
+                ),
+                const SizedBox(width: 8),
+                _buildTrustBadgeChip(
+                  Icons.badge_outlined,
+                  'Verified Pros',
+                  const Color(0xFF16A34A),
+                  isDark,
+                ),
+                const SizedBox(width: 8),
+                _buildTrustBadgeChip(
+                  Icons.sanitizer_outlined,
+                  'Hygienic Tools',
+                  const Color(0xFFD97706),
+                  isDark,
+                ),
+                const SizedBox(width: 8),
+                _buildTrustBadgeChip(
+                  Icons.price_check_outlined,
+                  'Transparent Pricing',
+                  const Color(0xFF9333EA),
+                  isDark,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 5. ABOUT SHOP & LOCATION CARD
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : const Color(0xFFE2E8F0),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'About Shop & Location',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.location_on_rounded,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        shop.address.isNotEmpty
+                            ? shop.address
+                            : 'Verified QuickFix Service Hub.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12.5,
+                          height: 1.35,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (shop.phone.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () async {
+                      AppHaptics.mediumTap();
+                      final Uri phoneUri = Uri(
+                        scheme: 'tel',
+                        path: shop.phone,
+                      );
+                      try {
+                        await launchUrl(phoneUri);
+                      } catch (_) {}
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.phone_in_talk_rounded,
+                            size: 13,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Call Shop: ${shop.phone}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                if (shop.technicians.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.groups_rounded,
+                        size: 15,
+                        color: Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Expert Pros: ${shop.technicians.join(', ')}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // 6. WORK GALLERY
           if (shop.portfolioImages.isNotEmpty) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Text(
-              'Work Gallery',
-              style: AppTextStyles.headingSmall(isDark),
+              'Work Gallery & Past Repairs',
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : AppColors.primary,
+              ),
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: 100,
+              height: 110,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: shop.portfolioImages.length,
                 itemBuilder: (context, i) => Container(
-                  margin: const EdgeInsets.only(right: 12),
+                  margin: const EdgeInsets.only(right: 10),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     child: Image.network(
                       shop.portfolioImages[i],
-                      width: 120,
-                      height: 100,
+                      width: 140,
+                      height: 110,
                       fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 140,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.broken_image, color: Colors.grey),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ],
-
-          const SizedBox(height: 24),
-          Text(
-            'Available Services',
-            style: AppTextStyles.headingSmall(isDark),
-          ),
-          const SizedBox(height: 12),
         ],
       ),
     );
   }
 
-  Widget _buildMetaColumn(
+  Widget _buildUrbanMetaItem(
     IconData icon,
     String label,
     String value,
+    Color accentColor,
     bool isDark,
   ) {
     return Column(
       children: [
-        Icon(icon, color: AppColors.primary, size: 20),
-        const SizedBox(height: 6),
+        Icon(icon, color: accentColor, size: 18),
+        const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.inter(
             fontSize: 10,
-            color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+            color: isDark ? Colors.white60 : const Color(0xFF64748B),
           ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
-          style: TextStyle(
+          style: GoogleFonts.outfit(
             fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : AppColors.secondary,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : AppColors.primary,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildTrustBadgeChip(
+    IconData icon,
+    String label,
+    Color color,
+    bool isDark,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

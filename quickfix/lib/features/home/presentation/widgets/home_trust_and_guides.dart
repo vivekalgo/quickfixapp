@@ -349,193 +349,361 @@ class HomeNeedHelpCard extends ConsumerWidget {
     final isDark = ref.watch(isDarkModeProvider);
 
     final settingsAsync = ref.watch(appSettingsProvider);
-    final String supportNumber = settingsAsync.when(
+    final String rawSupportNumber = settingsAsync.when(
       data: (s) => s['supportNumber']?.toString() ?? '9453626549',
       loading: () => '9453626549',
       error: (_, __) => '9453626549',
     );
 
+    // Completely replace any dummy number with 9453626549
+    final String supportNumber = (rawSupportNumber.isEmpty ||
+            rawSupportNumber.contains('1800') ||
+            rawSupportNumber == '0000000000')
+        ? '9453626549'
+        : rawSupportNumber;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
       child: Container(
-        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1E293B),
+                    AppColors.surfaceDark,
+                    Color(0xFF0F172A),
+                  ],
+                )
+              : const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFF8FAFC),
+                    Color(0xFFEFF6FF),
+                    Colors.white,
+                  ],
+                ),
+          boxShadow: isDark
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
           border: Border.all(
             color: isDark
-                ? AppColors.borderDark
-                : const Color(0xFFEEF2F7),
+                ? AppColors.primary.withValues(alpha: 0.25)
+                : const Color(0xFFE2E8F0),
+            width: 1.2,
           ),
         ),
-        child: Row(
-          children: [
-            // Support avatar with green indicator
-            Stack(
-              children: [
-                const CircleAvatar(
-                  radius: 28,
-                  backgroundImage: NetworkImage(
-                    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
-                  ),
-                ),
-                Positioned(
-                  right: 1,
-                  bottom: 1,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: AppColors.success,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isDark
-                            ? AppColors.surfaceDark
-                            : const Color(0xFFF8FAFC),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
+        child: Padding(
+          padding: const EdgeInsets.all(18.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Need Help?',
-                    style: GoogleFonts.outfit(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      color: isDark ? Colors.white : AppColors.primary,
-                    ),
-                  ),
-                  Text(
-                    'Support team available 24×7',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Instant Response · 100% Satisfaction',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primaryAccent,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
+                  // Support Avatar with glowing online status
+                  Stack(
+                    alignment: Alignment.center,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          AppHaptics.mediumTap();
-                          context.push('/support');
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.chat_bubble_outline_rounded,
-                                size: 13,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                'Chat Now',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [
+                              AppColors.primary,
+                              AppColors.primaryAccent,
                             ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(2.5),
+                          child: CircleAvatar(
+                            backgroundImage: NetworkImage(
+                              'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () async {
-                          AppHaptics.mediumTap();
-                          final Uri phoneUri = Uri(
-                            scheme: 'tel',
-                            path: supportNumber,
-                          );
-                          try {
-                            await launchUrl(phoneUri);
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Calling $supportNumber',
-                                  ),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          }
-                        },
+                      Positioned(
+                        right: 2,
+                        bottom: 2,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
+                          width: 14,
+                          height: 14,
                           decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
+                            color: AppColors.success,
+                            shape: BoxShape.circle,
                             border: Border.all(
                               color: isDark
-                                  ? AppColors.borderDark
-                                  : const Color(0xFFCBD5E1),
-                              width: 1,
+                                  ? AppColors.surfaceDark
+                                  : Colors.white,
+                              width: 2.5,
                             ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.phone_outlined,
-                                size: 13,
-                                color: isDark ? Colors.white : AppColors.primary,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                'Call Us',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? Colors.white
-                                      : AppColors.primary,
-                                ),
-                              ),
-                            ],
                           ),
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.success,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '24×7 LIVE SUPPORT',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.6,
+                                      color: AppColors.success,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          'Need Assistance?',
+                          style: GoogleFonts.outfit(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            color: isDark ? Colors.white : AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Our expert support team is online to help you with your booking.',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            height: 1.3,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
+              // Feature highlight bar
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : AppColors.primary.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.bolt_rounded,
+                      size: 14,
+                      color: AppColors.primaryAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Instant Response',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.9)
+                            : AppColors.primary,
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('•', style: TextStyle(color: Colors.grey)),
+                    ),
+                    const Icon(
+                      Icons.verified_user_rounded,
+                      size: 13,
+                      color: AppColors.success,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '100% Guaranteed',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.9)
+                            : AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Action Buttons Row
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        AppHaptics.mediumTap();
+                        context.push('/support');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              AppColors.primary,
+                              AppColors.primaryAccent,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.25),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.chat_bubble_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Chat Now',
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        AppHaptics.mediumTap();
+                        final Uri phoneUri = Uri(
+                          scheme: 'tel',
+                          path: supportNumber,
+                        );
+                        try {
+                          await launchUrl(phoneUri);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Calling $supportNumber'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark
+                                ? AppColors.borderDark
+                                : AppColors.primary.withValues(alpha: 0.3),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.phone_in_talk_rounded,
+                              size: 14,
+                              color: isDark
+                                  ? Colors.white
+                                  : AppColors.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Call Us',
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? Colors.white
+                                    : AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

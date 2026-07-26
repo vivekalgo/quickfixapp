@@ -30,9 +30,13 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<List<Professional>> getTopProfessionals() async {
-    return await _remoteDataSource.getTopProfessionals();
+  Future<List<Professional>> getTopProfessionals({
+    double? lat,
+    double? lng,
+  }) async {
+    return await _remoteDataSource.getTopProfessionals(lat: lat, lng: lng);
   }
+
 
   @override
   Future<List<Review>> getCustomerReviews() async {

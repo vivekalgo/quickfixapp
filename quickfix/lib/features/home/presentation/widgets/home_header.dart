@@ -418,70 +418,83 @@ class HomeSearchBarRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(isDarkModeProvider);
 
-    return GestureDetector(
-      onTap: () {
-        AppHaptics.lightTap();
-        context.push('/search');
-      },
-      child: Container(
-        height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : const Color(0xFFE2E8F0),
-            width: 1,
-          ),
-          boxShadow: isDark
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : const Color(0xFFE2E8F0),
+          width: 1,
+        ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                AppHaptics.lightTap();
+                context.push('/search');
+              },
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.search_rounded,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : const Color(0xFF94A3B8),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Search services, e.g. 'AC Repair', 'Plumber'...",
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w400,
+                        fontSize: 13.5,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : const Color(0xFFA0ABBB),
+                      ),
+                    ),
                   ),
                 ],
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.search_rounded,
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : const Color(0xFF94A3B8),
-              size: 22,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                "Search services, e.g. 'AC Repair', 'Plumber'...",
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 13.5,
-                  color: isDark
-                      ? AppColors.textSecondaryDark
-                      : const Color(0xFFA0ABBB),
-                ),
               ),
             ),
-            // Divider
-            Container(
-              height: 22,
-              width: 1,
-              color: isDark
-                  ? AppColors.borderDark
-                  : const Color(0xFFE2E8F0),
-            ),
-            const SizedBox(width: 10),
-            // Filter icon
-            const Icon(
-              Icons.tune_rounded,
+          ),
+          // Divider
+          Container(
+            height: 22,
+            width: 1,
+            color: isDark
+                ? AppColors.borderDark
+                : const Color(0xFFE2E8F0),
+          ),
+          const SizedBox(width: 10),
+          // Real Working Voice Search Mic icon
+          GestureDetector(
+            onTap: () {
+              AppHaptics.mediumTap();
+              context.push('/search?voice=true');
+            },
+            child: const Icon(
+              Icons.mic_rounded,
               color: AppColors.primaryAccent,
-              size: 20,
+              size: 22,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

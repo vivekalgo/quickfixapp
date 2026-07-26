@@ -127,6 +127,20 @@ async function respondToQuotation(req, res) {
   }
 }
 
+async function assignProvider(req, res) {
+  const { bookingId, shopId, providerName } = req.body;
+  try {
+    const booking = await bookingService.assignProviderToBooking(bookingId, shopId, providerName);
+    res.json({ success: true, booking });
+  } catch (e) {
+    if (e.message === 'Booking not found' || e.message === 'Provider shop not found') {
+      return res.status(404).json({ success: false, error: e.message });
+    }
+    console.error('Assign provider failed:', e);
+    res.status(500).json({ success: false, error: e.message || 'Failed to assign provider' });
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetails,
@@ -134,5 +148,6 @@ module.exports = {
   updateStatus,
   cancelBooking,
   uploadQuotation,
-  respondToQuotation
+  respondToQuotation,
+  assignProvider
 };

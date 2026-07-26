@@ -112,6 +112,10 @@ class Shop {
   final List<String> portfolioImages;
   final List<ShopService> services;
   final List<String> technicians;
+  final String offerBannerText;
+  final String offerBannerCode;
+  final String offerBannerSubtext;
+  final List<String> customCategories;
 
   const Shop({
     required this.id,
@@ -134,6 +138,10 @@ class Shop {
     required this.portfolioImages,
     required this.services,
     required this.technicians,
+    this.offerBannerText = 'Flat ₹100 OFF on First Booking',
+    this.offerBannerCode = 'QUICK100',
+    this.offerBannerSubtext = 'Use code QUICK100 at checkout • Free inspection included',
+    this.customCategories = const [],
   });
 
   String get estimatedTimeDisplay =>
@@ -192,6 +200,15 @@ class Shop {
       technicians:
           (json['technicians'] as List?)?.map((e) => e.toString()).toList() ??
           [],
+      offerBannerText: json['offerBannerText']?.toString() ??
+          'Flat ₹100 OFF on First Booking',
+      offerBannerCode: json['offerBannerCode']?.toString() ?? 'QUICK100',
+      offerBannerSubtext: json['offerBannerSubtext']?.toString() ??
+          'Use code QUICK100 at checkout • Free inspection included',
+      customCategories: (json['customCategories'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
   }
 }

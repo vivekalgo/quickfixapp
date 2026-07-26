@@ -82,13 +82,24 @@ class HomeRemoteDataSource {
         .toList();
   }
 
-  Future<List<Professional>> getTopProfessionals() async {
-    final response = await _client.get(ApiEndpoints.professionals);
+  Future<List<Professional>> getTopProfessionals({
+    double? lat,
+    double? lng,
+  }) async {
+    final Map<String, dynamic> queryParams = {};
+    if (lat != null && lat != 0.0) queryParams['lat'] = lat;
+    if (lng != null && lng != 0.0) queryParams['lng'] = lng;
+
+    final response = await _client.get(
+      ApiEndpoints.professionals,
+      queryParameters: queryParams.isNotEmpty ? queryParams : null,
+    );
     final data = response.data as List;
     return data
         .map((json) => Professional.fromJson(json as Map<String, dynamic>))
         .toList();
   }
+
 
   Future<List<Review>> getCustomerReviews() async {
     final response = await _client.get(ApiEndpoints.reviews);

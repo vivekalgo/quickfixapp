@@ -51,13 +51,18 @@ final nearbyShopsProvider = FutureProvider<List<Shop>>((ref) async {
   );
 });
 
-// Top Rated Professionals Provider
+// Top Rated Professionals Provider (location range filtered)
 final topProfessionalsProvider = FutureProvider<List<Professional>>((
   ref,
 ) async {
   final repository = ref.watch(homeRepositoryProvider);
-  return repository.getTopProfessionals();
+  final location = ref.watch(currentAddressProvider);
+  return repository.getTopProfessionals(
+    lat: location.latitude,
+    lng: location.longitude,
+  );
 });
+
 
 // Promo Banners Provider
 final bannersProvider = FutureProvider<List<PromoBanner>>((ref) async {

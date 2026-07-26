@@ -210,13 +210,42 @@ class BookingsScreen extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              booking.id,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: AppColors.primary,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  booking.id,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                if (booking.isInstant) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade800,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.bolt, size: 12, color: Colors.white),
+                                        SizedBox(width: 2),
+                                        Text(
+                                          'INSTANT',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             Text(
                               booking.status.toUpperCase().replaceAll('_', ' '),
@@ -228,6 +257,7 @@ class BookingsScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+
                         const Divider(height: 20, color: Colors.white10),
                         Text(
                           booking.title,

@@ -105,7 +105,11 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/search',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const SearchScreen(),
+      builder: (context, state) {
+        final startVoice = state.uri.queryParameters['voice'] == 'true' ||
+            (state.extra as Map<String, dynamic>?)?['startVoice'] == true;
+        return SearchScreen(startVoice: startVoice);
+      },
     ),
     GoRoute(
       path: '/shops',

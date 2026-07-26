@@ -505,11 +505,22 @@ async function deleteReview(id) {
 async function getProfessionals(sort, lat, lng) {
   let list = await Professional.find({ isActive: { $ne: false } });
 
+  const userLat = parseFloat(lat);
+  const userLng = parseFloat(lng);
+  const hasUserCoords = !isNaN(userLat) && !isNaN(userLng) && userLat !== 0 && userLng !== 0;
+
   const syncedList = await Promise.all(list.map(async (prof) => {
     const p = prof.toObject ? prof.toObject() : { ...prof };
     if (p.shopId) {
-      const shop = await Shop.findOne({ id: p.shopId });
+      let shop = null;
+      try { shop = await Shop.findById(p.shopId); } catch (_) {}
+      if (!shop) shop = await Shop.findOne({ id: p.shopId });
+      if (!shop) shop = await Shop.findOne({ _id: p.shopId });
+
       if (shop) {
+        p.shopStatus = shop.status;
+        p.verificationStatus = shop.verificationStatus;
+        p.isOnline = shop.isOnline;
         p.name = shop.ownerName || shop.name || p.name;
         p.imageUrl = shop.ownerPhotoUrl || shop.imagePath || p.imageUrl;
         p.specialty = (shop.categories && shop.categories.length > 0) ? shop.categories[0] : p.specialty;
@@ -518,28 +529,49 @@ async function getProfessionals(sort, lat, lng) {
         p.verifiedBadge = shop.verificationStatus === 'approved';
         p.lat = shop.latitude;
         p.lng = shop.longitude;
+        p.serviceRadius = parseFloat(shop.serviceRadius || shop.maxDistanceKm) || 15.0;
         p.reviewsCount = shop.services ? shop.services.reduce((acc, s) => acc + (s.reviewsCount || 0), 0) : p.reviewsCount;
       }
     }
+
+    if (hasUserCoords && p.lat !== undefined && p.lng !== undefined) {
+      p.distanceKm = calculateDistance(userLat, userLng, p.lat, p.lng);
+    } else {
+      p.distanceKm = 0;
+    }
+
     return p;
   }));
 
+  const filteredList = syncedList.filter(p => {
+    if (p.shopStatus && p.shopStatus !== 'active') return false;
+    if (p.verificationStatus && p.verificationStatus !== 'approved') return false;
+    if (p.isOnline === false) return false;
+
+    if (hasUserCoords && p.lat !== undefined && p.lng !== undefined) {
+      const radius = parseFloat(p.serviceRadius) || 15.0;
+      if (p.distanceKm > radius) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   if (sort === 'rating') {
-    syncedList.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    filteredList.sort((a, b) => (b.rating || 0) - (a.rating || 0));
   } else if (sort === 'bookings') {
-    syncedList.sort((a, b) => (b.completedJobs || b.reviewsCount || 0) - (a.completedJobs || a.reviewsCount || 0));
-  } else if (sort === 'nearest' && lat && lng) {
-    const userLat = parseFloat(lat);
-    const userLng = parseFloat(lng);
-    syncedList.sort((a, b) => {
-      const distA = (a.lat !== undefined && a.lng !== undefined) ? calculateDistance(userLat, userLng, a.lat, a.lng) : 99999;
-      const distB = (b.lat !== undefined && b.lng !== undefined) ? calculateDistance(userLat, userLng, b.lat, b.lng) : 99999;
-      return distA - distB;
-    });
+    filteredList.sort((a, b) => (b.completedJobs || b.reviewsCount || 0) - (a.completedJobs || a.reviewsCount || 0));
+  } else if (sort === 'nearest' && hasUserCoords) {
+    filteredList.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+  } else if (hasUserCoords) {
+    filteredList.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+  } else {
+    filteredList.sort((a, b) => (b.rating || 0) - (a.rating || 0));
   }
 
-  return syncedList;
+  return filteredList;
 }
+
 
 async function getHomepageLayout() {
   let list = await CmsSection.find({ isActive: true });

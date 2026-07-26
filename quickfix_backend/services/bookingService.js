@@ -595,6 +595,68 @@ async function respondToQuotation(bookingId, response, comment) {
   return booking;
 }
 
+async function assignProviderToBooking(bookingId, shopId, customProviderName) {
+  const booking = await Booking.findOne({ id: bookingId });
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+
+  let shop = null;
+  try { shop = await Shop.findById(shopId); } catch (_) {}
+  if (!shop) shop = await Shop.findOne({ id: shopId });
+  if (!shop) shop = await Shop.findOne({ _id: shopId });
+
+  if (!shop) {
+    throw new Error('Provider shop not found');
+  }
+
+  const assignedShopId = shop.id || shop._id.toString();
+  const pName = customProviderName || shop.ownerName || shop.name || 'Assigned Provider';
+
+  booking.shopId = assignedShopId;
+  booking.providerName = pName;
+  if (shop.phone) booking.providerPhone = shop.phone;
+  await booking.save();
+
+  try {
+    const ledger = await PaymentLedger.findOne({ bookingId });
+    if (ledger) {
+      ledger.shopId = assignedShopId;
+      ledger.providerId = assignedShopId;
+      ledger.providerName = pName;
+      await ledger.save();
+    }
+  } catch (ledgerErr) {
+    console.error('Ledger update error during provider assignment:', ledgerErr.message);
+  }
+
+  sendFcmNotification(
+    assignedShopId,
+    'New Instant Booking Request ⚡',
+    `You have been assigned instant booking ${bookingId} for "${booking.title}". Tap to view & respond.`,
+    {
+      type: 'booking',
+      bookingId: bookingId,
+      iconColor: 'info',
+      isInstant: 'true'
+    },
+    'partner'
+  ).catch(err => console.error('FCM partner assignment notification error:', err));
+
+  sendFcmNotification(
+    booking.customerId,
+    'Provider Assigned 🎉',
+    `${pName} has been assigned to your instant booking ${bookingId}.`,
+    {
+      type: 'booking_status',
+      bookingId: bookingId,
+      iconColor: 'success'
+    }
+  ).catch(err => console.error('FCM customer notification error:', err));
+
+  return booking;
+}
+
 module.exports = {
   getBookingsList,
   getBookingDetails,
@@ -602,5 +664,7 @@ module.exports = {
   updateBookingStatus,
   cancelBooking,
   uploadQuotation,
-  respondToQuotation
+  respondToQuotation,
+  assignProviderToBooking
 };
+

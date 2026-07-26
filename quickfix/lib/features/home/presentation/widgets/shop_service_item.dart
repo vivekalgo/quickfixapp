@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
-import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
 
 class ShopServiceItem extends StatelessWidget {
@@ -24,6 +24,14 @@ class ShopServiceItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Calculate discount if available
+    final hasDiscount = service.pricingType == 'fixed' &&
+        service.originalPrice > service.price;
+    final discountPercent = hasDiscount
+        ? ((service.originalPrice - service.price) / service.originalPrice * 100)
+            .toInt()
+        : 0;
+
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: 16,
@@ -36,108 +44,99 @@ class ShopServiceItem extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(
-              alpha: isDark ? 0.2 : 0.03,
+              alpha: isDark ? 0.25 : 0.05,
             ),
             blurRadius: 16,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          color: isDark
+              ? AppColors.borderDark
+              : const Color(0xFFE2E8F0),
           width: 1,
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Left Content: Title, Badges, Pricing, Inclusions
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Service Title
                 Text(
                   service.title,
-                  style: AppTextStyles.headingSmall(isDark).copyWith(fontSize: 15),
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    color: isDark ? Colors.white : AppColors.primary,
+                  ),
                 ),
                 const SizedBox(height: 6),
-                Row(
+
+                // Pricing Badges & Free Inspection Tag
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
                     if (service.pricingType == 'fixed')
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'Fixed Price',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
+                      _buildPillBadge('Fixed Price', const Color(0xFF10B981))
                     else if (service.pricingType == 'starting')
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'Starts From',
-                          style: TextStyle(
-                            color: Colors.amber,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
+                      _buildPillBadge('Starts From', const Color(0xFFF59E0B))
                     else if (service.pricingType == 'range')
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'Price Range',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
+                      _buildPillBadge('Price Range', const Color(0xFF3B82F6))
                     else if (service.pricingType == 'inspection')
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'Quote Required',
-                          style: TextStyle(
-                            color: Colors.orange,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      _buildPillBadge('Quote Required', const Color(0xFF8B5CF6)),
+
+                    if (service.isFreeInspection)
+                      _buildPillBadge('FREE INSPECTION', const Color(0xFF059669)),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+
+                // Price Display Row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      service.pricingType == 'inspection'
+                          ? 'Quote Required'
+                          : service.pricingType == 'starting'
+                              ? '₹${service.price.toInt()}'
+                              : service.pricingType == 'range'
+                                  ? '₹${service.minPrice.toInt()} - ₹${service.maxPrice.toInt()}'
+                                  : '₹${service.price.toInt()}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : AppColors.primary,
+                      ),
+                    ),
+                    if (service.pricingType == 'starting') ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        'onwards',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
                         ),
                       ),
-                    if (service.isFreeInspection) ...[
+                    ],
+                    if (hasDiscount) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '₹${service.originalPrice.toInt()}',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
                       const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -145,81 +144,45 @@ class ShopServiceItem extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.15),
+                          color: const Color(0xFFDC2626).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: Colors.green.withValues(alpha: 0.3),
-                          ),
                         ),
-                        child: const Text(
-                          'FREE INSPECTION',
-                          style: TextStyle(
-                            color: Colors.green,
+                        child: Text(
+                          '$discountPercent% OFF',
+                          style: GoogleFonts.outfit(
                             fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFDC2626),
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Text(
-                      service.pricingType == 'inspection'
-                          ? 'Quote Required'
-                          : service.pricingType == 'starting'
-                              ? 'Starts from ₹${service.price.toInt()}'
-                              : service.pricingType == 'range'
-                                  ? '₹${service.minPrice.toInt()} - ₹${service.maxPrice.toInt()}'
-                                  : '₹${service.price.toInt()}',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : AppColors.secondary,
-                      ),
-                    ),
-                    if (service.pricingType == 'fixed' &&
-                        service.originalPrice > service.price) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        '₹${service.originalPrice.toInt()}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondaryLight,
-                          decoration: TextDecoration.lineThrough,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${((service.originalPrice - service.price) / service.originalPrice * 100).toInt()}% OFF',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 6),
+
+                const SizedBox(height: 8),
+
+                // Duration Chip
                 Row(
                   children: [
                     const Icon(
-                      Icons.timer_outlined,
-                      size: 12,
-                      color: AppColors.textSecondaryLight,
+                      Icons.schedule_rounded,
+                      size: 13,
+                      color: Color(0xFF64748B),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       service.durationText,
-                      style: AppTextStyles.bodySmall(isDark).copyWith(
-                        fontWeight: FontWeight.bold,
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
                       ),
                     ),
                   ],
                 ),
+
+                // Inclusions / Bullet Points with Green Checkmarks
                 if (service.bulletPoints.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   ...service.bulletPoints.map(
@@ -229,18 +192,22 @@ class ShopServiceItem extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Padding(
-                            padding: EdgeInsets.only(top: 4.0, right: 6.0),
+                            padding: EdgeInsets.only(top: 2.0, right: 6.0),
                             child: Icon(
-                              Icons.circle,
-                              size: 4,
-                              color: AppColors.textSecondaryLight,
+                              Icons.check_circle_rounded,
+                              size: 13,
+                              color: Color(0xFF10B981),
                             ),
                           ),
                           Expanded(
                             child: Text(
                               bullet,
-                              style: AppTextStyles.bodySmall(isDark).copyWith(
-                                fontSize: 11,
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                height: 1.3,
+                                color: isDark
+                                    ? Colors.white70
+                                    : const Color(0xFF475569),
                               ),
                             ),
                           ),
@@ -248,105 +215,217 @@ class ShopServiceItem extends StatelessWidget {
                       ),
                     ),
                   ),
+                ] else ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        size: 13,
+                        color: Color(0xFF10B981),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '30-Day Money Back Warranty included',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ],
             ),
           ),
-          const SizedBox(width: 12),
+
+          const SizedBox(width: 14),
+
+          // Right Content: Image Stack & Urban Style ADD / Stepper Button
           Column(
             children: [
-              if (service.imageUrl.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    service.imageUrl,
-                    width: 88,
-                    height: 88,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: 80,
-                height: 32,
-                child: isInCart
-                    ? Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            GestureDetector(
-                              onTap: onRemoveFromCart,
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8.0),
-                                child: Icon(
-                                  Icons.remove,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              '$quantity',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: onAddToCart,
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8.0),
-                                child: Icon(
-                                  Icons.add,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : OutlinedButton(
-                        onPressed: onAddToCart,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-                          side: const BorderSide(
-                            color: AppColors.primary,
-                            width: 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: EdgeInsets.zero,
-                          elevation: 2,
-                          shadowColor: Colors.black.withValues(alpha: 0.05),
-                        ),
-                        child: const Text(
-                          'ADD',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
+              Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.bottomCenter,
+                children: [
+                  // Service Image
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF1F5F9),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.borderDark
+                            : const Color(0xFFE2E8F0),
+                        width: 1,
                       ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: service.imageUrl.isNotEmpty
+                          ? Image.network(
+                              service.imageUrl,
+                              width: 96,
+                              height: 96,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.build_rounded,
+                                color: Colors.grey,
+                                size: 28,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.handyman_rounded,
+                              color: Colors.grey,
+                              size: 28,
+                            ),
+                    ),
+                  ),
+
+                  // Urban Company Style ADD Button / Quantity Stepper
+                  Positioned(
+                    bottom: -14,
+                    child: SizedBox(
+                      width: 86,
+                      height: 34,
+                      child: isInCart
+                          ? Container(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    AppColors.primary,
+                                    AppColors.primaryAccent,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(alpha: 0.35),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  GestureDetector(
+                                    onTap: onRemoveFromCart,
+                                    behavior: HitTestBehavior.opaque,
+                                    child: const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(horizontal: 8.0),
+                                      child: Icon(
+                                        Icons.remove_rounded,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '$quantity',
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: onAddToCart,
+                                    behavior: HitTestBehavior.opaque,
+                                    child: const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(horizontal: 8.0),
+                                      child: Icon(
+                                        Icons.add_rounded,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ElevatedButton(
+                              onPressed: onAddToCart,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isDark
+                                    ? AppColors.surfaceDark
+                                    : Colors.white,
+                                foregroundColor: AppColors.primary,
+                                elevation: 3,
+                                shadowColor: Colors.black.withValues(alpha: 0.12),
+                                padding: EdgeInsets.zero,
+                                side: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 1.5,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'ADD',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      letterSpacing: 0.5,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  const Icon(
+                                    Icons.add_rounded,
+                                    size: 15,
+                                    color: AppColors.primary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 14),
             ],
           ),
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.05, end: 0);
+  }
+
+  Widget _buildPillBadge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 3,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.outfit(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:quickfix/core/theme/app_colors.dart';
 import 'package:quickfix/core/theme/app_text_styles.dart';
 import 'package:quickfix/core/storage/hive_service.dart';
@@ -13,7 +15,8 @@ import 'package:quickfix/features/home/presentation/controllers/home_providers.d
 // Dynamic search configuration
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  final bool startVoice;
+  const SearchScreen({super.key, this.startVoice = false});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -22,6 +25,11 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+
+  late stt.SpeechToText _speech;
+  bool _speechInitialized = false;
+  bool _isListening = false;
+  String _spokenWords = '';
 
   String _query = '';
   String _selectedFilter = 'All'; // 'All', 'Services', 'Shops'
@@ -40,15 +48,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _speech = stt.SpeechToText();
     _recentSearches = HiveService.getSearchHistory();
-    // Auto-request focus on entrance
+    // Auto-request focus or start voice listening on entrance
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
+      if (widget.startVoice) {
+        _showVoiceSearchDialog(context, ref.read(isDarkModeProvider));
+      } else {
+        _focusNode.requestFocus();
+      }
     });
   }
 
   @override
   void dispose() {
+    try {
+      _speech.stop();
+    } catch (_) {}
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -536,85 +552,235 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  // simulated Voice search overlay listening
-  void _showVoiceSearchDialog(BuildContext context, bool isDark) {
+  // Real Working Voice search listening dialog
+  Future<void> _showVoiceSearchDialog(BuildContext context, bool isDark) async {
     AppHaptics.heavyTap();
-    Timer? dialogTimer;
-    showDialog(
-      context: context,
-      builder: (dialogCtx) {
-        // Run simulation after a delay
-        dialogTimer = Timer(const Duration(seconds: 3), () {
-          if (dialogCtx.mounted) {
-            Navigator.pop(dialogCtx);
-            _triggerSearch('Deep Sofa Cleaning');
-          }
-        });
 
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Listening...',
-                  style: AppTextStyles.headingMedium(isDark),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Try saying "Deep Sofa Cleaning"',
-                  style: AppTextStyles.bodyMedium(isDark),
-                ),
-                const SizedBox(height: 32),
-
-                // Animated sound waves
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: 8,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        )
-                        .animate(
-                          onPlay: (controller) =>
-                              controller.repeat(reverse: true),
-                        )
-                        .scaleY(
-                          begin: 0.2,
-                          end: 1.2,
-                          duration: (400 + (index * 100)).ms,
-                          curve: Curves.easeInOut,
-                        );
-                  }),
-                ),
-                const SizedBox(height: 32),
-                OutlinedButton(
-                  onPressed: () => Navigator.pop(dialogCtx),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: AppColors.primary),
-                  ),
-                ),
-              ],
-            ),
+    // Check & request microphone permission
+    final micPermission = await Permission.microphone.request();
+    if (micPermission.isDenied || micPermission.isPermanentlyDenied) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Microphone permission is required for voice search.'),
+            backgroundColor: AppColors.error,
           ),
         );
+      }
+      return;
+    }
+
+    // Initialize speech to text engine if not initialized yet
+    if (!_speechInitialized) {
+      try {
+        _speechInitialized = await _speech.initialize(
+          onStatus: (status) {
+            if (status == 'done' || status == 'notListening') {
+              if (mounted) {
+                setState(() => _isListening = false);
+              }
+            }
+          },
+          onError: (errorNotification) {
+            if (mounted) {
+              setState(() => _isListening = false);
+            }
+          },
+        );
+      } catch (e) {
+        _speechInitialized = false;
+      }
+    }
+
+    if (!_speechInitialized) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Voice recognition is not available or supported on this device.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _spokenWords = '';
+      _isListening = true;
+    });
+
+    StateSetter? dialogStateSetter;
+
+    // Start listening
+    try {
+      await _speech.listen(
+        onResult: (result) {
+          final words = result.recognizedWords;
+          if (words.isNotEmpty && mounted) {
+            setState(() {
+              _spokenWords = words;
+              _searchController.text = words;
+              _query = words;
+              _isListening = true;
+            });
+            if (dialogStateSetter != null) {
+              dialogStateSetter!(() {});
+            }
+            _performSearch(words);
+          }
+        },
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 4),
+        listenOptions: stt.SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+          listenMode: stt.ListenMode.search,
+        ),
+      );
+    } catch (e) {
+      // Speech listen fallback
+    }
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            dialogStateSetter = setDialogState;
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(28.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Mic Pulsing container
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        (_speech.isListening || _isListening) ? Icons.mic : Icons.mic_none,
+                        size: 36,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      (_speech.isListening || _isListening) ? 'Listening...' : 'Tap Mic to Speak',
+                      style: AppTextStyles.headingMedium(isDark),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _spokenWords.isEmpty
+                          ? 'Try saying "Sofa Cleaning", "AC Service"...'
+                          : '"$_spokenWords"',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyMedium(isDark).copyWith(
+                        color: _spokenWords.isNotEmpty
+                            ? AppColors.primary
+                            : (isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                        fontWeight: _spokenWords.isNotEmpty ? FontWeight.bold : FontWeight.normal,
+                        fontSize: _spokenWords.isNotEmpty ? 16 : 14,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Animated sound waves when listening
+                    if (_speech.isListening)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (index) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: 8,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          )
+                          .animate(
+                            onPlay: (controller) =>
+                                controller.repeat(reverse: true),
+                          )
+                          .scaleY(
+                            begin: 0.2,
+                            end: 1.2,
+                            duration: (400 + (index * 100)).ms,
+                            curve: Curves.easeInOut,
+                          );
+                        }),
+                      )
+                    else
+                      const SizedBox(height: 40),
+
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              _speech.stop();
+                              Navigator.pop(dialogCtx);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        if (_spokenWords.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                _speech.stop();
+                                Navigator.pop(dialogCtx);
+                                _triggerSearch(_spokenWords);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text(
+                                'Search',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
       },
-    ).then((_) => dialogTimer?.cancel());
+    ).then((_) {
+      if (_speech.isListening) {
+        _speech.stop();
+      }
+      if (_spokenWords.isNotEmpty) {
+        _triggerSearch(_spokenWords);
+      }
+    });
   }
 }

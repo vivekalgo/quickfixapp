@@ -546,6 +546,11 @@ const ShopSchema = new mongoose.Schema({
   aadhaar: { type: String, default: '' },
   verificationDocs: { type: [String], default: [] },
   loginDisabled: { type: Boolean, default: false },
+  // Customization fields for Shop Details UI (Urban Company style)
+  offerBannerText: { type: String, default: 'Flat ₹100 OFF on First Booking' },
+  offerBannerCode: { type: String, default: 'QUICK100' },
+  offerBannerSubtext: { type: String, default: 'Use code QUICK100 at checkout • Free inspection included' },
+  customCategories: { type: [String], default: [] },
   // Provider App extensions
   isFirstLogin: { type: Boolean, default: true },
   ownerPhone: { type: String, default: '' },

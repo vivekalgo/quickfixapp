@@ -70,5 +70,9 @@
 	<string>This app needs access to your location when open to show nearby services and shops.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs access to your location when open or in the background to track service professionals arriving at your address.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app uses speech recognition for voice search.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires microphone access for voice search.</string>
 </dict>
 </plist>

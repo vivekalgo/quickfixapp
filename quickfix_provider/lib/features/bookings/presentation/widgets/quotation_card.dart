@@ -51,7 +51,12 @@ class QuotationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (booking.pricingType != 'inspection') return const SizedBox.shrink();
+    if (booking.pricingType != 'inspection' && !booking.isInstant && booking.quotation == null) {
+      return const SizedBox.shrink();
+    }
+
+
+
 
     final quote = booking.quotation;
     final hasQuote = quote != null && (quote['totalAmount'] as num? ?? 0.0) > 0;

@@ -1020,7 +1020,11 @@ function setupForms() {
       ifscCode: document.getElementById('shop-ifsc').value,
       upiId: document.getElementById('shop-upi-id').value,
       commissionRate: parseFloat(document.getElementById('shop-commission-rate').value) || 15.0,
-      walletBalance: parseFloat(document.getElementById('shop-wallet-balance').value) || 0.0
+      walletBalance: parseFloat(document.getElementById('shop-wallet-balance').value) || 0.0,
+      offerBannerText: document.getElementById('shop-offer-title').value || 'Flat ₹100 OFF on First Booking',
+      offerBannerCode: document.getElementById('shop-offer-code').value || 'QUICK100',
+      offerBannerSubtext: document.getElementById('shop-offer-subtext').value || 'Use code QUICK100 at checkout • Free inspection included',
+      customCategories: (document.getElementById('shop-custom-categories').value || '').split(',').map(c => c.trim()).filter(c => c.length > 0)
     };
     
     try {
@@ -1531,6 +1535,12 @@ function editShop(id) {
   document.getElementById('shop-rating').value = (shop.rating || 5.0).toFixed(1);
   document.getElementById('shop-reviews-count').value = shop.reviewsCount || 0;
   
+  // Set Urban Company UI Customization fields
+  document.getElementById('shop-offer-title').value = shop.offerBannerText || 'Flat ₹100 OFF on First Booking';
+  document.getElementById('shop-offer-code').value = shop.offerBannerCode || 'QUICK100';
+  document.getElementById('shop-offer-subtext').value = shop.offerBannerSubtext || 'Use code QUICK100 at checkout • Free inspection included';
+  document.getElementById('shop-custom-categories').value = (shop.customCategories || []).join(', ');
+  
   // Set categories checkboxes
   document.querySelectorAll('input[name="categories"]').forEach(cb => {
     cb.checked = (shop.categories || []).includes(cb.value);
@@ -1766,8 +1776,13 @@ function renderInstantBookingsTable() {
       <td>${esc(new Date(b.date).toLocaleDateString('en-GB'))} &bull; ${esc(b.slot)}</td>
       <td><span class="badge badge-${esc(b.status)}">${esc(b.status.replace('_', ' '))}</span></td>
       <td>
-        <input type="text" value="${esc(b.providerName || 'Admin Assigned')}" class="form-group" style="margin-bottom:0; padding:4px 8px; font-size:12px; width:130px;" onchange="updateProviderName('${esc(b.id)}', this.value)">
+        ${(b.providerName && b.providerName !== 'Admin (Pending Assignment)' && b.providerName !== 'Assigning Expert...' && b.providerName !== 'Admin Assigned')
+          ? `<div style="font-weight:600;font-size:12px;color:var(--text-primary);"><i class="fa-solid fa-user-tie" style="color:#0070f3;"></i> ${esc(b.providerName)}</div>
+             <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;margin-top:4px;" onclick="openAssignProviderModal('${esc(b.id)}')"><i class="fa-solid fa-arrows-rotate"></i> Change</button>`
+          : `<button class="btn btn-primary btn-sm" style="font-size:11px;padding:6px 12px;background:linear-gradient(135deg,#ff6b00,#ff8800);border:none;box-shadow:0 2px 8px rgba(255,107,0,0.3);color:white;border-radius:6px;cursor:pointer;" onclick="openAssignProviderModal('${esc(b.id)}')"><i class="fa-solid fa-user-plus"></i> Assign Provider</button>`
+        }
       </td>
+
       <td>
         <select class="table-action-select" onchange="changeBookingStatus('${esc(b.id)}', this.value)">
           <option value="pending" ${b.status === 'pending' ? 'selected' : ''}>Pending</option>
@@ -1810,6 +1825,125 @@ async function changeBookingStatus(bookingId, newStatus) {
     refreshAllData();
   }
 }
+
+// ⚡ Instant Booking Assign Provider Modal Logic
+let activeAssignBookingId = null;
+
+function openAssignProviderModal(bookingId) {
+  const b = bookings.find(item => item.id === bookingId);
+  if (!b) return;
+
+  activeAssignBookingId = bookingId;
+  const infoEl = document.getElementById('assign-booking-info');
+  if (infoEl) {
+    infoEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <strong>Booking ID:</strong> <span style="color:var(--primary-solid);font-weight:700;">${esc(b.id)}</span> &bull; 
+          <strong>Service:</strong> ${esc(b.title)}
+        </div>
+        <span class="badge" style="background:#ff6b00;color:white;font-size:10px;padding:2px 6px;">⚡ INSTANT</span>
+      </div>
+      <div style="margin-top:6px;color:var(--text-secondary);">
+        <strong>Customer:</strong> ${esc(b.customerName)} (${esc(b.customerPhone)}) &bull; 
+        <strong>Address:</strong> ${esc(b.customerAddress)}
+      </div>
+    `;
+  }
+
+  const searchInput = document.getElementById('assign-provider-search');
+  if (searchInput) searchInput.value = '';
+
+  filterAssignProviderModalList();
+
+  const modal = document.getElementById('assign-provider-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeAssignProviderModal() {
+  const modal = document.getElementById('assign-provider-modal');
+  if (modal) modal.style.display = 'none';
+  activeAssignBookingId = null;
+}
+
+function filterAssignProviderModalList() {
+  const tbody = document.getElementById('assign-provider-list-tbody');
+  if (!tbody) return;
+
+  const q = (document.getElementById('assign-provider-search')?.value || '').toLowerCase().trim();
+
+  let list = shops.filter(s => {
+    if (!q) return true;
+    const categoryStr = Array.isArray(s.services) ? s.services.map(srv => srv.name || srv.title).join(' ') : (s.category || '');
+    const combined = [s.name, s.ownerName, s.phone, s.email, s.shopDisplayId, s.id, categoryStr].join(' ').toLowerCase();
+    return combined.includes(q);
+  });
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted);">No matching registered providers found.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  list.forEach(s => {
+    const tr = document.createElement('tr');
+    const shopIdStr = s.id || s._id || '';
+    const isApproved = s.verificationStatus === 'approved';
+    const categoryText = Array.isArray(s.services) && s.services.length > 0 
+      ? s.services.slice(0, 2).map(srv => srv.name || srv.title).join(', ')
+      : (s.category || 'General Service');
+
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight:600;color:var(--text-primary);">${esc(s.name || s.ownerName)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">ID: ${esc(s.shopDisplayId || shopIdStr)}</div>
+      </td>
+      <td>
+        <div style="font-weight:500;">${esc(s.ownerName || 'N/A')}</div>
+        <div style="font-size:11px;color:var(--text-secondary);">${esc(s.phone)}</div>
+      </td>
+      <td><span class="badge" style="background:var(--bg-card-hover);color:var(--text-primary);border:1px solid var(--border-color);">${esc(categoryText)}</span></td>
+      <td>
+        <span class="badge badge-${isApproved ? 'accepted' : 'pending'}">${esc(s.verificationStatus || 'Pending')}</span>
+      </td>
+      <td style="text-align:right;">
+        <button class="btn btn-primary btn-sm" style="font-size:11px;padding:5px 12px;background:var(--primary-solid);color:white;border:none;border-radius:6px;cursor:pointer;" onclick="confirmAssignProvider('${esc(activeAssignBookingId)}', '${esc(shopIdStr)}', '${esc(s.ownerName || s.name)}')">
+          <i class="fa-solid fa-check"></i> Assign
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function confirmAssignProvider(bookingId, shopId, providerName) {
+  if (!bookingId || !shopId) return;
+  try {
+    const res = await fetch(`${API_URL}/bookings/assign-provider`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId, shopId, providerName })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`⚡ Provider "${providerName}" assigned & request dispatched to Provider App!`, 'success');
+      await logAdminActivity('Assign Provider', bookingId, `Assigned provider ${providerName} (${shopId})`);
+      closeAssignProviderModal();
+      refreshAllData();
+    } else {
+      showToast(data.error || 'Failed to assign provider', 'error');
+    }
+  } catch (e) {
+    logError('Error assigning provider:', e);
+    showToast('Failed to connect to server', 'error');
+  }
+}
+
+window.openAssignProviderModal = openAssignProviderModal;
+window.closeAssignProviderModal = closeAssignProviderModal;
+window.filterAssignProviderModalList = filterAssignProviderModalList;
+window.confirmAssignProvider = confirmAssignProvider;
+
 
 // Update Provider Name dynamically
 async function updateProviderName(bookingId, providerName) {

@@ -810,6 +810,29 @@
                 </div>
               </div>
 
+              <div class="form-section">
+                <div class="form-section-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Urban Company UI Customizations</div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="shop-offer-title">Special Offer Banner Title</label>
+                    <input type="text" id="shop-offer-title" placeholder="e.g. Flat ₹100 OFF on First Booking" value="Flat ₹100 OFF on First Booking">
+                  </div>
+                  <div class="form-group">
+                    <label for="shop-offer-code">Offer Coupon Code</label>
+                    <input type="text" id="shop-offer-code" placeholder="e.g. QUICK100" value="QUICK100">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="shop-offer-subtext">Offer Banner Description / Subtext</label>
+                  <input type="text" id="shop-offer-subtext" placeholder="e.g. Use code QUICK100 at checkout • Free inspection included" value="Use code QUICK100 at checkout • Free inspection included">
+                </div>
+                <div class="form-group">
+                  <label for="shop-custom-categories">Custom Category Filter Chips (Comma-separated)</label>
+                  <input type="text" id="shop-custom-categories" placeholder="e.g. All, Repair, Installation, Inspection, Cleaning">
+                  <small style="color:#64748b; font-size:11px;">Specify custom category chips for this shop (e.g. "All, Repair, Installation, Inspection"). Leave blank for auto-detected categories.</small>
+                </div>
+              </div>
+
               <div class="d-flex gap-3">
                 <button type="submit" class="btn btn-primary" id="btn-submit-shop">
                   <i class="fa-solid fa-store"></i> Register Shop
@@ -2532,10 +2555,46 @@
       <img id="issue-photo-img" src="" style="width:100%;height:auto;max-height:400px;object-fit:contain;" alt="Issue Photo">
     </div>
     <p id="issue-photo-caption" class="fs-12 text-muted" style="margin-top:12px;"></p>
+<!-- Assign Provider Modal for Instant Bookings -->
+<div class="modal" id="assign-provider-modal" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;">
+  <div class="modal-content" style="max-width:680px;width:95%;padding:24px;background:var(--bg-card);border-radius:20px;border:1px solid var(--border-color);box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:18px;"><i class="fa-solid fa-user-plus text-gradient" style="margin-right:8px;"></i> Assign Provider for Instant Booking</h3>
+      <button class="modal-close" style="background:none;border:none;font-size:24px;color:var(--text-secondary);cursor:pointer;" onclick="closeAssignProviderModal()">&times;</button>
+    </div>
+    
+    <div id="assign-booking-info" style="background:var(--bg-card-hover); border:1px solid var(--border-color); padding:12px 16px; border-radius:12px; margin-bottom:16px; font-size:13px;">
+      <!-- Dynamically populated booking details -->
+    </div>
+
+    <div class="table-toolbar" style="margin-bottom: 12px; padding: 0;">
+      <div class="table-search" style="width: 100%;">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="assign-provider-search" placeholder="Search provider by name, phone, category, ID..." oninput="filterAssignProviderModalList()">
+      </div>
+    </div>
+
+    <div style="max-height: 350px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 12px;">
+      <table class="data-table" style="width:100%; font-size:13px;">
+        <thead>
+          <tr>
+            <th>Provider / Shop</th>
+            <th>Owner &amp; Phone</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th style="text-align:right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="assign-provider-list-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">Loading registered providers...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
 <script src="security.js"></script>
+
 <script src="app.js?v=3.1.0"></script>
 </body>
 </html>

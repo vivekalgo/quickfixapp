@@ -22,6 +22,7 @@ class BookingModel {
   final String status;
   final String providerName;
   final String pricingType;
+  final bool isInstant;
   final Map<String, dynamic>? quotation;
   final List<dynamic>? quotationHistory;
 
@@ -49,6 +50,7 @@ class BookingModel {
     required this.status,
     required this.providerName,
     required this.pricingType,
+    this.isInstant = false,
     this.quotation,
     this.quotationHistory,
   });
@@ -80,6 +82,7 @@ class BookingModel {
       status: json['status']?.toString() ?? 'pending',
       providerName: json['providerName']?.toString() ?? '',
       pricingType: json['pricingType']?.toString() ?? 'fixed',
+      isInstant: json['isInstant'] == true || json['slot'] == 'Immediate' || json['type'] == 'quick_booking',
       quotation: json['quotation'] as Map<String, dynamic>?,
       quotationHistory: json['quotationHistory'] as List<dynamic>?,
     );
@@ -110,6 +113,7 @@ class BookingModel {
       'status': status,
       'providerName': providerName,
       'pricingType': pricingType,
+      'isInstant': isInstant,
       'quotation': quotation,
       'quotationHistory': quotationHistory,
     };
@@ -120,3 +124,4 @@ class BookingModel {
     return status == 'pending' || status == 'rejected';
   }
 }
+
