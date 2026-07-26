@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 const { 
   Settings, Category, Banner, Offer, AuditLog, Review, Professional, 
   User, Shop, Booking, Notification, CmsSection, CustomSection, Demand, AdminUser,
@@ -9,6 +10,15 @@ const cloudinary = require('../config/cloudinary');
 const { calculateDistance, deleteFromCloudinary, sendFcmNotification, paginate } = require('../helpers');
 const { calculateCheckoutPriceInternal } = require('../pricingCalculator');
 const { logger } = require('../config/logger');
+
+function buildIdQuery(id) {
+  if (!id) return { _id: null };
+  const queries = [{ id: id }];
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    queries.push({ _id: id });
+  }
+  return queries.length === 1 ? queries[0] : { $or: queries };
+}
 
 async function submitDemand(phone, address, latitude, longitude) {
   const newDemand = new Demand({
@@ -630,7 +640,7 @@ async function updateHomepageLayout(id, title, isActive, priority, settings) {
   if (priority !== undefined) updateFields.priority = parseInt(priority);
   if (settings !== undefined) updateFields.settings = settings;
 
-  let section = await CmsSection.findOneAndUpdate({ $or: [{ id }, { _id: id }] }, updateFields, { new: true });
+  let section = await CmsSection.findOneAndUpdate(buildIdQuery(id), updateFields, { new: true });
   if (!section && id) {
     section = new CmsSection({
       id,
@@ -646,7 +656,7 @@ async function updateHomepageLayout(id, title, isActive, priority, settings) {
     if (title !== undefined) customUpdate.title = title;
     if (isActive !== undefined) customUpdate.isActive = isActive;
     if (priority !== undefined) customUpdate.priority = parseInt(priority);
-    await CustomSection.findOneAndUpdate({ $or: [{ id }, { _id: id }] }, customUpdate);
+    await CustomSection.findOneAndUpdate(buildIdQuery(id), customUpdate);
   }
   return section;
 }
@@ -654,9 +664,9 @@ async function updateHomepageLayout(id, title, isActive, priority, settings) {
 async function reorderHomepageLayout(orderList) {
   const promises = orderList.map(item => {
     if (item.id && item.id.startsWith('custom-section-')) {
-      CustomSection.findOneAndUpdate({ $or: [{ id: item.id }, { _id: item.id }] }, { priority: item.priority }).catch(() => {});
+      CustomSection.findOneAndUpdate(buildIdQuery(item.id), { priority: item.priority }).catch(() => {});
     }
-    return CmsSection.findOneAndUpdate({ $or: [{ id: item.id }, { _id: item.id }] }, { priority: item.priority });
+    return CmsSection.findOneAndUpdate(buildIdQuery(item.id), { priority: item.priority });
   });
   await Promise.all(promises);
 }
@@ -674,7 +684,7 @@ async function getAdminCustomSections() {
 }
 
 async function getCustomSectionById(id) {
-  const section = await CustomSection.findOne({ $or: [{ id }, { _id: id }] });
+  const section = await CustomSection.findOne(buildIdQuery(id));
   if (!section) {
     throw new Error('Custom section not found');
   }
@@ -688,7 +698,7 @@ async function saveCustomSection(id, body) {
   let section;
   if (id) {
     section = await CustomSection.findOneAndUpdate(
-      { $or: [{ id }, { _id: id }] },
+      buildIdQuery(id),
       { title: sectionTitle, subtitle, bannerImageUrl, bannerBadgeText, bannerButtonText: btnText, bannerActionType: bannerActionType || 'No Action', bannerActionValue, seeAllActionType: seeAllActionType || 'No Action', seeAllActionValue, serviceItems: serviceItems || [], priority: parseInt(priority) || 0, isActive: isActive !== false },
       { new: true }
     );
@@ -706,7 +716,7 @@ async function saveCustomSection(id, body) {
       });
       await section.save();
     }
-    await CmsSection.findOneAndUpdate({ $or: [{ id }, { _id: id }] }, { title: sectionTitle || 'Custom Section', isActive: isActive !== false, priority: parseInt(priority) || 0 });
+    await CmsSection.findOneAndUpdate(buildIdQuery(id), { title: sectionTitle || 'Custom Section', isActive: isActive !== false, priority: parseInt(priority) || 0 });
   } else {
     const newId = `custom-section-${Date.now()}`;
     const allSections = await CmsSection.find({});
@@ -736,8 +746,8 @@ async function saveCustomSection(id, body) {
 }
 
 async function deleteCustomSection(id) {
-  const deleted = await CustomSection.findOneAndDelete({ $or: [{ id }, { _id: id }] });
-  await CmsSection.findOneAndDelete({ $or: [{ id }, { _id: id }] });
+  const deleted = await CustomSection.findOneAndDelete(buildIdQuery(id));
+  await CmsSection.findOneAndDelete(buildIdQuery(id));
   return deleted;
 }
 
@@ -1054,8 +1064,7 @@ async function getAdminPromotions() {
 async function savePromotion(id, data) {
   let promo;
   if (id) {
-    promo = await Promotion.findOne({ id });
-    if (!promo) promo = await Promotion.findById(id);
+    promo = await Promotion.findOne(buildIdQuery(id));
   }
   if (promo) {
     Object.assign(promo, data);
@@ -1072,8 +1081,7 @@ async function savePromotion(id, data) {
 }
 
 async function togglePromotion(id) {
-  let promo = await Promotion.findOne({ id });
-  if (!promo) promo = await Promotion.findById(id);
+  let promo = await Promotion.findOne(buildIdQuery(id));
   if (!promo) throw new Error('Promotion not found');
   promo.isActive = !promo.isActive;
   await promo.save();
@@ -1081,8 +1089,7 @@ async function togglePromotion(id) {
 }
 
 async function deletePromotion(id) {
-  let deleted = await Promotion.findOneAndDelete({ id });
-  if (!deleted) deleted = await Promotion.findByIdAndDelete(id);
+  let deleted = await Promotion.findOneAndDelete(buildIdQuery(id));
   if (!deleted) throw new Error('Promotion not found');
   return deleted;
 }
@@ -1121,8 +1128,7 @@ async function getAdminSpecialCards() {
 async function saveSpecialCard(id, data) {
   let card;
   if (id) {
-    card = await SpecialCard.findOne({ id });
-    if (!card) card = await SpecialCard.findById(id);
+    card = await SpecialCard.findOne(buildIdQuery(id));
   }
   if (card) {
     Object.assign(card, data);
@@ -1139,8 +1145,7 @@ async function saveSpecialCard(id, data) {
 }
 
 async function toggleSpecialCard(id) {
-  let card = await SpecialCard.findOne({ id });
-  if (!card) card = await SpecialCard.findById(id);
+  let card = await SpecialCard.findOne(buildIdQuery(id));
   if (!card) throw new Error('Special card not found');
   card.isActive = !card.isActive;
   await card.save();
@@ -1148,8 +1153,7 @@ async function toggleSpecialCard(id) {
 }
 
 async function deleteSpecialCard(id) {
-  let deleted = await SpecialCard.findOneAndDelete({ id });
-  if (!deleted) deleted = await SpecialCard.findByIdAndDelete(id);
+  let deleted = await SpecialCard.findOneAndDelete(buildIdQuery(id));
   if (!deleted) throw new Error('Special card not found');
   return deleted;
 }
@@ -1161,8 +1165,7 @@ async function getAdminProfessionals() {
 async function saveProfessional(id, data) {
   let prof;
   if (id) {
-    prof = await Professional.findOne({ id });
-    if (!prof) prof = await Professional.findById(id);
+    prof = await Professional.findOne(buildIdQuery(id));
   }
   if (prof) {
     Object.assign(prof, data);
