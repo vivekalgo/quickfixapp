@@ -92,11 +92,11 @@ class ServiceDetailsScreen extends ConsumerWidget {
                   // Title, rating and category
                   Text(
                     pkg.subCategory.toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
-                      color: AppColors.primary,
+                      color: isDark ? AppColors.primaryAccent : AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -177,14 +177,14 @@ class ServiceDetailsScreen extends ConsumerWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
+                          color: isDark ? AppColors.primaryAccent.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           '${((pkg.originalPrice - pkg.price) / pkg.originalPrice * 100).toInt()}% OFF',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.primary,
+                            color: isDark ? Colors.white : AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -456,9 +456,9 @@ class ServiceDetailsScreen extends ConsumerWidget {
                             backgroundColor: isDark
                                 ? AppColors.surfaceDark
                                 : Colors.white,
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(
-                              color: AppColors.primary,
+                            foregroundColor: isDark ? Colors.white : AppColors.primary,
+                            side: BorderSide(
+                              color: isDark ? AppColors.primaryAccent : AppColors.primary,
                               width: 2,
                             ),
                             shape: RoundedRectangleBorder(

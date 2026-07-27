@@ -204,8 +204,8 @@ class NotificationService {
         await syncTokenWithBackend(newToken);
       });
 
-      // 9. Startup: terminated state + topic + token sync
-      await _initStartup();
+      // 9. Startup: terminated state + topic + token sync (run asynchronously in background)
+      unawaited(_initStartup());
     } catch (e) {
       debugPrint('[FCM]: Failed to initialize NotificationService: $e');
     }
@@ -215,7 +215,8 @@ class NotificationService {
     // Terminated state launch
     try {
       final initialMessage = await FirebaseMessaging.instance
-          .getInitialMessage();
+          .getInitialMessage()
+          .timeout(const Duration(seconds: 2));
       if (initialMessage != null) {
         debugPrint('[FCM Terminated Click]: ${initialMessage.messageId}');
         Future.delayed(const Duration(milliseconds: 1500), () {
@@ -233,11 +234,11 @@ class NotificationService {
       debugPrint('[FCM]: Failed to subscribe to providers topic: $e');
     }
 
-    // ✅ FIX: Sync token on EVERY startup when provider is logged in
+    // Sync token on startup when provider is logged in
     try {
       final authToken = HiveService.getAuthToken();
       if (authToken != null) {
-        final fcmToken = await getToken();
+        final fcmToken = await getToken().timeout(const Duration(seconds: 2));
         if (fcmToken != null) {
           await syncTokenWithBackend(fcmToken);
         }

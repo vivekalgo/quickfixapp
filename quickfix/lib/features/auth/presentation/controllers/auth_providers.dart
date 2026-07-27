@@ -71,7 +71,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } else {
       try {
         state = AuthState(isAuthenticated: false, isLoading: true);
-        final profile = await _repository.fetchUserProfile();
+        final profile = await _repository.fetchUserProfile().timeout(
+          const Duration(milliseconds: 2500),
+        );
         await HiveService.saveCachedProfile(profile);
         state = AuthState(
           isAuthenticated: true,
@@ -111,11 +113,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> syncFcmTokenSilently() async {
     try {
-      final fcmToken = await NotificationService.getToken();
+      final fcmToken = await NotificationService.getToken().timeout(
+        const Duration(seconds: 2),
+      );
       if (fcmToken != null) {
         final cached = HiveService.getCachedProfile();
         if (cached == null || cached['fcmToken'] != fcmToken) {
-          await _repository.updateUserProfile({'fcmToken': fcmToken});
+          await _repository.updateUserProfile({'fcmToken': fcmToken}).timeout(
+            const Duration(seconds: 2),
+          );
           if (cached != null) {
             final updatedProfile = Map<String, dynamic>.from(cached);
             updatedProfile['fcmToken'] = fcmToken;
@@ -130,7 +136,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _refreshProfileSilently() async {
     try {
-      final profile = await _repository.fetchUserProfile();
+      final profile = await _repository.fetchUserProfile().timeout(
+        const Duration(seconds: 3),
+      );
       await HiveService.saveCachedProfile(profile);
       state = AuthState(isAuthenticated: true, user: profile, isLoading: false);
     } catch (e, s) {
@@ -146,9 +154,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// 
   /// Validates phone number/code with the remote server. After login, it updates the profile cache,
   /// triggers push notification permissions dialogs, retrieves the new FCM token, and syncs it to the backend.
+  Future<void> _clearPreviousUserNotificationHistory() async {
+    try {
+      final box = Hive.box('local_notifications');
+      await box.clear();
+      await HiveService.clearDataCache('user_notifications');
+      await HiveService.clearDataCache('profile_offers');
+    } catch (_) {}
+  }
+
   Future<void> login(String phone, String code, {String? firebaseToken}) async {
     state = AuthState(isAuthenticated: false, isLoading: true);
     try {
+      await _clearPreviousUserNotificationHistory();
       await _repository.verifyCode(phone, code, firebaseToken: firebaseToken);
       final profile = await _repository.fetchUserProfile();
       await HiveService.saveCachedProfile(profile);

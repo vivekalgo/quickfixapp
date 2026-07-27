@@ -64,7 +64,7 @@ class _OfflineOverlayState extends ConsumerState<OfflineOverlay> {
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'You are offline. Showing cached information.',
+                          'No internet connection',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 12,

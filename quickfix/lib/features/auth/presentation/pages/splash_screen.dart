@@ -22,10 +22,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Start auth session check
-    Future.microtask(() => ref.read(authProvider.notifier).checkSession());
-    // Ensure minimum 2.5s splash display
-    Future.delayed(const Duration(milliseconds: 2500), () {
+    // Start auth session check and pre-warm core data caches
+    Future.microtask(() {
+      ref.read(authProvider.notifier).checkSession();
+      // Pre-warm providers in background so home screen opens with 0ms lag
+      ref.read(categoriesProvider);
+      ref.read(bannersProvider);
+      ref.read(homepageLayoutProvider);
+    });
+    // Snappy modern splash delay (800ms)
+    Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) {
         setState(() => _minDelayPassed = true);
         _tryNavigate();

@@ -1,5 +1,6 @@
 import 'package:quickfix/core/network/dio_client.dart';
 import 'package:quickfix/core/network/api_response_validator.dart';
+import 'package:quickfix/core/storage/hive_service.dart';
 import 'package:dio/dio.dart';
 
 class ProfileRemoteDataSource {
@@ -8,20 +9,27 @@ class ProfileRemoteDataSource {
   ProfileRemoteDataSource(this._client);
 
   Future<String?> reverseGeocode(double lat, double lng) async {
-    final dio = Dio();
-    dio.options.headers['User-Agent'] = 'QuickFixApp/1.0';
-    final response = await dio.get(
-      'https://nominatim.openstreetmap.org/reverse',
-      queryParameters: {
-        'lat': lat,
-        'lon': lng,
-        'format': 'json',
-        'addressdetails': 1,
-      },
-    );
-    if (response.statusCode == 200 && response.data != null) {
-      return response.data['display_name'] as String?;
-    }
+    try {
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 3),
+          receiveTimeout: const Duration(seconds: 3),
+          headers: {'User-Agent': 'QuickFixApp/1.0'},
+        ),
+      );
+      final response = await dio.get(
+        'https://nominatim.openstreetmap.org/reverse',
+        queryParameters: {
+          'lat': lat,
+          'lon': lng,
+          'format': 'json',
+          'addressdetails': 1,
+        },
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data['display_name'] as String?;
+      }
+    } catch (_) {}
     return null;
   }
 
@@ -32,8 +40,14 @@ class ProfileRemoteDataSource {
         response.data,
         context: 'getOffers',
       );
-      return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final res = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      await HiveService.saveDataCache('profile_offers', res);
+      return res;
     } catch (_) {
+      final cached = HiveService.getDataCache('profile_offers');
+      if (cached != null && cached is List) {
+        return cached.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
       return [
         {
           'id': 'off-quick20',
@@ -70,15 +84,26 @@ class ProfileRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> getBookings(String customerId) async {
-    final response = await _client.get(
-      '/bookings',
-      queryParameters: {if (customerId.isNotEmpty) 'customerId': customerId},
-    );
-    final list = ApiResponseValidator.requireList(
-      response.data,
-      context: 'getBookings',
-    );
-    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final cacheKey = 'customer_bookings_${customerId.isEmpty ? 'default' : customerId}';
+    try {
+      final response = await _client.get(
+        '/bookings',
+        queryParameters: {if (customerId.isNotEmpty) 'customerId': customerId},
+      );
+      final list = ApiResponseValidator.requireList(
+        response.data,
+        context: 'getBookings',
+      );
+      final res = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      await HiveService.saveDataCache(cacheKey, res);
+      return res;
+    } catch (e) {
+      final cached = HiveService.getDataCache(cacheKey);
+      if (cached != null && cached is List) {
+        return cached.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<void> cancelBooking(String orderId) async {
@@ -96,10 +121,20 @@ class ProfileRemoteDataSource {
   }
 
   Future<Map<String, dynamic>> getReferralInfo() async {
-    final response = await _client.get('/auth/referral');
-    return ApiResponseValidator.requireMap(
-      response.data,
-      context: 'getReferralInfo',
-    );
+    try {
+      final response = await _client.get('/auth/referral');
+      final data = ApiResponseValidator.requireMap(
+        response.data,
+        context: 'getReferralInfo',
+      );
+      await HiveService.saveDataCache('referral_info', data);
+      return data;
+    } catch (e) {
+      final cached = HiveService.getDataCache('referral_info');
+      if (cached != null && cached is Map) {
+        return Map<String, dynamic>.from(cached);
+      }
+      rethrow;
+    }
   }
 }

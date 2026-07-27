@@ -65,10 +65,23 @@ class HomeHeaderRow extends ConsumerWidget {
                   ),
                 ),
                 padding: const EdgeInsets.all(2),
-                child: CircleAvatar(
-                  radius: 21,
-                  backgroundImage: NetworkImage(finalAvatar),
-                  backgroundColor: AppColors.surfaceDark,
+                child: ClipOval(
+                  child: SizedBox(
+                    width: 42,
+                    height: 42,
+                    child: Image.network(
+                      finalAvatar,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: AppColors.surfaceDark,
+                        child: const Icon(
+                          Icons.person_rounded,
+                          color: Colors.white70,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               // Online indicator dot
@@ -620,10 +633,23 @@ class HomePinnedHeader extends ConsumerWidget {
                       width: 2,
                     ),
                   ),
-                  child: CircleAvatar(
-                    radius: 14,
-                    backgroundImage: NetworkImage(finalAvatar),
-                    backgroundColor: AppColors.surfaceDark,
+                  child: ClipOval(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: Image.network(
+                        finalAvatar,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: AppColors.surfaceDark,
+                          child: const Icon(
+                            Icons.person_rounded,
+                            color: Colors.white70,
+                            size: 15,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

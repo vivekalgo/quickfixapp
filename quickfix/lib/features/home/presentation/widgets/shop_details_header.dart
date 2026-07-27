@@ -379,10 +379,10 @@ class ShopDetailsHeader extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.location_on_rounded,
                       size: 16,
-                      color: AppColors.primary,
+                      color: isDark ? AppColors.primaryAccent : AppColors.primary,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -420,16 +420,16 @@ class ShopDetailsHeader extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
+                        color: isDark ? AppColors.primaryAccent.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.phone_in_talk_rounded,
                             size: 13,
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryAccent : AppColors.primary,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -437,7 +437,7 @@ class ShopDetailsHeader extends StatelessWidget {
                             style: GoogleFonts.inter(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
+                              color: isDark ? Colors.white : AppColors.primary,
                             ),
                           ),
                         ],

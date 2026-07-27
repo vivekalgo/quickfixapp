@@ -286,4 +286,38 @@ class HiveService {
       await box.put('deleted_notifications', list);
     }
   }
+
+  // Generic Data Cache for Stale-While-Revalidate Caching (Offline Support)
+  static dynamic getDataCache(String key) {
+    try {
+      final box = Hive.box(_cacheBox);
+      final raw = box.get('data_cache_$key');
+      if (raw == null) return null;
+      if (raw is String) {
+        return jsonDecode(raw);
+      }
+      return raw;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> saveDataCache(String key, dynamic value) async {
+    try {
+      final box = Hive.box(_cacheBox);
+      if (value is Map || value is List) {
+        await box.put('data_cache_$key', jsonEncode(value));
+      } else {
+        await box.put('data_cache_$key', value);
+      }
+    } catch (_) {}
+  }
+
+  static Future<void> clearDataCache(String key) async {
+    try {
+      final box = Hive.box(_cacheBox);
+      await box.delete('data_cache_$key');
+    } catch (_) {}
+  }
 }
+

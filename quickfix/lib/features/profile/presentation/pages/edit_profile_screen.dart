@@ -295,7 +295,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               child: Text(
                 'Save',
                 style: GoogleFonts.outfit(
-                  color: AppColors.primary,
+                  color: isDark ? AppColors.primaryAccent : AppColors.primary,
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
                 ),
@@ -324,7 +324,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryAccent : AppColors.primary,
                             width: 2.5,
                           ),
                         ),
@@ -344,8 +344,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       ),
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.primaryAccent : AppColors.primary,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -366,7 +366,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   child: Text(
                     'Change Photo',
                     style: GoogleFonts.inter(
-                      color: AppColors.primary,
+                      color: isDark ? AppColors.primaryAccent : AppColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -627,7 +627,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ElevatedButton(
                 onPressed: _isSaving ? null : _saveChanges,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: isDark ? AppColors.primaryAccent : AppColors.primary,
                   minimumSize: const Size(double.infinity, 54),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -660,7 +660,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 onPressed: () => context.pop(),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 54),
-                  side: const BorderSide(color: AppColors.primary),
+                  side: BorderSide(
+                    color: isDark ? AppColors.primaryAccent : AppColors.primary,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -668,7 +670,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 child: Text(
                   'Cancel',
                   style: GoogleFonts.outfit(
-                    color: AppColors.primary,
+                    color: isDark ? AppColors.primaryAccent : AppColors.primary,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),

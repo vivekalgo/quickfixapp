@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quickfix/core/storage/hive_service.dart';
 
 /// Represents an item in the booking cart.
 class CartItem {
@@ -37,18 +38,62 @@ class CartItem {
       maxPrice: maxPrice,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'price': price,
+        'quantity': quantity,
+        'pricingType': pricingType,
+        'isFreeInspection': isFreeInspection,
+        'visitingCharges': visitingCharges,
+        'minPrice': minPrice,
+        'maxPrice': maxPrice,
+      };
+
+  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
+        id: json['id']?.toString() ?? '',
+        title: json['title']?.toString() ?? '',
+        price: (json['price'] as num?)?.toDouble() ?? 0.0,
+        quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+        pricingType: json['pricingType']?.toString() ?? 'fixed',
+        isFreeInspection: json['isFreeInspection'] == true,
+        visitingCharges: (json['visitingCharges'] as num?)?.toDouble() ?? 0.0,
+        minPrice: (json['minPrice'] as num?)?.toDouble() ?? 0.0,
+        maxPrice: (json['maxPrice'] as num?)?.toDouble() ?? 0.0,
+      );
 }
 
-/// Controller managing the shopping cart state.
-/// 
-/// Provides functions to add, subtract, and clear items selected for booking orders.
+/// Controller managing the shopping cart state with Hive local persistence.
 class CartNotifier extends StateNotifier<Map<String, CartItem>> {
-  CartNotifier() : super({});
+  CartNotifier() : super(_loadInitialCart());
 
-  /// **Business Purpose & Logic**: Adds a service to the active booking cart.
-  /// 
-  /// If the item is already present in the cart, its quantity is incremented by 1.
-  /// Otherwise, a new [CartItem] is instantiated with initial quantity 1 and appended.
+  static Map<String, CartItem> _loadInitialCart() {
+    try {
+      final cached = HiveService.getDataCache('user_cart_items');
+      if (cached != null && cached is Map) {
+        final Map<String, CartItem> items = {};
+        cached.forEach((key, value) {
+          if (value is Map) {
+            items[key.toString()] = CartItem.fromJson(Map<String, dynamic>.from(value));
+          }
+        });
+        return items;
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  void _persistCart() {
+    try {
+      final Map<String, dynamic> serialized = {};
+      state.forEach((key, item) {
+        serialized[key] = item.toJson();
+      });
+      HiveService.saveDataCache('user_cart_items', serialized);
+    } catch (_) {}
+  }
+
   void addItem(
     String id,
     String title,
@@ -80,6 +125,7 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
         ),
       };
     }
+    _persistCart();
   }
 
   void removeItem(String id) {
@@ -95,10 +141,12 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
       newState.remove(id);
       state = newState;
     }
+    _persistCart();
   }
 
   void clearCart() {
     state = {};
+    _persistCart();
   }
 }
 

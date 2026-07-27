@@ -377,7 +377,7 @@ class ProfileScreen extends ConsumerWidget {
                         icon: Icons.person_outline,
                         label: 'Edit Profile',
                         subtitle: 'Name, photo, gender, DOB',
-                        color: AppColors.primary,
+                        color: AppColors.primaryAccent,
                         route: '/edit-profile',
                       ),
                       const _ProfileTile(
@@ -538,7 +538,7 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: isDark ? AppColors.primaryAccent : AppColors.primary,
                       minimumSize: const Size(double.infinity, 52),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),

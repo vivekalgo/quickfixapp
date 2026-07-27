@@ -11,6 +11,7 @@ import 'package:quickfix/core/widgets/notify_me_dialog.dart';
 import 'package:quickfix/core/widgets/error_widgets.dart';
 import 'package:quickfix/core/network/connectivity_provider.dart';
 import 'package:quickfix/core/network/error_handler.dart';
+import 'package:quickfix/core/storage/hive_service.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
   final String categoryId;
@@ -28,14 +29,32 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCachedShops();
     _fetchCategoryShops();
   }
 
+  void _loadCachedShops() {
+    try {
+      final cached = HiveService.getDataCache('search_shops_${widget.categoryId}');
+      if (cached != null && cached is List) {
+        final parsed = cached.map((e) => Shop.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+        if (parsed.isNotEmpty) {
+          setState(() {
+            _shops = parsed;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _fetchCategoryShops() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    if (_shops == null || _shops!.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     try {
       final activeLocation = ref.read(currentAddressProvider);
@@ -53,13 +72,16 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         setState(() {
           _shops = shops;
           _isLoading = false;
+          _errorMessage = '';
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = ErrorHandler.handle(e).message;
+          if (_shops == null || _shops!.isEmpty) {
+            _errorMessage = ErrorHandler.handle(e).message;
+          }
         });
       }
     }

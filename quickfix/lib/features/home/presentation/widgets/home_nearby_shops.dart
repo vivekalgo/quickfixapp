@@ -145,7 +145,7 @@ class HomeNearbyShops extends ConsumerWidget {
                                           Text(
                                             shop.rating.toStringAsFixed(1),
                                             style: GoogleFonts.outfit(
-                                              color: AppColors.primary,
+                                              color: isDark ? Colors.white : AppColors.primary,
                                               fontSize: 11.5,
                                               fontWeight: FontWeight.w800,
                                             ),
@@ -155,8 +155,9 @@ class HomeNearbyShops extends ConsumerWidget {
                                             Text(
                                               '(${shop.reviewsCount})',
                                               style: GoogleFonts.inter(
-                                                color: AppColors
-                                                    .textSecondaryLight,
+                                                color: isDark
+                                                    ? AppColors.textSecondaryDark
+                                                    : AppColors.textSecondaryLight,
                                                 fontSize: 9.5,
                                                 fontWeight: FontWeight.w600,
                                               ),

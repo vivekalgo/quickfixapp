@@ -347,9 +347,9 @@ class _OffersBottomSheetState extends ConsumerState<_OffersBottomSheet> {
             padding: const EdgeInsets.fromLTRB(20, 12, 8, 4),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.local_offer_rounded,
-                  color: AppColors.primary,
+                  color: isDark ? AppColors.primaryAccent : AppColors.primary,
                   size: 22,
                 ),
                 const SizedBox(width: 10),

@@ -358,12 +358,12 @@ class ShopServiceItem extends StatelessWidget {
                                 backgroundColor: isDark
                                     ? AppColors.surfaceDark
                                     : Colors.white,
-                                foregroundColor: AppColors.primary,
+                                foregroundColor: isDark ? Colors.white : AppColors.primary,
                                 elevation: 3,
                                 shadowColor: Colors.black.withValues(alpha: 0.12),
                                 padding: EdgeInsets.zero,
-                                side: const BorderSide(
-                                  color: AppColors.primary,
+                                side: BorderSide(
+                                  color: isDark ? AppColors.primaryAccent : AppColors.primary,
                                   width: 1.5,
                                 ),
                                 shape: RoundedRectangleBorder(
@@ -379,14 +379,14 @@ class ShopServiceItem extends StatelessWidget {
                                       fontWeight: FontWeight.w900,
                                       fontSize: 13,
                                       letterSpacing: 0.5,
-                                      color: AppColors.primary,
+                                      color: isDark ? Colors.white : AppColors.primary,
                                     ),
                                   ),
                                   const SizedBox(width: 3),
-                                  const Icon(
+                                  Icon(
                                     Icons.add_rounded,
                                     size: 15,
-                                    color: AppColors.primary,
+                                    color: isDark ? Colors.white : AppColors.primary,
                                   ),
                                 ],
                               ),

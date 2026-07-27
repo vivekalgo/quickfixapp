@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickfix/core/storage/hive_service.dart';
 import 'package:quickfix/app.dart';
 
@@ -12,6 +13,9 @@ import 'package:quickfix/core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Prevent runtime HTTP font fetches from blocking/failing when offline
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   // Global unhandled error monitoring and crash reporting hooks
   FlutterError.onError = (details) {
@@ -51,8 +55,9 @@ void main() async {
     ]);
   });
 
-  // Initialize Notification Service — must be awaited so Hive boxes are ready
+  // Initialize Notification Service (fast local setup)
   await NotificationService.init();
 
   runApp(const ProviderScope(child: QuickFixApp()));
 }
+

@@ -69,11 +69,11 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.primary,
+          labelColor: isDark ? AppColors.primaryAccent : AppColors.primary,
           unselectedLabelColor: isDark
               ? AppColors.textSecondaryDark
               : AppColors.textSecondaryLight,
-          indicatorColor: AppColors.primary,
+          indicatorColor: isDark ? AppColors.primaryAccent : AppColors.primary,
           tabs: const [
             Tab(text: 'Shops & Centers'),
             Tab(text: 'Service Experts'),

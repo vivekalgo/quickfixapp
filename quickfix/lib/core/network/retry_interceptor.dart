@@ -11,8 +11,8 @@ class RetryInterceptor extends Interceptor {
 
   RetryInterceptor({
     required this.dio,
-    this.maxRetries = 3,
-    this.initialDelay = const Duration(seconds: 1),
+    this.maxRetries = 1,
+    this.initialDelay = const Duration(milliseconds: 300),
   });
 
   @override

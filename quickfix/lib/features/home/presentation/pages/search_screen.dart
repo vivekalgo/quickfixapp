@@ -25,6 +25,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  Timer? _debounceTimer;
 
   late stt.SpeechToText _speech;
   bool _speechInitialized = false;
@@ -62,6 +63,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     try {
       _speech.stop();
     } catch (_) {}
@@ -109,7 +111,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     setState(() {
       _query = query;
     });
-    _performSearch(query);
+    _debounceTimer?.cancel();
+    if (query.trim().isEmpty) {
+      _performSearch(query);
+      return;
+    }
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _performSearch(query);
+      }
+    });
   }
 
   void _triggerSearch(String query) {
@@ -629,9 +640,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             _performSearch(words);
           }
         },
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 4),
         listenOptions: stt.SpeechListenOptions(
+          listenFor: const Duration(seconds: 30),
+          pauseFor: const Duration(seconds: 4),
           partialResults: true,
           cancelOnError: true,
           listenMode: stt.ListenMode.search,

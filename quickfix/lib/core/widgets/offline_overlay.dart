@@ -31,6 +31,9 @@ class OfflineOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final connectivity = ref.watch(connectivityProvider);
+    final isOffline = connectivity.value == false;
+
     // Listen for reconnection and automatically refresh app data silently
     ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
       if (next.value == true && previous?.value == false) {
@@ -38,7 +41,46 @@ class OfflineOverlay extends ConsumerWidget {
       }
     });
 
-    // Directly return child without showing disruptive popup dialogs or overlays
-    return child;
+    return Stack(
+      children: [
+        child,
+        if (isOffline)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Material(
+              color: Colors.transparent,
+              child: SafeArea(
+                bottom: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  color: const Color(0xFF1E293B),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.wifi_off_rounded,
+                        color: Colors.amberAccent,
+                        size: 14,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'No internet connection',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }

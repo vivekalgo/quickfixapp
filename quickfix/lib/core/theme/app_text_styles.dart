@@ -76,11 +76,11 @@ class AppTextStyles {
   );
 
   // Section label — for small uppercase section tags
-  static TextStyle sectionLabel = GoogleFonts.inter(
+  static TextStyle sectionLabel(bool isDark) => GoogleFonts.inter(
     fontSize: 12,
     fontWeight: FontWeight.w600,
     letterSpacing: 1.0,
-    color: AppColors.primary,
+    color: isDark ? AppColors.primaryAccent : AppColors.primary,
   );
 
   // Caption — smallest readable text

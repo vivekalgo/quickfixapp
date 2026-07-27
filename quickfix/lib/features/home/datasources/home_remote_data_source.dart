@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quickfix/core/network/dio_client.dart';
 import 'package:quickfix/core/network/api_endpoints.dart';
+import 'package:quickfix/core/storage/hive_service.dart';
 import 'package:quickfix/features/home/models/home_models.dart';
 
 class HomeRemoteDataSource {
@@ -9,13 +10,23 @@ class HomeRemoteDataSource {
   HomeRemoteDataSource(this._client);
 
   Future<List<ServiceCategory>> getCategories() async {
-    final response = await _client.get(ApiEndpoints.categories);
-    final data = response.data as List;
+    try {
+      final response = await _client.get(ApiEndpoints.categories);
+      final data = response.data as List;
+      await HiveService.saveDataCache('home_categories', data);
+      return _parseCategoriesList(data);
+    } catch (e) {
+      final cached = HiveService.getDataCache('home_categories');
+      if (cached != null && cached is List) {
+        return _parseCategoriesList(cached);
+      }
+      rethrow;
+    }
+  }
 
-    // Parse categories from REST response
+  List<ServiceCategory> _parseCategoriesList(List data) {
     return data.map((json) {
       final id = json['id']?.toString() ?? '';
-      // Map domain icons and colors dynamically based on category IDs
       return ServiceCategory(
         id: id,
         name: json['name']?.toString() ?? '',
@@ -41,15 +52,24 @@ class HomeRemoteDataSource {
       query['lng'] = lng;
     }
 
-    final response = await _client.get(
-      ApiEndpoints.shops,
-      queryParameters: query,
-    );
-    final data = response.data as List;
+    final cacheKey = 'nearby_shops_${filter ?? 'All'}';
 
-    return data.map((json) {
-      return Shop.fromJson(json as Map<String, dynamic>);
-    }).toList();
+    try {
+      final response = await _client.get(
+        ApiEndpoints.shops,
+        queryParameters: query,
+      );
+      final data = response.data as List;
+      await HiveService.saveDataCache(cacheKey, data);
+      await HiveService.saveDataCache('nearby_shops_default', data);
+      return data.map((json) => Shop.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (e) {
+      final cached = HiveService.getDataCache(cacheKey) ?? HiveService.getDataCache('nearby_shops_default');
+      if (cached != null && cached is List) {
+        return cached.map((json) => Shop.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<List<Shop>> searchShops({
@@ -63,23 +83,36 @@ class HomeRemoteDataSource {
       queryParams['lng'] = lng;
     }
 
-    final response = await _client.get(
-      '/shops/search',
-      queryParameters: queryParams,
-    );
-    final data = response.data as List;
-
-    return data.map((json) {
-      return Shop.fromJson(json as Map<String, dynamic>);
-    }).toList();
+    try {
+      final response = await _client.get(
+        '/shops/search',
+        queryParameters: queryParams,
+      );
+      final data = response.data as List;
+      await HiveService.saveDataCache('search_shops_$query', data);
+      return data.map((json) => Shop.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (e) {
+      final cached = HiveService.getDataCache('search_shops_$query');
+      if (cached != null && cached is List) {
+        return cached.map((json) => Shop.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<List<PromoBanner>> getBanners() async {
-    final response = await _client.get(ApiEndpoints.banners);
-    final data = response.data as List;
-    return data
-        .map((json) => PromoBanner.fromJson(json as Map<String, dynamic>))
-        .toList();
+    try {
+      final response = await _client.get(ApiEndpoints.banners);
+      final data = response.data as List;
+      await HiveService.saveDataCache('home_banners', data);
+      return data.map((json) => PromoBanner.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (e) {
+      final cached = HiveService.getDataCache('home_banners');
+      if (cached != null && cached is List) {
+        return cached.map((json) => PromoBanner.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<List<Professional>> getTopProfessionals({
@@ -90,60 +123,111 @@ class HomeRemoteDataSource {
     if (lat != null && lat != 0.0) queryParams['lat'] = lat;
     if (lng != null && lng != 0.0) queryParams['lng'] = lng;
 
-    final response = await _client.get(
-      ApiEndpoints.professionals,
-      queryParameters: queryParams.isNotEmpty ? queryParams : null,
-    );
-    final data = response.data as List;
-    return data
-        .map((json) => Professional.fromJson(json as Map<String, dynamic>))
-        .toList();
+    try {
+      final response = await _client.get(
+        ApiEndpoints.professionals,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+      final data = response.data as List;
+      await HiveService.saveDataCache('top_professionals', data);
+      return data.map((json) => Professional.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (e) {
+      final cached = HiveService.getDataCache('top_professionals');
+      if (cached != null && cached is List) {
+        return cached.map((json) => Professional.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      rethrow;
+    }
   }
 
-
   Future<List<Review>> getCustomerReviews() async {
-    final response = await _client.get(ApiEndpoints.reviews);
-    final data = response.data as List;
-    return data
-        .map((json) => Review.fromJson(json as Map<String, dynamic>))
-        .toList();
+    try {
+      final response = await _client.get(ApiEndpoints.reviews);
+      final data = response.data as List;
+      await HiveService.saveDataCache('customer_reviews', data);
+      return data.map((json) => Review.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (e) {
+      final cached = HiveService.getDataCache('customer_reviews');
+      if (cached != null && cached is List) {
+        return cached.map((json) => Review.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<List<Promotion>> getPromotions() async {
-    final response = await _client.get(ApiEndpoints.promotions);
-    final data = response.data as List;
-    return data
-        .map((json) => Promotion.fromJson(json as Map<String, dynamic>))
-        .toList();
+    try {
+      final response = await _client.get(ApiEndpoints.promotions);
+      final data = response.data as List;
+      await HiveService.saveDataCache('home_promotions', data);
+      return data.map((json) => Promotion.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (e) {
+      final cached = HiveService.getDataCache('home_promotions');
+      if (cached != null && cached is List) {
+        return cached.map((json) => Promotion.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<List<SpecialCard>> getSpecialCards() async {
-    final response = await _client.get(ApiEndpoints.specialCards);
-    final data = response.data as List;
-    return data
-        .map((json) => SpecialCard.fromJson(json as Map<String, dynamic>))
-        .toList();
+    try {
+      final response = await _client.get(ApiEndpoints.specialCards);
+      final data = response.data as List;
+      await HiveService.saveDataCache('special_cards', data);
+      return data.map((json) => SpecialCard.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (e) {
+      final cached = HiveService.getDataCache('special_cards');
+      if (cached != null && cached is List) {
+        return cached.map((json) => SpecialCard.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<List<CmsSection>> getHomepageLayout() async {
-    final response = await _client.get(ApiEndpoints.homepageLayout);
-    final data = response.data as List;
-    return data
-        .map((json) => CmsSection.fromJson(json as Map<String, dynamic>))
-        .toList();
+    try {
+      final response = await _client.get(ApiEndpoints.homepageLayout);
+      final data = response.data as List;
+      await HiveService.saveDataCache('homepage_layout', data);
+      return data.map((json) => CmsSection.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (e) {
+      final cached = HiveService.getDataCache('homepage_layout');
+      if (cached != null && cached is List) {
+        return cached.map((json) => CmsSection.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<List<CustomSection>> getCustomSections() async {
-    final response = await _client.get(ApiEndpoints.customSections);
-    final data = response.data as List;
-    return data
-        .map((json) => CustomSection.fromJson(json as Map<String, dynamic>))
-        .toList();
+    try {
+      final response = await _client.get(ApiEndpoints.customSections);
+      final data = response.data as List;
+      await HiveService.saveDataCache('custom_sections', data);
+      return data.map((json) => CustomSection.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (e) {
+      final cached = HiveService.getDataCache('custom_sections');
+      if (cached != null && cached is List) {
+        return cached.map((json) => CustomSection.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> getAppSettings() async {
-    final response = await _client.get(ApiEndpoints.settings);
-    return response.data as Map<String, dynamic>;
+    try {
+      final response = await _client.get(ApiEndpoints.settings);
+      final data = response.data as Map<String, dynamic>;
+      await HiveService.saveDataCache('app_settings_data', data);
+      return data;
+    } catch (e) {
+      final cached = HiveService.getDataCache('app_settings_data');
+      if (cached != null && cached is Map) {
+        return Map<String, dynamic>.from(cached);
+      }
+      rethrow;
+    }
   }
 
   // Helper icons and color utilities

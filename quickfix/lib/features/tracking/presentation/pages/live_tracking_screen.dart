@@ -532,6 +532,7 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
         responseType: responseType,
         comment: comment,
       );
+      if (!mounted) return;
       if (data['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -552,9 +553,11 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error submitting response: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error submitting response: $e')));
+      }
     }
   }
 
@@ -590,8 +593,9 @@ class _LiveTrackingScreenState extends ConsumerState<LiveTrackingScreen> {
   }
 
   Widget _buildQuotationReviewCard(bool isDark) {
-    if (_pricingType != 'inspection' || _quotation == null)
+    if (_pricingType != 'inspection' || _quotation == null) {
       return const SizedBox.shrink();
+    }
 
     final status = _quotation!['status']?.toString() ?? 'pending';
     final double labour =

@@ -323,17 +323,23 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: isDark
+                  ? AppColors.primaryAccent.withValues(alpha: 0.15)
+                  : AppColors.primary.withValues(alpha: 0.1),
               child: Row(
                 children: [
-                  const Icon(Icons.confirmation_number_outlined, size: 16, color: AppColors.primary),
+                  Icon(
+                    Icons.confirmation_number_outlined,
+                    size: 16,
+                    color: isDark ? AppColors.primaryAccent : AppColors.primary,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Support Ticket #$_activeTicketId is currently ${_activeTicketStatus.toUpperCase().replaceAll('_', ' ')}.',
                       style: GoogleFonts.inter(
                         fontSize: 11.5,
-                        color: AppColors.primary,
+                        color: isDark ? Colors.white : AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -357,7 +363,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: msg.isUser
-                          ? AppColors.primary
+                          ? AppColors.primaryAccent
                           : (isDark ? AppColors.surfaceDark : Colors.grey.shade100),
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
@@ -380,7 +386,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                               style: GoogleFonts.inter(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                                color: isDark ? AppColors.primaryAccent : AppColors.primary,
                               ),
                             ),
                           ),
@@ -415,10 +421,10 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                       style: AppTextStyles.bodySmall(isDark),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(
+                    Icon(
                       Icons.more_horiz,
                       size: 16,
-                      color: AppColors.textSecondaryLight,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),
                   ],
                 ).animate(onPlay: (controller) => controller.repeat()).shimmer(),
@@ -443,14 +449,16 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                       color: isDark ? AppColors.surfaceDark : Colors.white,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3),
+                        color: isDark
+                            ? AppColors.primaryAccent.withValues(alpha: 0.4)
+                            : AppColors.primary.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Text(
                       preset,
                       style: GoogleFonts.outfit(
                         fontSize: 12,
-                        color: AppColors.primary,
+                        color: isDark ? Colors.white : AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -489,7 +497,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                         border: InputBorder.none,
                         isDense: true,
                         hintStyle: GoogleFonts.inter(
-                          color: AppColors.textSecondaryLight,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
                           fontSize: 13,
                         ),
                       ),
@@ -502,7 +512,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                 ),
                 const SizedBox(width: 8),
                 CircleAvatar(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: AppColors.primaryAccent,
                   child: IconButton(
                     icon: const Icon(Icons.send, color: Colors.white, size: 18),
                     onPressed: () => _sendMessage(_messageController.text),

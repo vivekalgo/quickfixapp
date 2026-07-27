@@ -177,8 +177,13 @@ class LocationNotifier extends StateNotifier<UserLocation> {
   /// Standard user-agent header is set to prevent rate limiting.
   Future<String?> _reverseGeocode(double lat, double lng) async {
     try {
-      final dio = Dio();
-      dio.options.headers['User-Agent'] = 'QuickFixApp/1.0';
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 3),
+          receiveTimeout: const Duration(seconds: 3),
+          headers: {'User-Agent': 'QuickFixApp/1.0'},
+        ),
+      );
       final response = await dio.get(
         'https://nominatim.openstreetmap.org/reverse',
         queryParameters: {

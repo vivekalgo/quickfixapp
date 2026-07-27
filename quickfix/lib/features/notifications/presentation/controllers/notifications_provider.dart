@@ -57,6 +57,17 @@ final syncNotificationsProvider = FutureProvider<void>((ref) async {
     for (final item in data) {
       final map = Map<String, dynamic>.from(item as Map);
       final id = map['id']?.toString() ?? '';
+      final title = (map['title'] ?? '').toString();
+      final type = (map['type'] ?? 'general').toString();
+
+      // Block "QuickFix Update" & system update notifications
+      if (title.toLowerCase().contains('quickfix update') ||
+          title.toLowerCase().contains('update available') ||
+          type == 'system_update' ||
+          type == 'app_update') {
+        continue;
+      }
+
       if (id.isNotEmpty && !deletedIds.contains(id) && !box.containsKey(id)) {
         final localItem = {
           'id': id,

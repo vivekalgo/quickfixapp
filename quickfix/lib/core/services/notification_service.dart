@@ -27,25 +27,38 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Hive.initFlutter();
   final box = await Hive.openBox('local_notifications');
   final notificationData = _parseMessage(message);
-  await box.put(notificationData['id'], notificationData);
+  if (notificationData != null) {
+    await box.put(notificationData['id'], notificationData);
+  }
   AppLogger.info(
     'Background message received: ${message.messageId}',
     tag: 'FCM',
   );
 }
 
-Map<String, dynamic> _parseMessage(RemoteMessage message) {
+Map<String, dynamic>? _parseMessage(RemoteMessage message) {
   final notification = message.notification;
   final data = message.data;
+  final title = notification?.title ?? data['title'] ?? '';
+  final type = data['type']?.toString() ?? 'general';
+
+  // Completely block and turn off "QuickFix Update" & system update notifications
+  if (title.toLowerCase().contains('quickfix update') ||
+      title.toLowerCase().contains('update available') ||
+      type == 'system_update' ||
+      type == 'app_update') {
+    return null;
+  }
+
   final id =
       message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
   return {
     'id': id,
-    'title': notification?.title ?? data['title'] ?? 'QuickFix Update',
+    'title': title.isNotEmpty ? title : 'Notification',
     'body': notification?.body ?? data['body'] ?? '',
     'time': DateTime.now().toIso8601String(),
     'isRead': false,
-    'type': data['type'] ?? 'general',
+    'type': type,
     'bookingId': data['bookingId'] ?? '',
     'orderId': data['orderId'] ?? '',
     'deepLink': data['deepLink'] ?? '',
@@ -131,6 +144,7 @@ class NotificationService {
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
         AppLogger.info('Foreground message: ${message.messageId}', tag: 'FCM');
         final notificationData = _parseMessage(message);
+        if (notificationData == null) return;
         final box = Hive.box('local_notifications');
         await box.put(notificationData['id'], notificationData);
 
@@ -185,8 +199,8 @@ class NotificationService {
         await syncTokenWithBackend(newToken);
       });
 
-      // 9. Terminated state + topic subscription + initial token sync
-      await _initStartup();
+      // 9. Terminated state + topic subscription + initial token sync (run asynchronously in background)
+      unawaited(_initStartup());
     } catch (e, s) {
       AppLogger.error(
         'NotificationService.init failed',
@@ -201,7 +215,8 @@ class NotificationService {
     // Handle app launch via notification (terminated state)
     try {
       final initialMessage = await FirebaseMessaging.instance
-          .getInitialMessage();
+          .getInitialMessage()
+          .timeout(const Duration(seconds: 2));
       if (initialMessage != null) {
         AppLogger.info(
           'App launched via terminated notification: ${initialMessage.messageId}',
@@ -226,10 +241,9 @@ class NotificationService {
       );
     }
 
-    // ✅ FIX: Sync current FCM token to backend on EVERY app startup
-    // Without this, the backend never gets the token unless it rotates
+    // Sync current FCM token to backend on app startup if logged in
     try {
-      final fcmToken = await getToken();
+      final fcmToken = await getToken().timeout(const Duration(seconds: 2));
       if (fcmToken != null) {
         // Only sync if user is logged in
         final authToken = HiveService.getAuthToken();

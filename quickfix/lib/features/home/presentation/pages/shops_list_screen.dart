@@ -10,6 +10,7 @@ import 'package:quickfix/features/home/models/home_models.dart';
 import 'package:quickfix/core/widgets/error_widgets.dart';
 import 'package:quickfix/core/network/connectivity_provider.dart';
 import 'package:quickfix/core/network/error_handler.dart';
+import 'package:quickfix/core/storage/hive_service.dart';
 
 class ShopsListScreen extends ConsumerStatefulWidget {
   const ShopsListScreen({super.key});
@@ -32,14 +33,34 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCachedShops();
     _fetchShops();
   }
 
+  void _loadCachedShops() {
+    try {
+      final cached = HiveService.getDataCache('nearby_shops_All') ?? HiveService.getDataCache('nearby_shops_default');
+      if (cached != null && cached is List) {
+        final parsed = cached.map((e) => Shop.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+        if (parsed.isNotEmpty) {
+          parsed.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+          setState(() {
+            _allShops = parsed;
+            _isLoading = false;
+            _applyFilters();
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _fetchShops() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    if (_allShops == null || _allShops!.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     try {
       final activeLocation = ref.read(currentAddressProvider);
@@ -64,9 +85,9 @@ class _ShopsListScreenState extends ConsumerState<ShopsListScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = ErrorHandler.handle(e).message;
-          _allShops = [];
-          _filteredShops = [];
+          if (_allShops == null || _allShops!.isEmpty) {
+            _errorMessage = ErrorHandler.handle(e).message;
+          }
         });
       }
     }
